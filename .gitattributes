@@ -1,0 +1,28 @@
+# Default: store text files with LF in the repo
+* text=auto eol=lf
+
+# Scripts that run on Linux (Lambda, Docker) must be LF
+*.sh    text eol=lf
+*.bash  text eol=lf
+
+# Windows-only scripts keep CRLF
+*.ps1   text eol=crlf
+*.psm1  text eol=crlf
+*.bat   text eol=crlf
+*.cmd   text eol=crlf
+
+# Binary: never convert
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.webp  binary
+*.gif   binary
+*.ico   binary
+*.pdf   binary
+*.woff  binary
+*.woff2 binary
+*.zip   binary
+
+# Reduce diff noise
+pnpm-lock.yaml    -diff linguist-generated
+package-lock.json -diff linguist-generated
