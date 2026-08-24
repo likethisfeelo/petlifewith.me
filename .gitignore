@@ -19,3 +19,4 @@ data/*.xlsx
 Thumbs.db
 .vscode/*
 !.vscode/extensions.json
+*.tsbuildinfo
