@@ -1,0 +1,96 @@
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { eq } from "drizzle-orm";
+import { getDb, isDbConfigured, schema } from "@/lib/db";
+import { getGuideEntityTags } from "@/lib/queries/guides";
+import { GuideEditor } from "./guide-editor";
+import { TagManager, type ExistingTag, type TagOption } from "./tag-manager";
+
+const { guides, items, spots, makers, regions } = schema;
+
+interface Props {
+  params: Promise<{ id: string }>;
+}
+
+export default async function AdminGuideEditPage({ params }: Props) {
+  if (!isDbConfigured()) return <p className="text-sm text-ink-soft">DATABASE_URL 미설정</p>;
+  const { id } = await params;
+  const guideId = Number(id);
+  if (!Number.isSafeInteger(guideId)) notFound();
+
+  const db = getDb();
+  const guide = (await db.select().from(guides).where(eq(guides.id, guideId)).limit(1))[0];
+  if (!guide) notFound();
+
+  const [tags, itemRows, spotRows, makerRows] = await Promise.all([
+    getGuideEntityTags(guideId),
+    db.select({ id: items.id, name: items.name }).from(items).orderBy(items.name),
+    db
+      .select({ id: spots.id, name: spots.name, sigunguName: regions.sigunguName })
+      .from(spots)
+      .innerJoin(regions, eq(spots.regionId, regions.id))
+      .orderBy(spots.name)
+      .limit(500),
+    db.select({ id: makers.id, name: makers.name }).from(makers).orderBy(makers.name),
+  ]);
+
+  const existing: ExistingTag[] = [
+    ...tags.items.map((t) => ({ kind: "item" as const, refId: t.item.id, label: t.item.name, contextLabel: t.contextLabel })),
+    ...tags.spots.map((t) => ({ kind: "spot" as const, refId: t.spot.id, label: t.spot.name, contextLabel: t.contextLabel })),
+    ...tags.makers.map((t) => ({ kind: "maker" as const, refId: t.maker.id, label: t.maker.name, contextLabel: t.contextLabel })),
+  ];
+
+  const options: Record<"item" | "spot" | "maker", TagOption[]> = {
+    item: itemRows.map((r) => ({ id: r.id, label: r.name })),
+    spot: spotRows.map((r) => ({ id: r.id, label: `${r.name} (${r.sigunguName})` })),
+    maker: makerRows.map((r) => ({ id: r.id, label: r.name })),
+  };
+
+  return (
+    <div>
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-extrabold text-ink">가이드 편집</h1>
+        <div className="flex items-center gap-3 text-sm">
+          <span className="text-xs text-ink-faint">/guide/{guide.slug}</span>
+          {guide.status === "published" && (
+            <Link href={`/guide/${guide.slug}`} className="font-medium text-sea hover:underline">
+              공개 페이지 보기 →
+            </Link>
+          )}
+        </div>
+      </div>
+
+      <div className="mt-5 grid gap-6 lg:grid-cols-[1fr_20rem]">
+        <div className="rounded-xl border border-line bg-surface p-4">
+          <GuideEditor
+            guide={{
+              id: guide.id,
+              title: guide.title,
+              summary: guide.summary,
+              bodyMd: guide.bodyMd,
+              role: guide.role,
+              spokeGroup: guide.spokeGroup,
+              status: guide.status,
+              medicalAdjacent: guide.medicalAdjacent,
+              vetReviewed: guide.vetReviewed,
+              vetReviewerName: guide.vetReviewerName,
+              vetReviewedAt: guide.vetReviewedAt,
+            }}
+          />
+        </div>
+        <div className="space-y-4">
+          <TagManager guideId={guide.id} existing={existing} options={options} />
+          <div className="rounded-xl border border-line bg-sand/60 p-4 text-xs leading-relaxed text-ink-soft">
+            <p className="font-bold text-ink">발행 규칙 요약</p>
+            <ul className="mt-2 list-disc space-y-1 pl-4">
+              <li>의료 인접 편은 감수 완료 전 발행 불가 (DB 게이트)</li>
+              <li>임베드는 공식 임베드 숏코드만 — 창작자·원본 링크 누락 시 렌더되지 않음</li>
+              <li>이미지 재호스팅 금지 — 히어로 이미지는 직접 촬영분만 업로드</li>
+              <li>효과 단정 표현 금지: "~에 효과적" 대신 "~ 목적으로 사용된다"</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
