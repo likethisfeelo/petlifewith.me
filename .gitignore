@@ -12,6 +12,7 @@ cdk.out/
 .aws/
 credentials
 data/raw/
+data/reports/
 data/*.csv
 data/*.xlsx
 .DS_Store
