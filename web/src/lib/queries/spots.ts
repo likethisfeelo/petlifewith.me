@@ -1,9 +1,10 @@
-import { and, asc, eq, ne, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, ne, sql } from "drizzle-orm";
 import { getDb, isDbConfigured, schema } from "../db";
 
-const { spots, spotTypes, regions, promotions, regionDogStats } = schema;
+const { spots, spotTypes, regions, promotions, regionDogStats, spotLinks } = schema;
 
 export type SpotRow = typeof spots.$inferSelect;
+export type SpotLinkRow = typeof spotLinks.$inferSelect;
 export type SpotTypeRow = typeof spotTypes.$inferSelect;
 export type RegionRow = typeof regions.$inferSelect;
 
@@ -50,6 +51,23 @@ export async function getPlace(id: number): Promise<SpotWithMeta | null> {
   const row = rows[0];
   if (!row) return null;
   return { ...row, promoted: false };
+}
+
+/** 스팟의 외부 링크 (홈페이지·카카오톡·예약 등 — 등록된 것만) */
+export async function getSpotLinks(spotId: number): Promise<SpotLinkRow[]> {
+  if (!isDbConfigured()) return [];
+  return getDb().select().from(spotLinks).where(eq(spotLinks.spotId, spotId)).orderBy(asc(spotLinks.sortOrder));
+}
+
+/** 여러 스팟의 링크 개수 — 관리자 목록·사이트맵의 noindex 판정에 쓴다. */
+export async function countLinksBySpot(spotIds: number[]): Promise<Map<number, number>> {
+  if (!isDbConfigured() || spotIds.length === 0) return new Map();
+  const rows = await getDb()
+    .select({ spotId: spotLinks.spotId, count: sql<number>`count(*)`.mapWith(Number) })
+    .from(spotLinks)
+    .where(inArray(spotLinks.spotId, spotIds))
+    .groupBy(spotLinks.spotId);
+  return new Map(rows.map((r) => [r.spotId, r.count]));
 }
 
 /**

@@ -3,9 +3,10 @@
 // 사이트맵에도 넣지 않는다.
 import { and, eq, gte, ne, sql } from "drizzle-orm";
 import { getDb, isDbConfigured, schema } from "../db";
-import { MIN_SPOTS_FOR_INDEX, placeInfoItemCount } from "../seo";
+import { MIN_PLACE_INFO_ITEMS, MIN_SPOTS_FOR_INDEX, placeInfoItemCount } from "../seo";
 
-const { guides, topics, spots, spotTypes, regions, makers, items, guideItemTags, curations, curationEntries } = schema;
+const { guides, topics, spots, spotTypes, regions, makers, items, guideItemTags, curations, curationEntries, spotLinks } =
+  schema;
 
 export interface SitemapEntry {
   path: string;
@@ -75,7 +76,7 @@ export async function sitemapRegions(): Promise<SitemapEntry[]> {
   ];
 }
 
-/** 개별 장소 — 영업 중 + 비샘플 + 정보 3항목 이상만 */
+/** 개별 장소 — 영업 중 + 비샘플 + 정보 3항목 이상만 (링크도 정보 항목으로 센다) */
 export async function sitemapPlaces(): Promise<SitemapEntry[]> {
   if (!isDbConfigured()) return [];
   const db = getDb();
@@ -83,8 +84,16 @@ export async function sitemapPlaces(): Promise<SitemapEntry[]> {
     .select()
     .from(spots)
     .where(and(eq(spots.status, "operating"), ne(spots.source, "sample")));
+  if (rows.length === 0) return [];
+
+  const linkCounts = await db
+    .select({ spotId: spotLinks.spotId, count: sql<number>`count(*)`.mapWith(Number) })
+    .from(spotLinks)
+    .groupBy(spotLinks.spotId);
+  const byId = new Map(linkCounts.map((r) => [r.spotId, r.count]));
+
   return rows
-    .filter((s) => placeInfoItemCount(s) >= 3)
+    .filter((s) => placeInfoItemCount(s, byId.get(s.id) ?? 0) >= MIN_PLACE_INFO_ITEMS)
     .map((s) => ({ path: `/place/${s.id}-${encodeURIComponent(s.slug)}`, lastModified: s.updatedAt }));
 }
 

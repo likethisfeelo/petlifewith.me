@@ -319,9 +319,6 @@ export const spots = pgTable(
     hoursText: text("hours_text"),
     priceText: text("price_text"),
     parkingText: text("parking_text"),
-    reservationUrl: text("reservation_url"),
-    homepageUrl: text("homepage_url"),
-    instagramUrl: text("instagram_url"),
     heroImageKey: text("hero_image_key"),
     claimedBy: uuid("claimed_by").references(() => users.id),
     createdAt: createdAt(),
@@ -332,6 +329,25 @@ export const spots = pgTable(
     index("spots_type_idx").on(t.typeId),
     index("spots_source_idx").on(t.source),
   ],
+);
+
+// 스팟 외부 링크 — 홈페이지·카카오톡·예약·인스타 등을 필요한 것만 선택적으로.
+// maker_links 와 동일한 구조다. 고정 컬럼 대신 이 테이블을 쓰는 이유는
+// 업체마다 쓰는 채널이 제각각이고(카카오톡 채널만 있는 곳, 네이버 예약만 있는 곳),
+// 채널이 늘어날 때마다 스키마를 바꾸지 않기 위해서다.
+export const spotLinks = pgTable(
+  "spot_links",
+  {
+    id: bigint("id", { mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
+    spotId: bigint("spot_id", { mode: "number" })
+      .notNull()
+      .references(() => spots.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull(), // website / kakao / reservation / instagram / naver / blog / etc
+    url: text("url").notNull(),
+    label: text("label"),
+    sortOrder: integer("sort_order").notNull().default(0),
+  },
+  (t) => [index("spot_links_spot_idx").on(t.spotId)],
 );
 
 // 노출 광고 (기획서 4-3). 가격은 트래픽 확보 후 책정 — 지금은 슬롯 구조만.

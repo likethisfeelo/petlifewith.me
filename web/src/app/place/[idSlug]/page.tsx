@@ -9,7 +9,8 @@ import { contactEmail } from "@/lib/config";
 import { SPOT_STATUS_LABEL, formatDate, idSlugPath, parseIdSlug } from "@/lib/format";
 import { renderMarkdown } from "@/lib/markdown";
 import { guidesMentioningSpot } from "@/lib/queries/guides";
-import { getPlace } from "@/lib/queries/spots";
+import { getPlace, getSpotLinks } from "@/lib/queries/spots";
+import { spotLinkLabel } from "@/lib/links";
 import { canonicalUrl, localBusinessLd, placeInfoItemCount, robotsMeta, shouldIndexPlace } from "@/lib/seo";
 
 export const revalidate = 21600; // REVALIDATE.place
@@ -28,12 +29,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const found = id ? await getPlace(id) : null;
   if (!found) return { robots: robotsMeta(false) };
   const { spot, typeName, region } = found;
+  const linkCount = (await getSpotLinks(spot.id)).length;
   return {
     title: `${spot.name} — ${region.sigunguName} ${typeName}`,
     description: spot.descriptionMd?.split("\n")[0] ?? `${region.sidoName} ${region.sigunguName}의 ${typeName}.`,
     alternates: { canonical: canonicalUrl(idSlugPath("place", spot.id, spot.slug)) },
     // 얇은 콘텐츠 방지: 정보 3항목 미만 개별 장소 → noindex (claude.md 5-3)
-    robots: robotsMeta(shouldIndexPlace(spot)),
+    robots: robotsMeta(shouldIndexPlace(spot, linkCount)),
   };
 }
 
@@ -45,10 +47,10 @@ export default async function PlacePage({ params }: Props) {
   if (!found) notFound();
 
   const { spot, typeName, typeMonetizable, region } = found;
-  const mentions = await guidesMentioningSpot(spot.id);
+  const [mentions, links] = await Promise.all([guidesMentioningSpot(spot.id), getSpotLinks(spot.id)]);
   const description = spot.descriptionMd ? renderMarkdown(spot.descriptionMd) : null;
   const email = contactEmail();
-  const infoCount = placeInfoItemCount(spot);
+  const infoCount = placeInfoItemCount(spot, links.length);
 
   const infoRows: Array<[string, React.ReactNode]> = [];
   if (spot.addressRoad) infoRows.push(["주소", spot.addressRoad]);
@@ -56,27 +58,21 @@ export default async function PlacePage({ params }: Props) {
   if (spot.hoursText) infoRows.push(["운영시간", spot.hoursText]);
   if (spot.priceText) infoRows.push(["요금", spot.priceText]);
   if (spot.parkingText) infoRows.push(["주차", spot.parkingText]);
-  if (spot.reservationUrl)
+  // 등록된 외부 링크만 노출한다 (홈페이지·카카오톡·예약 등 — 업체마다 다르다)
+  for (const link of links) {
     infoRows.push([
-      "예약",
-      <a key="rsv" className="text-sea hover:underline" href={spot.reservationUrl} target="_blank" rel="noopener noreferrer">
-        예약 페이지 ↗
+      spotLinkLabel(link),
+      <a
+        key={`link-${link.id}`}
+        className="text-sea hover:underline"
+        href={link.url}
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        {link.url.replace(/^https?:\/\//, "").slice(0, 42)} ↗
       </a>,
     ]);
-  if (spot.homepageUrl)
-    infoRows.push([
-      "홈페이지",
-      <a key="hp" className="text-sea hover:underline" href={spot.homepageUrl} target="_blank" rel="noopener noreferrer">
-        {spot.homepageUrl.replace(/^https?:\/\//, "").slice(0, 40)} ↗
-      </a>,
-    ]);
-  if (spot.instagramUrl)
-    infoRows.push([
-      "인스타그램",
-      <a key="ig" className="text-sea hover:underline" href={spot.instagramUrl} target="_blank" rel="noopener noreferrer">
-        프로필 보기 ↗
-      </a>,
-    ]);
+  }
 
   const regionPath = `/spot/${region.sidoSlug}/${region.sigunguSlug}`;
 
@@ -130,8 +126,8 @@ export default async function PlacePage({ params }: Props) {
       {infoRows.length > 0 && (
         <section className="mt-6 overflow-hidden rounded-xl border border-line bg-surface">
           <dl className="divide-y divide-line text-sm">
-            {infoRows.map(([label, value]) => (
-              <div key={label} className="grid grid-cols-[5.5rem_1fr] gap-3 px-4 py-3">
+            {infoRows.map(([label, value], i) => (
+              <div key={`${label}-${i}`} className="grid grid-cols-[5.5rem_1fr] gap-3 px-4 py-3">
                 <dt className="text-ink-faint">{label}</dt>
                 <dd className="text-ink">{value}</dd>
               </div>

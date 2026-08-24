@@ -20,6 +20,7 @@ import {
   makers,
   promotions,
   regions,
+  spotLinks,
   spotTypes,
   spots,
   users,
@@ -187,7 +188,6 @@ async function main() {
       descriptionMd: "개발용 샘플 스팟입니다. 스파 상세 페이지 렌더링 확인용.",
       hoursText: "화–일 10:30–19:30 (샘플)",
       priceText: "스파 코스 55,000원부터 (샘플)",
-      reservationUrl: "https://example.com/reserve",
       status: "operating" as const,
     },
     {
@@ -260,6 +260,17 @@ async function main() {
       ? (await db.update(spots).set({ ...values, updatedAt: new Date() }).where(eq(spots.id, existing.id)).returning())[0]!
       : (await db.insert(spots).values(values).returning())[0]!;
     spotIds[key] = row.id;
+  }
+
+  // 스팟 외부 링크 — 홈페이지·카카오톡·예약 등 선택적 링크 렌더링 확인용
+  for (const key of ["spa-gangnam", "self-wash-mapo"]) {
+    const id = spotIds[key]!;
+    await db.delete(spotLinks).where(eq(spotLinks.spotId, id));
+    await db.insert(spotLinks).values([
+      { spotId: id, kind: "website", url: "https://example.com/", label: null, sortOrder: 1 },
+      { spotId: id, kind: "kakao", url: "http://pf.kakao.com/_sample", label: null, sortOrder: 2 },
+      { spotId: id, kind: "reservation", url: "https://example.com/reserve", label: null, sortOrder: 3 },
+    ]);
   }
 
   // 프로모션 라벨("광고") 렌더링 확인용 — 장묘가 아닌 스팟에만

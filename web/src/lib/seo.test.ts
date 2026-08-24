@@ -8,9 +8,6 @@ const emptyPlace = {
   hoursText: null,
   priceText: null,
   parkingText: null,
-  reservationUrl: null,
-  homepageUrl: null,
-  instagramUrl: null,
 };
 
 describe("얇은 콘텐츠 방지 게이트 (claude.md 5-3)", () => {
@@ -29,6 +26,15 @@ describe("얇은 콘텐츠 방지 게이트 (claude.md 5-3)", () => {
     expect(shouldIndexPlace(rich)).toBe(true);
   });
 
+  it("등록된 외부 링크도 정보 항목으로 센다", () => {
+    const withLinks = { ...emptyPlace, addressRoad: "주소", phone: "02", status: "operating", source: "direct" };
+    // 주소 + 전화 = 2항목이라 그대로면 미달
+    expect(shouldIndexPlace(withLinks, 0)).toBe(false);
+    // 카카오톡 링크 하나가 더해지면 3항목
+    expect(placeInfoItemCount(withLinks, 1)).toBe(3);
+    expect(shouldIndexPlace(withLinks, 1)).toBe(true);
+  });
+
   it("빈 문자열은 정보 항목으로 세지 않는다", () => {
     const padded = { ...emptyPlace, addressRoad: "  ", phone: "02", descriptionMd: "설명" };
     expect(placeInfoItemCount(padded)).toBe(2);
@@ -43,7 +49,7 @@ describe("얇은 콘텐츠 방지 게이트 (claude.md 5-3)", () => {
       priceText: "1만원",
     };
     expect(shouldIndexPlace({ ...rich, status: "closed", source: "public_data" })).toBe(false);
-    expect(shouldIndexPlace({ ...rich, status: "operating", source: "sample" })).toBe(false);
+    expect(shouldIndexPlace({ ...rich, status: "operating", source: "sample" }, 5)).toBe(false);
     expect(shouldIndexPlace({ ...rich, status: "operating", source: "direct" })).toBe(true);
   });
 });

@@ -22,13 +22,13 @@ export interface PlaceInfoFields {
   hoursText: string | null;
   priceText: string | null;
   parkingText: string | null;
-  reservationUrl: string | null;
-  homepageUrl: string | null;
-  instagramUrl: string | null;
 }
 
-/** 개별 장소가 가진 "정보 항목" 수 — noindex 게이트 판정 기준 */
-export function placeInfoItemCount(spot: PlaceInfoFields): number {
+/**
+ * 개별 장소가 가진 "정보 항목" 수 — noindex 게이트 판정 기준.
+ * 외부 링크(홈페이지·카카오톡·예약 등)도 하나씩 정보 항목으로 센다.
+ */
+export function placeInfoItemCount(spot: PlaceInfoFields, linkCount = 0): number {
   const fields = [
     spot.addressRoad,
     spot.phone,
@@ -36,17 +36,18 @@ export function placeInfoItemCount(spot: PlaceInfoFields): number {
     spot.hoursText,
     spot.priceText,
     spot.parkingText,
-    spot.reservationUrl,
-    spot.homepageUrl,
-    spot.instagramUrl,
   ];
-  return fields.filter((f) => typeof f === "string" && f.trim().length > 0).length;
+  const filled = fields.filter((f) => typeof f === "string" && f.trim().length > 0).length;
+  return filled + Math.max(0, linkCount);
 }
 
-export function shouldIndexPlace(spot: PlaceInfoFields & { status: string; source: string }): boolean {
+export function shouldIndexPlace(
+  spot: PlaceInfoFields & { status: string; source: string },
+  linkCount = 0,
+): boolean {
   if (spot.source === "sample") return false; // 개발 픽스처는 절대 색인하지 않는다
   if (spot.status !== "operating") return false;
-  return placeInfoItemCount(spot) >= MIN_PLACE_INFO_ITEMS;
+  return placeInfoItemCount(spot, linkCount) >= MIN_PLACE_INFO_ITEMS;
 }
 
 // ---------- 메타데이터 헬퍼 ----------
