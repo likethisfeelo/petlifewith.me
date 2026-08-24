@@ -1,69 +1,219 @@
 <#
 .SYNOPSIS
-    One-time local development setup: env file, dependencies, database.
+    One-time local development setup: prerequisites, env file, dependencies, database.
 
 .DESCRIPTION
-    1. Copies .env.example to .env.local when missing (fill values afterwards).
-    2. Installs pnpm dependencies.
-    3. Starts the dev database container (docker compose).
-    4. Applies migrations and base/content seeds.
+    Run this once after cloning. It performs:
+      1. Prerequisite check (node 22+, pnpm, docker).
+      2. Creates .env.local with working local defaults when missing.
+         Secrets (ADMIN_TOKEN, AUTH_SECRET) are randomly generated.
+         NOTE: .env.example lists variable names only, so it is NOT copied -
+         copying it would leave DATABASE_URL empty and the migration would fail.
+      3. pnpm install.
+      4. Starts the dev database container and waits until it accepts connections.
+      5. Applies migrations and runs the base + content seeds.
 
     NOTE: ASCII-only on purpose. Korean text in .ps1 breaks under Windows
     PowerShell 5.1 when the BOM is lost. Do not add non-ASCII characters.
 
 .EXAMPLE
     .\scripts\setup.ps1
+    .\scripts\setup.ps1 -WithDevFixtures
+    .\scripts\setup.ps1 -SkipDocker -DatabaseUrl 'postgresql://app:pw@localhost:5432/app_dev'
 #>
 
 [CmdletBinding()]
 param(
+    # Use an already-running PostgreSQL instead of the docker compose container.
     [switch]$SkipDocker,
-    [switch]$WithDevFixtures
+
+    # Load sample spots/makers/items so page templates have data to render.
+    [switch]$WithDevFixtures,
+
+    # Only used when .env.local is created. Default matches docker-compose.yml.
+    [string]$DatabaseUrl = 'postgresql://app:app_dev_password@localhost:5432/app_dev',
+
+    # Display brand name. Left empty on purpose - the brand is not decided yet
+    # and must never be hardcoded in source (see claude.md section 9).
+    [string]$SiteName = ''
 )
 
 $ErrorActionPreference = 'Stop'
 
 if (-not (Test-Path 'pnpm-workspace.yaml')) {
-    throw 'Run this from the repository root.'
+    throw 'Run this from the repository root (pnpm-workspace.yaml not found).'
+}
+
+# --------------------------------------------------------------------
+# helpers
+# --------------------------------------------------------------------
+
+function Write-Step {
+    param([string]$Message)
+    Write-Host ('  [ OK ] ' + $Message) -ForegroundColor Green
+}
+
+function Invoke-Native {
+    param([string]$Label, [scriptblock]$Action)
+    & $Action
+    if ($LASTEXITCODE -ne 0) {
+        throw ($Label + ' failed (exit code ' + $LASTEXITCODE + ').')
+    }
+    Write-Step $Label
+}
+
+function New-DevSecret {
+    param([int]$ByteCount = 32)
+    $bytes = New-Object 'System.Byte[]' $ByteCount
+    $rng = New-Object System.Security.Cryptography.RNGCryptoServiceProvider
+    try { $rng.GetBytes($bytes) } finally { $rng.Dispose() }
+    return (($bytes | ForEach-Object { $_.ToString('x2') }) -join '')
+}
+
+function Get-EnvValue {
+    param([string]$Path, [string]$Key)
+    if (-not (Test-Path $Path)) { return $null }
+    foreach ($line in (Get-Content $Path)) {
+        if ($line -match ('^\s*' + [regex]::Escape($Key) + '\s*=\s*(.*)$')) {
+            return $Matches[1].Trim()
+        }
+    }
+    return $null
+}
+
+function Wait-ForDatabase {
+    param([int]$TimeoutSeconds = 90)
+    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+    $previous = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        while ((Get-Date) -lt $deadline) {
+            docker compose exec -T db pg_isready -U app -d app_dev *> $null
+            if ($LASTEXITCODE -eq 0) { return $true }
+            Start-Sleep -Seconds 2
+        }
+    } finally {
+        $ErrorActionPreference = $previous
+    }
+    return $false
 }
 
 Write-Host ''
 Write-Host '  Local setup' -ForegroundColor Cyan
 Write-Host '  ----------------------------------------------------------' -ForegroundColor DarkGray
 
-# ---- 1. env file ----------------------------------------------------
+# --------------------------------------------------------------------
+# 1. prerequisites
+# --------------------------------------------------------------------
+
+if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
+    throw 'node not found. Install Node.js 22 LTS: https://nodejs.org/'
+}
+$nodeVersion = (node --version)
+$nodeMajor = [int](($nodeVersion.TrimStart('v') -split '\.')[0])
+if ($nodeMajor -lt 22) {
+    Write-Host ('  [WARN] node ' + $nodeVersion + ' - deploy target is 22 LTS. Consider upgrading.') -ForegroundColor Yellow
+} else {
+    Write-Step ('node ' + $nodeVersion)
+}
+
+if (-not (Get-Command pnpm -ErrorAction SilentlyContinue)) {
+    throw 'pnpm not found. Enable it with:  corepack enable pnpm    (npm and yarn are not used here)'
+}
+Write-Step ('pnpm ' + (pnpm --version))
+
+if (-not $SkipDocker -and -not (Get-Command docker -ErrorAction SilentlyContinue)) {
+    throw 'docker not found. Install Docker Desktop, or use -SkipDocker with a local PostgreSQL.'
+}
+
+# --------------------------------------------------------------------
+# 2. env file
+# --------------------------------------------------------------------
+
 if (-not (Test-Path '.env.local')) {
-    Copy-Item '.env.example' '.env.local'
-    Write-Host '  [ OK ] .env.local created from .env.example - fill in values!' -ForegroundColor Yellow
+    $adminToken = New-DevSecret -ByteCount 16
+    $authSecret = New-DevSecret -ByteCount 32
+
+    $envContent = @"
+# Generated by scripts/setup.ps1 - LOCAL DEVELOPMENT ONLY. Never commit this file.
+# Full variable list and comments: .env.example
+
+NEXT_PUBLIC_SITE_NAME=$SiteName
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
+
+DATABASE_URL=$DatabaseUrl
+DB_POOL_MAX=5
+
+ADMIN_TOKEN=$adminToken
+AUTH_SECRET=$authSecret
+
+STORAGE_ENDPOINT=
+STORAGE_REGION=ap-northeast-2
+STORAGE_BUCKET=
+STORAGE_ACCESS_KEY_ID=
+STORAGE_SECRET_ACCESS_KEY=
+ASSET_BASE_URL=
+
+DATA_GO_KR_API_KEY=
+"@
+
+    [IO.File]::WriteAllText(
+        (Join-Path (Get-Location) '.env.local'),
+        ($envContent -replace "`r`n", "`n"),
+        (New-Object Text.UTF8Encoding $false)
+    )
+    Write-Step '.env.local created with local defaults (secrets generated)'
 } else {
-    Write-Host '  [ OK ] .env.local exists' -ForegroundColor Green
+    Write-Step '.env.local exists - leaving it untouched'
 }
 
-# ---- 2. dependencies ------------------------------------------------
-pnpm install
-Write-Host '  [ OK ] pnpm install' -ForegroundColor Green
+# --------------------------------------------------------------------
+# 3. dependencies
+# --------------------------------------------------------------------
 
-# ---- 3. database container -----------------------------------------
+Invoke-Native 'pnpm install' { pnpm install }
+
+# --------------------------------------------------------------------
+# 4. database
+# --------------------------------------------------------------------
+
 if (-not $SkipDocker) {
-    docker compose up -d db
-    Write-Host '  [ OK ] postgres container started (docker compose)' -ForegroundColor Green
-    Start-Sleep -Seconds 3
+    Invoke-Native 'docker compose up -d db' { docker compose up -d db }
+    if (-not (Wait-ForDatabase)) {
+        throw 'Database did not become ready in time. Check: docker compose logs db'
+    }
+    Write-Step 'postgres is accepting connections'
 } else {
-    Write-Host '  [SKIP] docker (use local postgres, check DATABASE_URL)' -ForegroundColor DarkGray
+    Write-Host '  [SKIP] docker - using the DATABASE_URL from .env.local' -ForegroundColor DarkGray
 }
 
-# ---- 4. migrate + seed ----------------------------------------------
-pnpm db:migrate
-Write-Host '  [ OK ] migrations applied' -ForegroundColor Green
+$configuredUrl = Get-EnvValue -Path '.env.local' -Key 'DATABASE_URL'
+if ([string]::IsNullOrWhiteSpace($configuredUrl)) {
+    throw 'DATABASE_URL is empty in .env.local. Fill it in and run this script again.'
+}
 
-pnpm seed
-Write-Host '  [ OK ] base + content seed done' -ForegroundColor Green
+# --------------------------------------------------------------------
+# 5. migrate + seed
+# --------------------------------------------------------------------
+
+Invoke-Native 'migrations applied' { pnpm db:migrate }
+Invoke-Native 'base + content seed' { pnpm seed }
 
 if ($WithDevFixtures) {
-    pnpm seed:dev
-    Write-Host '  [ OK ] dev fixtures (sample spots/makers/items) loaded' -ForegroundColor Green
+    Invoke-Native 'dev fixtures (sample spots/makers/items)' { pnpm seed:dev }
 }
 
+# --------------------------------------------------------------------
+# done
+# --------------------------------------------------------------------
+
+$token = Get-EnvValue -Path '.env.local' -Key 'ADMIN_TOKEN'
+
 Write-Host ''
-Write-Host '  Done. Start the app with: pnpm dev' -ForegroundColor Cyan
+Write-Host '  Done.' -ForegroundColor Cyan
+Write-Host '    Start the app :  pnpm dev            -> http://localhost:3000' -ForegroundColor White
+Write-Host '    Admin sign-in :  http://localhost:3000/admin/login' -ForegroundColor White
+if ($token) {
+    Write-Host ('    Admin token   :  ' + $token + '   (from .env.local)') -ForegroundColor DarkGray
+}
 Write-Host ''
