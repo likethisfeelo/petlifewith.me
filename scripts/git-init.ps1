@@ -161,3 +161,4 @@ Write-Host "  Done." -ForegroundColor Cyan
 Write-Host "  Test the hook:" -ForegroundColor DarkGray
 Write-Host '    echo AKIA + 16?? ??? ??? > t.txt; git add t.txt; git commit -m test' -ForegroundColor DarkGray
 Write-Host ""
+
