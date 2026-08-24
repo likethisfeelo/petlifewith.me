@@ -302,18 +302,19 @@ CDK 스택, 배포 파이프라인, Secrets Manager 호출 코드, Cognito User 
 플랫폼 1차 구축이 끝났다. 상세는 `docs/스키마.md`(스키마·강제 규칙·가정), `docs/운영.md`(실행·ETL·콘텐츠 워크플로).
 
 - **DB**: 22개 테이블 최종형 (Drizzle, `data/src/db/schema.ts`, 마이그레이션 `data/drizzle/`). 의료 감수 게이트·클레임 단일 대상·출처 표기 필수를 CHECK/NOT NULL 로 강제.
-- **web**: 기획서의 URL 구조 전체 (홈 / guide / topic / item / spot 4단 / place / maker / curation) + 관리자(가이드·태깅·클레임·스팟) + 클레임 접수. AWS 전환 제약 준수 — config/db/auth/storage 단일 진입점, revalidate 상수 모듈(+일치 테스트), presigned URL 스토리지.
+- **web**: 기획서의 URL 구조 전체 (홈 / guide / topic / item / spot 4단 / place / maker / curation) + 클레임 접수. AWS 전환 제약 준수 — config/db/auth/storage 단일 진입점, revalidate 상수 모듈(+일치 테스트), presigned URL 스토리지.
+- **관리자**: 게시글(작성·편집·개체 태깅) / 스팟 / 메이커 / 상품 / 기기 / 큐레이션 등록·편집 + 클레임 승인. 외부 링크는 `spot_links`·`maker_links` 로 필요한 것만 선택(홈페이지·카카오톡·예약·스마트스토어 등), 상품 구매 링크는 쿠팡 파트너스 제휴 플래그와 고지 자동 연동.
 - **SEO**: noindex 게이트(스팟 3곳·정보 3항목·언급 0건) 코드 강제 + 사이트맵 분할 + JSON-LD + 로컬 전면 noindex 가드.
 - **ETL**: 인허가 CSV 헤더 기반 정규화(미매핑은 실패·리포트, 추측 없음), 관리번호 upsert, 상세주소 제거, 동물등록 통계 → 노령견 비율.
 - **콘텐츠**: 노견 13편(발행 4·감수 대기 3·초안 6) + 놀이 5편(전부 발행) 시드. 의료 인접 편은 감수 전 발행 불가가 3중(시드·관리자·DB)으로 막혀 있다.
-- **테스트**: data 15개 + web 27개 통과. `pnpm build` 통과.
+- **테스트**: data 15개 + web 28개 통과. `pnpm build` 통과. 관리자 등록 흐름은 브라우저로 실동작 검증.
 
 ### 다음 작업
 
 1. data.go.kr 활용신청 승인 후 실제 인허가 CSV/API 적재 (헤더 불일치 시 mappings.ts 후보 추가 → 리포트 확인 루프)
 2. 동물등록 현황 실데이터 적재 → 지역 페이지 노령견 비율 활성화
 3. 의료 인접 편 수의사 감수 → review_pending 해제. 초안 스포크(심장·인지·눈귀·치아·체중·마지막 시간) 본문 완성
-4. 셀프목욕·방문목욕·재활 직접 발굴 입력 (관리자 스팟 신규 생성 폼 추가 검토)
+4. 셀프목욕·방문목욕·재활 직접 발굴 입력 (`/admin/spots/new` 로 등록)
 5. 메이커 1차 발굴 10+10, 큐레이션 첫 테마 (샘플 픽스처 교체)
 6. GSC·네이버 서치어드바이저 등록, 쿠팡 파트너스 실링크 연동 (프로덕션 URL 확정 후)
 
