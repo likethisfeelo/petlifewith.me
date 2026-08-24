@@ -10,11 +10,13 @@ const { guides, items, spots, makers, regions } = schema;
 
 interface Props {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ created?: string }>;
 }
 
-export default async function AdminGuideEditPage({ params }: Props) {
+export default async function AdminGuideEditPage({ params, searchParams }: Props) {
   if (!isDbConfigured()) return <p className="text-sm text-ink-soft">DATABASE_URL 미설정</p>;
   const { id } = await params;
+  const { created } = await searchParams;
   const guideId = Number(id);
   if (!Number.isSafeInteger(guideId)) notFound();
 
@@ -59,6 +61,12 @@ export default async function AdminGuideEditPage({ params }: Props) {
           )}
         </div>
       </div>
+
+      {created && (
+        <p className="mt-4 rounded-lg border border-sage/30 bg-sage-soft px-3 py-2 text-sm text-sage-deep">
+          게시글이 만들어졌습니다. 오른쪽에서 상품·스팟·메이커를 태깅하면 글 하단에 개체 카드가 붙습니다.
+        </p>
+      )}
 
       <div className="mt-5 grid gap-6 lg:grid-cols-[1fr_20rem]">
         <div className="rounded-xl border border-line bg-surface p-4">

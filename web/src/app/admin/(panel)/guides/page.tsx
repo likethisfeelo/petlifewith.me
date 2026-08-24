@@ -2,6 +2,7 @@ import Link from "next/link";
 import { desc, eq } from "drizzle-orm";
 import { getDb, isDbConfigured, schema } from "@/lib/db";
 import { GUIDE_STATUS_LABEL } from "@/lib/format";
+import { AdminPageHeader } from "../../_components/fields";
 
 const { guides, topics } = schema;
 
@@ -16,7 +17,15 @@ export default async function AdminGuidesPage() {
 
   return (
     <div>
-      <h1 className="text-xl font-extrabold text-ink">가이드 {rows.length}편</h1>
+      <AdminPageHeader
+        title={`게시글 ${rows.length}편`}
+        description="의료 인접 편은 수의사 감수 완료 전에는 발행할 수 없습니다."
+        right={
+          <Link href="/admin/guides/new" className="rounded-full bg-ink px-4 py-2 text-xs font-medium text-cream hover:opacity-90">
+            + 게시글 작성
+          </Link>
+        }
+      />
       <div className="mt-4 overflow-x-auto rounded-xl border border-line bg-surface">
         <table className="w-full min-w-[640px] text-sm">
           <thead>

@@ -10,9 +10,13 @@ export const metadata: Metadata = {
 
 const NAV = [
   { href: "/admin", label: "대시보드" },
-  { href: "/admin/guides", label: "가이드" },
-  { href: "/admin/claims", label: "클레임" },
+  { href: "/admin/guides", label: "게시글" },
   { href: "/admin/spots", label: "스팟" },
+  { href: "/admin/makers", label: "메이커" },
+  { href: "/admin/items", label: "상품" },
+  { href: "/admin/devices", label: "기기" },
+  { href: "/admin/curations", label: "큐레이션" },
+  { href: "/admin/claims", label: "클레임" },
 ];
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {

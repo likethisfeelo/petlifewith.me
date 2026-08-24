@@ -3,6 +3,8 @@ import { desc, eq, sql } from "drizzle-orm";
 import { getDb, isDbConfigured, schema } from "@/lib/db";
 import { SPOT_STATUS_LABEL } from "@/lib/format";
 import { placeInfoItemCount } from "@/lib/seo";
+import { countLinksBySpot } from "@/lib/queries/spots";
+import { AdminPageHeader } from "../../_components/fields";
 import { togglePromotionAction } from "../../actions";
 
 const { spots, spotTypes, regions, promotions } = schema;
@@ -25,12 +27,23 @@ export default async function AdminSpotsPage() {
     .orderBy(desc(spots.updatedAt))
     .limit(300);
 
+  // 링크도 정보 항목으로 세므로 목록의 색인 판정에 함께 반영한다
+  const linkCounts = await countLinksBySpot(rows.map((r) => r.spot.id));
+
   return (
     <div>
-      <h1 className="text-xl font-extrabold text-ink">스팟 (최근 300)</h1>
-      <p className="mt-1 text-xs text-ink-faint">
-        정보 3항목 미만은 noindex 상태입니다. 편집으로 정보를 보강하면 색인 대상이 됩니다.
-      </p>
+      <AdminPageHeader
+        title="스팟 (최근 300)"
+        description="정보 3항목 미만은 noindex 상태입니다. 링크를 포함해 정보를 보강하면 색인 대상이 됩니다."
+        right={
+          <Link
+            href="/admin/spots/new"
+            className="rounded-full bg-ink px-4 py-2 text-xs font-medium text-cream hover:opacity-90"
+          >
+            + 스팟 등록
+          </Link>
+        }
+      />
       <div className="mt-4 overflow-x-auto rounded-xl border border-line bg-surface">
         <table className="w-full min-w-[720px] text-sm">
           <thead>
@@ -45,7 +58,7 @@ export default async function AdminSpotsPage() {
           </thead>
           <tbody className="divide-y divide-line">
             {rows.map(({ spot, typeName, monetizable, sigunguName, promoted }) => {
-              const infoCount = placeInfoItemCount(spot);
+              const infoCount = placeInfoItemCount(spot, linkCounts.get(spot.id) ?? 0);
               return (
                 <tr key={spot.id} className="hover:bg-sand/50">
                   <td className="px-4 py-2.5">

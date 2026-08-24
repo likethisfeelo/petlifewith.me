@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { and, eq } from "drizzle-orm";
 import { getDb, isDbConfigured, schema } from "@/lib/db";
 import { getSession, loginWithToken, logout } from "@/lib/auth";
+import { slugify } from "@app/data";
 
 const { guides, claims, spots, spotTypes, guideItemTags, guideSpotTags, guideMakerTags, promotions } = schema;
 
@@ -83,6 +84,52 @@ export async function saveGuideAction(_prev: ActionState, formData: FormData): P
   return { saved: true };
 }
 
+/**
+ * 새 게시글 작성 — 관리자에서 직접 쓰는 블로그형 경로.
+ *
+ * data/content/guides/*.md 시드와 공존한다. 같은 slug 의 마크다운 파일이
+ * 있으면 seed:content 재실행 시 본문이 덮어써지므로, 관리자에서 쓴 글은
+ * 마크다운에 없는 slug 를 쓰는 것을 권한다.
+ */
+export async function createGuideAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const db = await requireAdminSession();
+
+  const title = String(formData.get("title") ?? "").trim();
+  const topicId = Number(formData.get("topicId"));
+  if (title.length < 2) return { error: "제목을 입력하세요." };
+  if (!Number.isSafeInteger(topicId) || topicId <= 0) return { error: "토픽(클러스터)을 선택하세요." };
+
+  const slug = slugify(String(formData.get("slug") ?? "").trim() || title, "post");
+  const dup = await db.select({ id: guides.id }).from(guides).where(eq(guides.slug, slug)).limit(1);
+  if (dup[0]) return { error: `슬러그 ${slug} 가 이미 사용 중입니다. 다른 값을 입력하세요.` };
+
+  const medicalAdjacent = formData.get("medicalAdjacent") === "on";
+  let status = String(formData.get("status") ?? "draft") as "draft" | "review_pending" | "published" | "archived";
+  // 의료 인접 편은 감수 완료 전 발행 불가 — 새 글도 같은 게이트를 지난다
+  if (status === "published" && medicalAdjacent) {
+    return { error: "의료 인접 편은 감수 완료 후에만 발행할 수 있습니다. '감수 대기'로 저장한 뒤 감수자를 등록하세요." };
+  }
+
+  const inserted = await db
+    .insert(guides)
+    .values({
+      slug,
+      title,
+      summary: String(formData.get("summary") ?? "").trim() || null,
+      bodyMd: String(formData.get("bodyMd") ?? ""),
+      topicId,
+      role: formData.get("role") === "hub" ? "hub" : "spoke",
+      spokeGroup: String(formData.get("spokeGroup") ?? "").trim() || null,
+      status,
+      medicalAdjacent,
+      publishedAt: status === "published" ? new Date() : null,
+    })
+    .returning({ id: guides.id });
+
+  revalidatePath("/");
+  redirect(`/admin/guides/${inserted[0]!.id}?created=1`);
+}
+
 // ---------- 태깅 (개체 단위 — claude.md 5-4) ----------
 
 export async function addGuideTagAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
@@ -145,40 +192,6 @@ export async function decideClaimAction(formData: FormData): Promise<void> {
     .set({ status: decision, decidedAt: new Date() })
     .where(eq(claims.id, id));
   revalidatePath("/admin/claims");
-}
-
-// ---------- 스팟 (에디토리얼 보강 — noindex 게이트 통과 수단) ----------
-
-export async function saveSpotAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  const db = await requireAdminSession();
-  const id = Number(formData.get("id"));
-  if (!Number.isSafeInteger(id)) return { error: "잘못된 요청" };
-
-  const existing = (await db.select().from(spots).where(eq(spots.id, id)).limit(1))[0];
-  if (!existing) return { error: "스팟을 찾을 수 없습니다." };
-
-  const typeId = Number(formData.get("typeId") ?? existing.typeId);
-  const str = (name: string) => String(formData.get(name) ?? "").trim() || null;
-
-  await db
-    .update(spots)
-    .set({
-      typeId: Number.isSafeInteger(typeId) && typeId > 0 ? typeId : existing.typeId,
-      status: String(formData.get("status") ?? existing.status) as typeof existing.status,
-      descriptionMd: str("descriptionMd"),
-      hoursText: str("hoursText"),
-      priceText: str("priceText"),
-      parkingText: str("parkingText"),
-      reservationUrl: str("reservationUrl"),
-      homepageUrl: str("homepageUrl"),
-      instagramUrl: str("instagramUrl"),
-      phone: str("phone"),
-      updatedAt: new Date(),
-    })
-    .where(eq(spots.id, id));
-
-  revalidatePath(`/place/${id}-${existing.slug}`);
-  return { saved: true };
 }
 
 /** 프로모션 토글 — 장묘(monetizable=false) 유형에는 만들 수 없다 (기획서 4-1) */
