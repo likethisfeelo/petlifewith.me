@@ -44,16 +44,21 @@ const TOPICS = [
 
 // 장묘는 monetizable=false — 광고를 붙이지 않는다 (기획서 4-1).
 const SPOT_TYPES = [
-  { slug: "grooming", name: "미용·스파", description: "동물미용업 인허가 기반 시딩", monetizable: true, sortOrder: 1 },
-  { slug: "self-wash", name: "셀프목욕", description: "공공데이터에 없어 직접 발굴한다", monetizable: true, sortOrder: 2 },
-  { slug: "pool", name: "수영장", description: "직접 발굴·재분류로 채운다", monetizable: true, sortOrder: 3 },
-  { slug: "playground", name: "놀이터", description: "직접 발굴·재분류로 채운다", monetizable: true, sortOrder: 4 },
-  { slug: "boarding", name: "유치원·위탁", description: "동물위탁관리업 인허가 기반 시딩", monetizable: true, sortOrder: 5 },
-  { slug: "visiting-bath", name: "방문목욕", description: "등록 형태가 제각각 — 부분 시딩 + 직접 발굴", monetizable: true, sortOrder: 6 },
-  { slug: "visiting-groom", name: "방문미용", description: "직접 발굴", monetizable: true, sortOrder: 7 },
-  { slug: "rehab", name: "재활·수중런닝", description: "보유 여부는 공공데이터에 없다 — 직접 발굴", monetizable: true, sortOrder: 8 },
-  { slug: "transport", name: "이동·운송", description: "동물운송업 인허가 기반 시딩", monetizable: true, sortOrder: 9 },
-  { slug: "memorial", name: "장묘", description: "광고 없음. 인허가 기반 사실 정보만 담담하게 정리한다", monetizable: false, sortOrder: 10 },
+  { slug: "grooming", name: "미용·스파", description: "동물미용업 인허가 기반 시딩", monetizable: true, listed: true, sortOrder: 1 },
+  { slug: "self-wash", name: "셀프목욕", description: "공공데이터에 없어 직접 발굴한다", monetizable: true, listed: true, sortOrder: 2 },
+  { slug: "pool", name: "수영장", description: "직접 발굴·재분류로 채운다", monetizable: true, listed: true, sortOrder: 3 },
+  { slug: "playground", name: "놀이터", description: "직접 발굴·재분류로 채운다", monetizable: true, listed: true, sortOrder: 4 },
+  { slug: "boarding", name: "유치원·위탁", description: "동물위탁관리업 인허가 기반 시딩", monetizable: true, listed: true, sortOrder: 5 },
+  { slug: "visiting-bath", name: "방문목욕", description: "등록 형태가 제각각 — 부분 시딩 + 직접 발굴", monetizable: true, listed: true, sortOrder: 6 },
+  { slug: "visiting-groom", name: "방문미용", description: "직접 발굴", monetizable: true, listed: true, sortOrder: 7 },
+  { slug: "rehab", name: "재활·수중런닝", description: "보유 여부는 공공데이터에 없다 — 직접 발굴", monetizable: true, listed: true, sortOrder: 8 },
+  { slug: "transport", name: "이동·운송", description: "동물운송업 인허가 기반 시딩", monetizable: true, listed: true, sortOrder: 9 },
+  { slug: "memorial", name: "장묘", description: "광고 없음. 인허가 기반 사실 정보만 담담하게 정리한다", monetizable: false, listed: true, sortOrder: 10 },
+  // 의료 인접 (기획서 6-2): 광고·순위·추천 없이 사실 정보만. 프로모션 생성 불가.
+  { slug: "pharmacy", name: "동물약국", description: "동물약국 인허가(행정안전부) 기반. 광고 없음 — 사실 정보만", monetizable: false, listed: true, sortOrder: 11 },
+  // B2B 인허가 — 개별 페이지를 만들지 않는다 (5-3 덤프 금지). 지역 인프라 집계·내부 참고 전용.
+  { slug: "drug-wholesale", name: "동물용의약품 도매", description: "B2B — 공개 디렉토리 미노출, 지역 인프라 집계 전용", monetizable: false, listed: false, sortOrder: 12 },
+  { slug: "medical-device-shop", name: "동물용 의료용구 판매", description: "B2B — 공개 디렉토리 미노출, 지역 인프라 집계 전용", monetizable: false, listed: false, sortOrder: 13 },
 ] as const;
 
 async function main() {
@@ -76,7 +81,7 @@ async function main() {
       .values(s)
       .onConflictDoUpdate({
         target: spotTypes.slug,
-        set: { name: s.name, description: s.description, monetizable: s.monetizable, sortOrder: s.sortOrder },
+        set: { name: s.name, description: s.description, monetizable: s.monetizable, listed: s.listed, sortOrder: s.sortOrder },
       });
   }
   console.log(`spot_types: ${SPOT_TYPES.length}건 upsert`);

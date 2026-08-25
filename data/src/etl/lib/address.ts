@@ -2,7 +2,7 @@
 // - 상세주소(층·호수·동호수)는 저장하지 않는다: 쉼표 이후와 괄호 표기를 제거 (claude.md 5-6)
 // - 시군구 귀속은 regions 기준 데이터로만 한다. 목록에 없으면 undefined 를 반환하고
 //   호출부가 리포트에 남긴다. 지어내지 않는다.
-import { REGIONS, normalizeSidoName, type RegionDef } from "../../regions/regions.js";
+import { MERGED_SIDO_SLUGS, REGIONS, normalizeSidoName, type RegionDef } from "../../regions/regions.js";
 
 /** 도로명 주소에서 건물번호까지만 남긴다. "테헤란로 123, 4층 501호 (역삼동)" → "테헤란로 123" */
 export function sanitizeRoadAddress(raw: string | undefined | null): string | null {
@@ -33,9 +33,15 @@ export function resolveRegionFromAddress(raw: string | undefined | null): Region
   if (!first) return undefined;
 
   const sido = normalizeSidoName(first);
-  if (!sido) return undefined;
-
-  const candidates = REGIONS.filter((r) => r.sidoSlug === sido.slug);
+  let candidates: RegionDef[];
+  if (sido) {
+    candidates = REGIONS.filter((r) => r.sidoSlug === sido.slug);
+  } else {
+    // 통합 시도 표기(전남광주통합특별시 등)는 시군구명으로 옛 시도에 귀속시킨다
+    const mergedSlugs = MERGED_SIDO_SLUGS[first.trim()];
+    if (!mergedSlugs) return undefined;
+    candidates = REGIONS.filter((r) => mergedSlugs.includes(r.sidoSlug));
+  }
 
   // 세종처럼 시군구가 없는 시도는 단일 행으로 귀속
   if (candidates.length === 1) {

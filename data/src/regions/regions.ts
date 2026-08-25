@@ -52,6 +52,15 @@ export function normalizeSidoName(raw: string): SidoDef | undefined {
   return sidoByName.get(raw.trim());
 }
 
+/**
+ * 2026 행정구역 통합 표기 — 하나의 통합 시도명이 옛 시도 여러 개에 걸친다.
+ * URL 체계(/spot/시도/시군구)는 유지하고, 시군구명으로 옛 시도에 결정적으로 귀속시킨다.
+ * (광주 5개 구와 전남 22개 시·군은 이름이 겹치지 않아 모호성이 없다 — 인허가 데이터로 확인)
+ */
+export const MERGED_SIDO_SLUGS: Record<string, string[]> = {
+  전남광주통합특별시: ["gwangju", "jeonnam"],
+};
+
 function r(sidoSlug: string, sidoName: string, list: Array<[string, string]>): RegionDef[] {
   return list.map(([sigunguName, sigunguSlug]) => ({ sidoName, sidoSlug, sigunguName, sigunguSlug }));
 }
@@ -84,6 +93,10 @@ export const REGIONS: RegionDef[] = [
     ["중구", "jung-gu"], ["동구", "dong-gu"], ["미추홀구", "michuhol-gu"], ["연수구", "yeonsu-gu"],
     ["남동구", "namdong-gu"], ["부평구", "bupyeong-gu"], ["계양구", "gyeyang-gu"], ["서구", "seo-gu"],
     ["강화군", "ganghwa-gun"], ["옹진군", "ongjin-gun"],
+    // 2026-07 인천 행정구역 개편 신설 (행안부 인허가 데이터에서 확인).
+    // 제물포구=중구+동구 내륙 재편, 영종구=영종도, 검단구=옛 서구 북부, 서해구=옛 서구 잔여(청라·가좌).
+    // 동구·서구는 기존 적재분·URL 보존을 위해 남겨둔다 — 신규 데이터는 새 구로 귀속된다.
+    ["제물포구", "jemulpo-gu"], ["영종구", "yeongjong-gu"], ["검단구", "geomdan-gu"], ["서해구", "seohae-gu"],
   ]),
   ...r("gwangju", "광주광역시", [
     ["동구", "dong-gu"], ["서구", "seo-gu"], ["남구", "nam-gu"], ["북구", "buk-gu"],
