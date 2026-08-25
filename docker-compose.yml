@@ -34,6 +34,21 @@ services:
     volumes:
       - minio-data:/data
 
+  # 최초 기동 시 미디어 버킷을 만들고 공개 읽기(다운로드)로 연다.
+  # NEXT_PUBLIC_ASSET_BASE_URL=http://localhost:9000/app-media 와 짝이다.
+  minio-init:
+    image: minio/mc:latest
+    container_name: app-dev-minio-init
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      until mc alias set local http://minio:9000 minio_dev minio_dev_password >/dev/null 2>&1; do sleep 1; done;
+      mc mb -p local/app-media >/dev/null 2>&1 || true;
+      mc anonymous set download local/app-media;
+      echo 'app-media bucket ready';
+      "
+
 volumes:
   db-data:
   minio-data:

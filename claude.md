@@ -303,7 +303,8 @@ CDK 스택, 배포 파이프라인, Secrets Manager 호출 코드, Cognito User 
 
 - **DB**: 22개 테이블 최종형 (Drizzle, `data/src/db/schema.ts`, 마이그레이션 `data/drizzle/`). 의료 감수 게이트·클레임 단일 대상·출처 표기 필수를 CHECK/NOT NULL 로 강제.
 - **web**: 기획서의 URL 구조 전체 (홈 / guide / topic / item / spot 4단 / place / maker / curation) + 클레임 접수. AWS 전환 제약 준수 — config/db/auth/storage 단일 진입점, revalidate 상수 모듈(+일치 테스트), presigned URL 스토리지.
-- **관리자**: 게시글(작성·편집·개체 태깅) / 스팟 / 메이커 / 상품 / 기기 / 큐레이션 등록·편집 + 클레임 승인. 외부 링크는 `spot_links`·`maker_links` 로 필요한 것만 선택(홈페이지·카카오톡·예약·스마트스토어 등), 상품 구매 링크는 쿠팡 파트너스 제휴 플래그와 고지 자동 연동.
+- **관리자**: 게시글(작성·편집·개체 태깅) / 스팟 / 메이커 / 상품 / 기기 / 큐레이션 등록·편집 + 클레임 승인 + 미디어 라이브러리. 외부 링크는 `spot_links`·`maker_links` 로 필요한 것만 선택(홈페이지·카카오톡·예약·스마트스토어 등), 상품 구매 링크는 쿠팡 파트너스 제휴 플래그와 고지 자동 연동.
+- **미디어·SEO**: 이미지·영상 업로드는 presigned URL(로컬 MinIO, `docker compose up -d minio` 로 버킷 자동 생성) — DB 에는 오브젝트 키만, 본문 삽입은 `{{image:키|alt}}` 숏코드. 전 공개 페이지에 OG/Twitter 메타 자동 + 페이지별 오버라이드(seo_title/seo_description/og_image_key, 게시글·스팟·메이커·상품·큐레이션).
 - **SEO**: noindex 게이트(스팟 3곳·정보 3항목·언급 0건) 코드 강제 + 사이트맵 분할 + JSON-LD + 로컬 전면 noindex 가드.
 - **ETL**: 인허가 CSV 헤더 기반 정규화(미매핑은 실패·리포트, 추측 없음), 관리번호 upsert, 상세주소 제거, 동물등록 통계 → 노령견 비율.
 - **콘텐츠**: 노견 13편(발행 4·감수 대기 3·초안 6) + 놀이 5편(전부 발행) 시드. 의료 인접 편은 감수 전 발행 불가가 3중(시드·관리자·DB)으로 막혀 있다.

@@ -147,12 +147,13 @@ DB_POOL_MAX=5
 ADMIN_TOKEN=$adminToken
 AUTH_SECRET=$authSecret
 
-STORAGE_ENDPOINT=
+# Media uploads (MinIO via docker compose; run: docker compose up -d minio)
+STORAGE_ENDPOINT=http://localhost:9000
 STORAGE_REGION=ap-northeast-2
-STORAGE_BUCKET=
-STORAGE_ACCESS_KEY_ID=
-STORAGE_SECRET_ACCESS_KEY=
-ASSET_BASE_URL=
+STORAGE_BUCKET=app-media
+STORAGE_ACCESS_KEY_ID=minio_dev
+STORAGE_SECRET_ACCESS_KEY=minio_dev_password
+NEXT_PUBLIC_ASSET_BASE_URL=http://localhost:9000/app-media
 
 DATA_GO_KR_API_KEY=
 "@
