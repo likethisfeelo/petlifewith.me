@@ -56,12 +56,25 @@ jobs:
 
       - name: Write stage env file
         env:
-          ENV_FILE: ${{ inputs.stage == 'prod' && secrets.ENV_DEPLOY_PROD || secrets.ENV_DEPLOY_DEV }}
+          # 스테이지별 시크릿을 각각 넘긴다. 표현식 하나로 고르면(a && b || c)
+          # prod 시크릿이 비었을 때 dev 값으로 대체돼 운영이 dev DB 를 보게 된다.
+          ENV_DEPLOY_DEV: ${{ secrets.ENV_DEPLOY_DEV }}
+          ENV_DEPLOY_PROD: ${{ secrets.ENV_DEPLOY_PROD }}
+          STAGE: ${{ inputs.stage }}
         run: |
-          printf '%s\n' "$ENV_FILE" > ".env.deploy.${{ inputs.stage }}"
-          # 시크릿 미설정이면 여기서 바로 실패시킨다
-          grep -q '^DATABASE_URL=' ".env.deploy.${{ inputs.stage }}" || {
-            echo "ENV_DEPLOY_${{ inputs.stage }} secret is missing or has no DATABASE_URL" >&2; exit 1; }
+          if [ "$STAGE" = "prod" ]; then ENV_FILE="$ENV_DEPLOY_PROD"; else ENV_FILE="$ENV_DEPLOY_DEV"; fi
+          FILE=".env.deploy.$STAGE"
+          printf '%s\n' "$ENV_FILE" > "$FILE"
+          # 시크릿 미설정이면 여기서 바로 실패시킨다 (대체 없음)
+          grep -q '^DATABASE_URL=' "$FILE" || {
+            echo "Secret ENV_DEPLOY_$(echo "$STAGE" | tr a-z A-Z) is missing or has no DATABASE_URL." >&2
+            echo "Register it: repo Settings -> Secrets and variables -> Actions." >&2
+            exit 1; }
+          # 운영에 dev 데이터베이스를 물리는 사고를 막는다
+          if [ "$STAGE" = "prod" ] && grep -q '^DATABASE_URL=.*/app_dev' "$FILE"; then
+            echo "ENV_DEPLOY_PROD points at the app_dev database - paste .env.deploy.prod, not .env.deploy.dev." >&2
+            exit 1
+          fi
 
       - name: Migrate + base seed
         run: |
