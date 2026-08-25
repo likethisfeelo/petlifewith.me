@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { JsonLd } from "@/components/jsonld";
-import { DataReferenceNote, PharmacyNote } from "@/components/notices";
+import { B2BNote, DataReferenceNote, PharmacyNote } from "@/components/notices";
 import { RememberRegion } from "@/components/region-banner";
 import { contactEmail } from "@/lib/config";
 import { SPOT_STATUS_LABEL, formatDate, idSlugPath, parseIdSlug } from "@/lib/format";
@@ -28,8 +28,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { idSlug } = await params;
   const id = parseIdSlug(idSlug);
   const found = id ? await getPlace(id) : null;
-  // 비공개 유형(B2B 인허가)의 개별 페이지는 만들지 않는다
-  if (!found || !found.typeListed) return { robots: robotsMeta(false) };
+  if (!found) return { robots: robotsMeta(false) };
   const { spot, typeName, region } = found;
   const linkCount = (await getSpotLinks(spot.id)).length;
   return buildMeta({
@@ -48,7 +47,7 @@ export default async function PlacePage({ params }: Props) {
   const id = parseIdSlug(idSlug);
   if (!id) notFound();
   const found = await getPlace(id);
-  if (!found || !found.typeListed) notFound();
+  if (!found) notFound();
 
   const { spot, typeName, typeMonetizable, region } = found;
   const [mentions, links] = await Promise.all([guidesMentioningSpot(spot.id), getSpotLinks(spot.id)]);
@@ -131,6 +130,7 @@ export default async function PlacePage({ params }: Props) {
         </p>
       )}
       {found.typeSlug === "pharmacy" && <PharmacyNote />}
+      {!found.typeListed && <B2BNote />}
 
       {infoRows.length > 0 && (
         <section className="mt-6 overflow-hidden rounded-xl border border-line bg-surface">

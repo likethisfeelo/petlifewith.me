@@ -110,7 +110,7 @@ export default async function AdminSpotEditPage({ params, searchParams }: Props)
             heroImageKey: spot.heroImageKey,
             seo: { seoTitle: spot.seoTitle, seoDescription: spot.seoDescription, ogImageKey: spot.ogImageKey },
           }}
-          types={types.map((t) => ({ id: t.id, label: t.listed ? t.name : `${t.name} (비공개)` }))}
+          types={types.map((t) => ({ id: t.id, label: t.listed ? t.name : `${t.name} (B2B 참고)` }))}
           links={links.map((l) => ({ kind: l.kind, url: l.url, label: l.label ?? "" }))}
         />
       </div>

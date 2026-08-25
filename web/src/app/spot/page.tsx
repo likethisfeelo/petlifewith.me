@@ -17,7 +17,12 @@ export function generateMetadata(): Metadata {
 }
 
 export default async function SpotIndexPage() {
-  const [sidoSummaries, types] = await Promise.all([listSidoSummaries(), listSpotTypes()]);
+  const [sidoSummaries, allTypes] = await Promise.all([
+    listSidoSummaries(),
+    listSpotTypes({ includeUnlisted: true }),
+  ]);
+  const types = allTypes.filter((t) => t.listed);
+  const b2bTypes = allTypes.filter((t) => !t.listed);
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-10">
@@ -40,18 +45,36 @@ export default async function SpotIndexPage() {
           <h2 className="text-sm font-bold text-ink">유형</h2>
           <div className="mt-3 flex flex-wrap gap-2">
             {types.map((t) => (
-              <span
+              <Link
                 key={t.id}
+                href={`/spot/type/${t.slug}`}
                 title={t.description ?? undefined}
-                className={`rounded-full px-3 py-1 text-sm ${
-                  t.monetizable ? "bg-sea-soft text-sea" : "bg-sand text-ink-soft"
+                className={`rounded-full px-3 py-1 text-sm transition-colors ${
+                  t.monetizable
+                    ? "bg-sea-soft text-sea hover:bg-sea hover:text-white"
+                    : "bg-sand text-ink-soft hover:bg-ink hover:text-cream"
                 }`}
               >
                 {t.name}
-                {!t.monetizable && <span className="ml-1 text-xs text-ink-faint">· 광고 없음</span>}
-              </span>
+                {!t.monetizable && <span className="ml-1 text-xs opacity-70">· 광고 없음</span>}
+              </Link>
             ))}
           </div>
+          {b2bTypes.length > 0 && (
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-ink-faint">
+              <span>유통·산업 (B2B 참고):</span>
+              {b2bTypes.map((t) => (
+                <Link
+                  key={t.id}
+                  href={`/spot/type/${t.slug}`}
+                  title={t.description ?? undefined}
+                  className="rounded-full border border-line px-2.5 py-0.5 transition-colors hover:bg-sand hover:text-ink"
+                >
+                  {t.name}
+                </Link>
+              ))}
+            </div>
+          )}
         </section>
       )}
 

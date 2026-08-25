@@ -89,9 +89,11 @@ export async function countLinksBySpot(spotIds: number[]): Promise<Map<number, n
 export async function listSpotsInRegion(regionId: number, typeId?: number, limit?: number): Promise<SpotWithMeta[]> {
   if (!isDbConfigured()) return [];
   const db = getDb();
-  // 공개 목록 — 비공개 유형(B2B 인허가)은 제외한다
-  const conds = [eq(spots.regionId, regionId), eq(spots.status, "operating"), eq(spotTypes.listed, true)];
+  // 지역 혼합 목록(유형 미지정)은 소비자 유형(listed)만 섞는다.
+  // 유형을 명시하면 — B2B 참고 유형 포함 — 그 유형의 목록을 그대로 보여준다.
+  const conds = [eq(spots.regionId, regionId), eq(spots.status, "operating")];
   if (typeId) conds.push(eq(spots.typeId, typeId));
+  else conds.push(eq(spotTypes.listed, true));
   const rows = await db
     .select({
       spot: spots,
@@ -144,7 +146,11 @@ export async function countSpotsByTypeInRegion(regionId: number): Promise<Region
     .orderBy(sql`count(*) desc`);
 }
 
-/** noindex 게이트용 카운트 — 샘플 픽스처·비공개 유형 제외 (색인 판단은 공개 실데이터만) */
+/**
+ * noindex 게이트용 카운트 — 샘플 픽스처 제외.
+ * 지역 허브(유형 미지정)는 소비자 유형만 세고, 유형 명시 시(B2B 참고 포함) 그 유형을 센다.
+ * 사이트맵 쿼리와 반드시 같은 기준을 유지한다.
+ */
 export async function countIndexableSpotsInRegion(regionId: number, typeId?: number): Promise<number> {
   if (!isDbConfigured()) return 0;
   const db = getDb();
@@ -152,14 +158,43 @@ export async function countIndexableSpotsInRegion(regionId: number, typeId?: num
     eq(spots.regionId, regionId),
     eq(spots.status, "operating"),
     ne(spots.source, "sample"),
-    eq(spotTypes.listed, true),
   ];
   if (typeId) conds.push(eq(spots.typeId, typeId));
+  else conds.push(eq(spotTypes.listed, true));
   const rows = await db
     .select({ count: sql<number>`count(*)`.mapWith(Number) })
     .from(spots)
     .innerJoin(spotTypes, eq(spots.typeId, spotTypes.id))
     .where(and(...conds));
+  return rows[0]?.count ?? 0;
+}
+
+export interface TypeRegionCount {
+  region: RegionRow;
+  count: number;
+}
+
+/** 유형 허브(/spot/type/[slug]) — 전국 시군구별 분포. 영업 중만. */
+export async function listRegionCountsForType(typeId: number): Promise<TypeRegionCount[]> {
+  if (!isDbConfigured()) return [];
+  const db = getDb();
+  return db
+    .select({ region: regions, count: sql<number>`count(*)`.mapWith(Number) })
+    .from(spots)
+    .innerJoin(regions, eq(spots.regionId, regions.id))
+    .where(and(eq(spots.typeId, typeId), eq(spots.status, "operating")))
+    .groupBy(regions.id)
+    .orderBy(regions.sidoName, sql`count(*) desc`, regions.sigunguName);
+}
+
+/** 유형 허브 색인 게이트용 — 샘플 제외 전국 카운트 */
+export async function countIndexableSpotsForType(typeId: number): Promise<number> {
+  if (!isDbConfigured()) return 0;
+  const db = getDb();
+  const rows = await db
+    .select({ count: sql<number>`count(*)`.mapWith(Number) })
+    .from(spots)
+    .where(and(eq(spots.typeId, typeId), eq(spots.status, "operating"), ne(spots.source, "sample")));
   return rows[0]?.count ?? 0;
 }
 

@@ -34,7 +34,7 @@ export default async function AdminSpotNewPage() {
             parkingText: null,
             descriptionMd: null,
           }}
-          types={types.map((t) => ({ id: t.id, label: t.listed ? t.name : `${t.name} (비공개)` }))}
+          types={types.map((t) => ({ id: t.id, label: t.listed ? t.name : `${t.name} (B2B 참고)` }))}
           regions={regionRows.map((r) => ({ id: r.id, label: `${r.sidoName} ${r.sigunguName}` }))}
           links={[]}
         />

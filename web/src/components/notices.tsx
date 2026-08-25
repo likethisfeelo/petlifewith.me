@@ -87,6 +87,16 @@ export function DataReferenceNote({
   return <p className="text-xs text-ink-faint">{parts.join(" · ")}</p>;
 }
 
+/** B2B 참고 디렉토리 안내 — 소비자 시설과 구분한다 (의약품 도매·의료용구 판매 등) */
+export function B2BNote() {
+  return (
+    <p className="mt-3 rounded-lg border border-line bg-sand px-4 py-3 text-sm text-ink-soft">
+      이 유형은 일반 소비자 대상 시설이 아니라 <strong>업체 간(B2B) 인허가 정보</strong>입니다.
+      광고·추천 없이 행정안전부 인허가 사실 정보만 참고용으로 정리합니다.
+    </p>
+  );
+}
+
 /** 동물약국 안내 (claude.md 6-2) — 진단·처방의 주체는 수의사임을 명시한다 */
 export function PharmacyNote() {
   return (

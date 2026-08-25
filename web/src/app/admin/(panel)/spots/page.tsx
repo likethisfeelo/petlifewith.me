@@ -90,7 +90,7 @@ export default async function AdminSpotsPage({ searchParams }: Props) {
     <div>
       <AdminPageHeader
         title={`스팟 (${total.toLocaleString("ko-KR")}건)`}
-        description="정보 3항목 미만은 noindex 상태입니다. 비공개 유형(B2B 인허가)은 공개 페이지 없이 여기서만 관리됩니다."
+        description="정보 3항목 미만은 noindex 상태입니다. B2B 참고 유형(의약품 도매·의료용구)은 소비자 목록과 분리된 참고 디렉토리로 게시됩니다."
         right={
           <Link
             href="/admin/spots/new"
@@ -114,7 +114,7 @@ export default async function AdminSpotsPage({ searchParams }: Props) {
           {types.map((t) => (
             <option key={t.slug} value={t.slug}>
               {t.name}
-              {t.listed ? "" : " (비공개)"}
+              {t.listed ? "" : " (B2B 참고)"}
             </option>
           ))}
         </select>
@@ -170,7 +170,7 @@ export default async function AdminSpotsPage({ searchParams }: Props) {
                   </td>
                   <td className="px-4 py-2.5 text-ink-soft">
                     {typeName}
-                    {!typeListed && <span className="ml-1 text-xs text-ink-faint">(비공개)</span>}
+                    {!typeListed && <span className="ml-1 text-xs text-ink-faint">(B2B 참고)</span>}
                   </td>
                   <td className="px-4 py-2.5 text-ink-soft">{sigunguName}</td>
                   <td className="px-4 py-2.5 text-ink-soft">{SPOT_STATUS_LABEL[spot.status]}</td>
@@ -181,13 +181,9 @@ export default async function AdminSpotsPage({ searchParams }: Props) {
                     )}
                   </td>
                   <td className="px-4 py-2.5">
-                    {typeListed ? (
-                      <span className={infoCount >= 3 ? "text-sage-deep" : "text-accent-deep"}>
-                        {infoCount}항목 {infoCount >= 3 ? "· 색인 가능" : "· noindex"}
-                      </span>
-                    ) : (
-                      <span className="text-xs text-ink-faint">비공개 유형</span>
-                    )}
+                    <span className={infoCount >= 3 ? "text-sage-deep" : "text-accent-deep"}>
+                      {infoCount}항목 {infoCount >= 3 ? "· 색인 가능" : "· noindex"}
+                    </span>
                   </td>
                   <td className="px-4 py-2.5">
                     {monetizable ? (

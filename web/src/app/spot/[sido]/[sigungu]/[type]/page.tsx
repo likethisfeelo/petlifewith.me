@@ -4,7 +4,7 @@ import { Breadcrumbs } from "@/components/breadcrumbs";
 import { SpotCard } from "@/components/cards";
 import { JsonLd } from "@/components/jsonld";
 import { RememberRegion } from "@/components/region-banner";
-import { PharmacyNote } from "@/components/notices";
+import { B2BNote, PharmacyNote } from "@/components/notices";
 import {
   countIndexableSpotsInRegion,
   getRegionBySlugs,
@@ -30,8 +30,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     getRegionBySlugs(decodeURIComponent(sido), decodeURIComponent(sigungu)),
     getSpotTypeBySlug(decodeURIComponent(type)),
   ]);
-  // 비공개 유형(B2B 인허가)은 공개 페이지를 만들지 않는다
-  if (!region || !spotType || !spotType.listed) return { robots: robotsMeta(false) };
+  if (!region || !spotType) return { robots: robotsMeta(false) };
   const indexableCount = await countIndexableSpotsInRegion(region.id, spotType.id);
   return buildMeta({
     title: `${region.sigunguName} ${spotType.name}`,
@@ -48,7 +47,7 @@ export default async function RegionTypePage({ params }: Props) {
     getRegionBySlugs(decodeURIComponent(sido), decodeURIComponent(sigungu)),
     getSpotTypeBySlug(decodeURIComponent(type)),
   ]);
-  if (!region || !spotType || !spotType.listed) notFound();
+  if (!region || !spotType) notFound();
 
   const spots = await listSpotsInRegion(region.id, spotType.id);
   const basePath = `/spot/${region.sidoSlug}/${region.sigunguSlug}`;
@@ -84,6 +83,7 @@ export default async function RegionTypePage({ params }: Props) {
         </p>
       )}
       {spotType.slug === "pharmacy" && <PharmacyNote />}
+      {!spotType.listed && <B2BNote />}
 
       <section className="mt-8">
         {spots.length === 0 ? (
