@@ -3,6 +3,7 @@
 .next/
 out/
 .open-next/
+.sst/
 cdk.out/
 .env
 .env.*

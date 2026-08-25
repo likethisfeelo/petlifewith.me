@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "target": "es2022",
+    "lib": ["es2022"],
+    "typeRoots": ["./web/node_modules/@types"]
+  },
+  "include": ["sst.config.ts", ".sst/platform/config.d.ts"]
+}
