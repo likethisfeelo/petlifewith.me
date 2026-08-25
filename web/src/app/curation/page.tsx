@@ -2,19 +2,19 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { listPublishedCurations } from "@/lib/queries/curations";
-import { canonicalUrl, robotsMeta } from "@/lib/seo";
+import { buildMeta } from "@/lib/seo";
 import { formatDate } from "@/lib/format";
 
 export const revalidate = 86400; // REVALIDATE.curation
 
 export function generateMetadata(): Metadata {
-  return {
+  return buildMeta({
     title: "크리에이터 큐레이션",
     description:
       "잘 만든 영상과 게시물을 테마로 묶고, 우리 언어로 쓴 맥락을 더합니다. 모든 항목에 창작자와 원본 링크를 표기합니다.",
-    alternates: { canonical: canonicalUrl("/curation") },
-    robots: robotsMeta(true),
-  };
+    path: "/curation",
+    indexable: true,
+  });
 }
 
 export default async function CurationIndexPage() {

@@ -10,7 +10,7 @@ import {
   getSpotTypeBySlug,
   listSpotsInRegion,
 } from "@/lib/queries/spots";
-import { canonicalUrl, itemListLd, robotsMeta, shouldIndexRegionPage } from "@/lib/seo";
+import { buildMeta, itemListLd, robotsMeta, shouldIndexRegionPage } from "@/lib/seo";
 import { idSlugPath } from "@/lib/format";
 
 export const revalidate = 21600; // REVALIDATE.spotDirectory
@@ -31,15 +31,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   ]);
   if (!region || !spotType) return { robots: robotsMeta(false) };
   const indexableCount = await countIndexableSpotsInRegion(region.id, spotType.id);
-  return {
+  return buildMeta({
     title: `${region.sigunguName} ${spotType.name}`,
     description: `${region.sidoName} ${region.sigunguName}의 ${spotType.name} 목록. 인허가 데이터 기준일과 함께 제공합니다.`,
-    alternates: {
-      canonical: canonicalUrl(`/spot/${region.sidoSlug}/${region.sigunguSlug}/${spotType.slug}`),
-    },
+    path: `/spot/${region.sidoSlug}/${region.sigunguSlug}/${spotType.slug}`,
     // 지역 x 유형 페이지도 동일 게이트: 3곳 미만이면 noindex
-    robots: robotsMeta(shouldIndexRegionPage(indexableCount)),
-  };
+    indexable: shouldIndexRegionPage(indexableCount),
+  });
 }
 
 export default async function RegionTypePage({ params }: Props) {

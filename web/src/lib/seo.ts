@@ -2,7 +2,7 @@
 // SEO — noindex 게이트(코드로 강제, claude.md 5-3), canonical, JSON-LD
 // ============================================================
 import type { Metadata } from "next";
-import { isProductionSite, siteName, siteUrl } from "./config";
+import { defaultOgImageUrl, isProductionSite, siteName, siteUrl } from "./config";
 
 // ---------- 얇은 콘텐츠 방지 게이트 ----------
 
@@ -69,6 +69,63 @@ export function pageTitle(title?: string): string {
   return title ? `${title} | ${siteName()}` : siteName();
 }
 
+// ---------- 페이지 메타 빌더 ----------
+// 모든 공개 페이지가 이 헬퍼로 title/description/canonical/robots +
+// Open Graph + Twitter 카드를 한 번에 만든다. 페이지별 오버라이드(seo_title 등)는
+// 호출부에서 우선 적용해 넘긴다. 이미지가 없으면 사이트 기본 OG 이미지로 폴백.
+
+export interface PageMetaInput {
+  /** 순수 제목 — "| 사이트명" 은 레이아웃 템플릿이 붙인다 */
+  title: string;
+  description?: string | null;
+  path: string;
+  indexable: boolean;
+  /** 완성 URL (assetUrl 로 조립해 넘길 것). 없으면 기본 OG 이미지 폴백 */
+  ogImageUrl?: string | null;
+  type?: "website" | "article";
+  publishedAt?: Date | null;
+  modifiedAt?: Date | null;
+}
+
+export function buildMeta(input: PageMetaInput): Metadata {
+  const description = input.description?.trim() || undefined;
+  const url = canonicalUrl(input.path);
+  const imageUrl = input.ogImageUrl ?? defaultOgImageUrl();
+  const images = imageUrl ? [{ url: imageUrl }] : undefined;
+
+  const common = {
+    title: input.title,
+    description,
+    url,
+    siteName: siteName(),
+    locale: "ko_KR",
+    ...(images ? { images } : {}),
+  };
+  const openGraph: Metadata["openGraph"] =
+    (input.type ?? "website") === "article"
+      ? {
+          ...common,
+          type: "article",
+          ...(input.publishedAt ? { publishedTime: input.publishedAt.toISOString() } : {}),
+          ...(input.modifiedAt ? { modifiedTime: input.modifiedAt.toISOString() } : {}),
+        }
+      : { ...common, type: "website" };
+
+  return {
+    title: input.title,
+    description,
+    alternates: { canonical: url },
+    robots: robotsMeta(input.indexable),
+    openGraph,
+    twitter: {
+      card: imageUrl ? "summary_large_image" : "summary",
+      title: input.title,
+      ...(description ? { description } : {}),
+      ...(imageUrl ? { images: [imageUrl] } : {}),
+    },
+  };
+}
+
 // ---------- JSON-LD ----------
 // 스키마: Article / LocalBusiness / ItemList / BreadcrumbList (+ WebSite)
 
@@ -91,6 +148,7 @@ export function articleLd(opts: {
   publishedAt?: Date | null;
   updatedAt?: Date | null;
   reviewedByVet?: string | null;
+  imageUrl?: string | null;
 }): JsonLd {
   const ld: JsonLd = {
     "@context": "https://schema.org",
@@ -101,6 +159,7 @@ export function articleLd(opts: {
     publisher: { "@type": "Organization", name: siteName() },
   };
   if (opts.description) ld.description = opts.description;
+  if (opts.imageUrl) ld.image = [opts.imageUrl];
   if (opts.publishedAt) ld.datePublished = opts.publishedAt.toISOString();
   if (opts.updatedAt) ld.dateModified = opts.updatedAt.toISOString();
   // 감수 표기는 사실일 때만 넣는다

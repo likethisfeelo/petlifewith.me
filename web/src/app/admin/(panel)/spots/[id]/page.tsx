@@ -78,6 +78,8 @@ export default async function AdminSpotEditPage({ params, searchParams }: Props)
             priceText: spot.priceText,
             parkingText: spot.parkingText,
             descriptionMd: spot.descriptionMd,
+            heroImageKey: spot.heroImageKey,
+            seo: { seoTitle: spot.seoTitle, seoDescription: spot.seoDescription, ogImageKey: spot.ogImageKey },
           }}
           types={types.map((t) => ({ id: t.id, label: t.name }))}
           links={links.map((l) => ({ kind: l.kind, url: l.url, label: l.label ?? "" }))}

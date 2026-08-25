@@ -11,7 +11,8 @@ import { renderMarkdown } from "@/lib/markdown";
 import { guidesMentioningSpot } from "@/lib/queries/guides";
 import { getPlace, getSpotLinks } from "@/lib/queries/spots";
 import { spotLinkLabel } from "@/lib/links";
-import { canonicalUrl, localBusinessLd, placeInfoItemCount, robotsMeta, shouldIndexPlace } from "@/lib/seo";
+import { buildMeta, localBusinessLd, placeInfoItemCount, robotsMeta, shouldIndexPlace } from "@/lib/seo";
+import { assetUrl } from "@/lib/assets";
 
 export const revalidate = 21600; // REVALIDATE.place
 
@@ -30,13 +31,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!found) return { robots: robotsMeta(false) };
   const { spot, typeName, region } = found;
   const linkCount = (await getSpotLinks(spot.id)).length;
-  return {
-    title: `${spot.name} — ${region.sigunguName} ${typeName}`,
-    description: spot.descriptionMd?.split("\n")[0] ?? `${region.sidoName} ${region.sigunguName}의 ${typeName}.`,
-    alternates: { canonical: canonicalUrl(idSlugPath("place", spot.id, spot.slug)) },
+  return buildMeta({
+    title: spot.seoTitle ?? `${spot.name} — ${region.sigunguName} ${typeName}`,
+    description:
+      spot.seoDescription ?? spot.descriptionMd?.split("\n")[0] ?? `${region.sidoName} ${region.sigunguName}의 ${typeName}.`,
+    path: idSlugPath("place", spot.id, spot.slug),
     // 얇은 콘텐츠 방지: 정보 3항목 미만 개별 장소 → noindex (claude.md 5-3)
-    robots: robotsMeta(shouldIndexPlace(spot, linkCount)),
-  };
+    indexable: shouldIndexPlace(spot, linkCount),
+    ogImageUrl: assetUrl(spot.ogImageKey ?? spot.heroImageKey),
+  });
 }
 
 export default async function PlacePage({ params }: Props) {
@@ -114,6 +117,10 @@ export default async function PlacePage({ params }: Props) {
         <p className="mt-1 text-sm text-ink-soft">
           {region.sidoName} {region.sigunguName}
         </p>
+        {assetUrl(spot.heroImageKey) && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={assetUrl(spot.heroImageKey)} alt={spot.name} className="mt-4 w-full rounded-2xl bg-sand" decoding="async" />
+        )}
       </header>
 
       {/* 장묘: 광고·추천 없이 사실 정보만 (기획서 4-1) */}

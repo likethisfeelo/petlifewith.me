@@ -2,18 +2,18 @@ import type { Metadata } from "next";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { MakerCard } from "@/components/cards";
 import { listPublishedMakers } from "@/lib/queries/makers";
-import { canonicalUrl, robotsMeta } from "@/lib/seo";
+import { buildMeta } from "@/lib/seo";
 
 export const revalidate = 21600; // REVALIDATE.maker
 
 export function generateMetadata(): Metadata {
-  return {
+  return buildMeta({
     title: "메이커 — 간식·장난감·용품을 직접 만드는 브랜드",
     description:
       "검색 상위에 안 잡히는 작은 브랜드일수록 가치가 큽니다. 직접 제조하는 곳만, 등록 확인 배지와 함께 소개합니다.",
-    alternates: { canonical: canonicalUrl("/maker") },
-    robots: robotsMeta(true),
-  };
+    path: "/maker",
+    indexable: true,
+  });
 }
 
 export default async function MakerIndexPage() {

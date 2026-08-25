@@ -3,6 +3,8 @@
 import { useActionState } from "react";
 import { FormMessage, SelectField, SubmitButton, TextAreaField, TextField } from "../../../_components/fields";
 import { RowsEditor, type RowValue } from "../../../_components/rows-editor";
+import { SeoFields, type SeoDefaults } from "../../../_components/seo-fields";
+import { UploadField } from "../../../_components/upload-field";
 import { createItemAction, saveItemAction, type ActionState } from "../../../directory-actions";
 
 export interface ItemFormValues {
@@ -12,6 +14,8 @@ export interface ItemFormValues {
   makerId: number | "";
   summary: string | null;
   descriptionMd: string | null;
+  imageKey?: string | null;
+  seo?: SeoDefaults;
 }
 
 const CATEGORY_OPTIONS = [
@@ -84,7 +88,16 @@ export function ItemEditor({
         />
 
         <TextAreaField name="descriptionMd" label="설명 (마크다운)" defaultValue={item.descriptionMd} rows={8} mono />
+
+        <UploadField
+          name="imageKey"
+          label="상품 이미지"
+          defaultKey={item.imageKey}
+          hint="직접 촬영한 사진 또는 사용 허락을 받은 이미지만."
+        />
       </section>
+
+      <SeoFields defaults={item.seo ?? {}} />
 
       <RowsEditor
         name="offersJson"

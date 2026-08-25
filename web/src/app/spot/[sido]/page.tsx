@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { listSigunguSummaries } from "@/lib/queries/spots";
-import { canonicalUrl, robotsMeta } from "@/lib/seo";
+import { buildMeta, robotsMeta } from "@/lib/seo";
 
 export const revalidate = 21600; // REVALIDATE.spotDirectory
 
@@ -21,12 +21,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (rows.length === 0) return { robots: robotsMeta(false) };
   const sidoName = rows[0]!.region.sidoName;
   const total = rows.reduce((a, r) => a + r.spotCount, 0);
-  return {
+  return buildMeta({
     title: `${sidoName} 반려동물 스팟`,
     description: `${sidoName}의 스파·셀프목욕·수영장·놀이터·재활 시설 ${total}곳을 시군구별로 정리했습니다.`,
-    alternates: { canonical: canonicalUrl(`/spot/${sido}`) },
-    robots: robotsMeta(total > 0),
-  };
+    path: `/spot/${rows[0]!.region.sidoSlug}`,
+    indexable: total > 0,
+  });
 }
 
 export default async function SidoPage({ params }: Props) {

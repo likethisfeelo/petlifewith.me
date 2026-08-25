@@ -5,9 +5,14 @@
 //    (기획서 3-2·3-4: 공식 임베드만, 출처는 본문 내 해당 위치에 표기)
 //      {{youtube:VIDEO_ID|창작자명|원본URL}}
 //      {{instagram:게시물URL|창작자명|원본URL}}
+//  - 직접 올린 미디어도 숏코드로 넣는다 — 본문에는 오브젝트 키만 저장되고
+//    URL 은 렌더 시점에 조립된다 (claude.md 10-1):
+//      {{image:오브젝트키|대체텍스트|캡션(선택)}}
+//      {{video:오브젝트키|캡션(선택)}}
 //  - 쿠팡 계열 링크는 rel="sponsored" + 감지 플래그 → 페이지가 수수료 고지를 띄운다.
 // ============================================================
 import { Marked } from "marked";
+import { assetUrl, isValidObjectKey } from "./assets";
 
 export interface RenderedMarkdown {
   html: string;
@@ -71,11 +76,33 @@ function instagramEmbedHtml(postUrl: string, creator: string, originalUrl: strin
   ].join("");
 }
 
-function invalidEmbedHtml(reason: string): string {
-  return `<div class="md-embed-invalid">임베드가 렌더되지 않았습니다 — ${escapeHtml(reason)}. 창작자명과 원본 링크 없이는 게시할 수 없습니다 (운영 규칙 3-4).</div>`;
+function imageHtml(key: string, alt: string, caption: string | undefined): string {
+  const url = assetUrl(key);
+  if (!url) return invalidEmbedHtml("NEXT_PUBLIC_ASSET_BASE_URL 미설정 — 미디어 URL 을 만들 수 없습니다");
+  return [
+    `<figure class="md-media">`,
+    `<img src="${escapeHtml(url)}" alt="${escapeHtml(alt)}" loading="lazy" decoding="async" />`,
+    caption ? `<figcaption>${escapeHtml(caption)}</figcaption>` : "",
+    `</figure>`,
+  ].join("");
 }
 
-const EMBED_RE = /^\{\{(youtube|instagram):([^|{}]+)(?:\|([^|{}]*))?(?:\|([^|{}]*))?\}\}\s*$/gm;
+function videoHtml(key: string, caption: string | undefined): string {
+  const url = assetUrl(key);
+  if (!url) return invalidEmbedHtml("NEXT_PUBLIC_ASSET_BASE_URL 미설정 — 미디어 URL 을 만들 수 없습니다");
+  return [
+    `<figure class="md-media">`,
+    `<video controls playsinline preload="metadata" src="${escapeHtml(url)}"></video>`,
+    caption ? `<figcaption>${escapeHtml(caption)}</figcaption>` : "",
+    `</figure>`,
+  ].join("");
+}
+
+function invalidEmbedHtml(reason: string): string {
+  return `<div class="md-embed-invalid">임베드가 렌더되지 않았습니다 — ${escapeHtml(reason)}.</div>`;
+}
+
+const EMBED_RE = /^\{\{(youtube|instagram|image|video):([^|{}]+)(?:\|([^|{}]*))?(?:\|([^|{}]*))?\}\}\s*$/gm;
 
 export function renderMarkdown(md: string): RenderedMarkdown {
   let hasInstagramEmbed = false;
@@ -87,8 +114,18 @@ export function renderMarkdown(md: string): RenderedMarkdown {
     const creatorName = creator?.trim();
     const originalUrl = url?.trim();
     let html: string;
-    if (!creatorName || !originalUrl) {
-      html = invalidEmbedHtml("창작자명 또는 원본 링크 누락");
+    if (kind === "image" || kind === "video") {
+      // 직접 올린 미디어 — 두 번째 인자는 alt(이미지)/캡션(영상), 세 번째는 이미지 캡션
+      const key = ref.trim();
+      if (!isValidObjectKey(key)) {
+        html = invalidEmbedHtml("유효하지 않은 오브젝트 키");
+      } else if (kind === "image") {
+        html = imageHtml(key, creatorName ?? "", originalUrl || undefined);
+      } else {
+        html = videoHtml(key, creatorName || undefined);
+      }
+    } else if (!creatorName || !originalUrl) {
+      html = invalidEmbedHtml("창작자명 또는 원본 링크 누락 — 출처 표기 없이는 게시할 수 없습니다 (운영 규칙 3-4)");
     } else if (kind === "youtube") {
       const id = ref.trim();
       html = YOUTUBE_ID_RE.test(id) ? youtubeEmbedHtml(id, creatorName, originalUrl) : invalidEmbedHtml("유효하지 않은 YouTube ID");

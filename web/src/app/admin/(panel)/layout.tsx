@@ -16,6 +16,7 @@ const NAV = [
   { href: "/admin/items", label: "상품" },
   { href: "/admin/devices", label: "기기" },
   { href: "/admin/curations", label: "큐레이션" },
+  { href: "/admin/media", label: "미디어" },
   { href: "/admin/claims", label: "클레임" },
 ];
 

@@ -9,6 +9,8 @@ import {
   TextField,
 } from "../../../_components/fields";
 import { RowsEditor, type RowValue } from "../../../_components/rows-editor";
+import { SeoFields, type SeoDefaults } from "../../../_components/seo-fields";
+import { UploadField } from "../../../_components/upload-field";
 import { SPOT_LINK_KINDS } from "@/lib/links";
 import { createSpotAction, saveSpotAction, type ActionState } from "../../../directory-actions";
 
@@ -25,6 +27,8 @@ export interface SpotFormValues {
   priceText: string | null;
   parkingText: string | null;
   descriptionMd: string | null;
+  heroImageKey?: string | null;
+  seo?: SeoDefaults;
 }
 
 export interface SpotOption {
@@ -138,7 +142,16 @@ export function SpotEditor({
           mono
           hint="직접 확인한 사실 위주로. 순위·추천 표현은 쓰지 않습니다."
         />
+
+        <UploadField
+          name="heroImageKey"
+          label="대표 이미지"
+          defaultKey={spot.heroImageKey}
+          hint="직접 촬영한 사진만. 페이지 상단과 공유 미리보기에 쓰입니다."
+        />
       </section>
+
+      <SeoFields defaults={spot.seo ?? {}} />
 
       <RowsEditor
         name="linksJson"

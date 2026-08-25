@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import { FormMessage, SelectField, SubmitButton, TextAreaField, TextField } from "../../../_components/fields";
 import { RowsEditor, type RowValue } from "../../../_components/rows-editor";
+import { SeoFields, type SeoDefaults } from "../../../_components/seo-fields";
 import { createCurationAction, saveCurationAction, type ActionState } from "../../../directory-actions";
 
 export interface CurationFormValues {
@@ -11,6 +12,7 @@ export interface CurationFormValues {
   themeSlug?: string;
   introMd: string | null;
   status: string;
+  seo?: SeoDefaults;
 }
 
 const STATUS_OPTIONS = [
@@ -100,6 +102,8 @@ export function CurationEditor({
         addLabel="항목 추가"
         emptyHint="항목이 없습니다. 항목이 하나도 없으면 발행해도 색인되지 않습니다."
       />
+
+      <SeoFields defaults={curation.seo ?? {}} />
 
       <FormMessage error={state.error} saved={state.saved} />
       <SubmitButton pending={pending} label={mode === "create" ? "등록" : "저장"} />

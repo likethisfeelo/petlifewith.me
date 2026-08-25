@@ -106,6 +106,26 @@ body {
   min-width: 240px;
   max-width: 540px;
 }
+.md-media {
+  margin: 2rem 0;
+}
+.md-media img,
+.md-media video {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 0.75rem;
+  background: var(--color-sand);
+}
+.md-media video {
+  aspect-ratio: 16 / 9;
+}
+.md-media figcaption {
+  margin-top: 0.5rem;
+  font-size: 0.8125rem;
+  color: var(--color-ink-soft);
+}
+
 .md-embed-invalid {
   margin: 2rem 0;
   border: 1px dashed var(--color-accent);

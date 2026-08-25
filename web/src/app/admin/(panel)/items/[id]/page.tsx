@@ -59,6 +59,8 @@ export default async function AdminItemEditPage({ params, searchParams }: Props)
             makerId: item.makerId ?? "",
             summary: item.summary,
             descriptionMd: item.descriptionMd,
+            imageKey: item.imageKey,
+            seo: { seoTitle: item.seoTitle, seoDescription: item.seoDescription, ogImageKey: item.ogImageKey },
           }}
           makers={makerRows.map((m) => ({ id: m.id, label: m.name }))}
           offers={offers.map((o) => ({

@@ -3,9 +3,9 @@
 //  - 로컬 파일시스템에 쓰지 않는다. Lambda 에는 영속 디스크가 없다.
 //  - 업로드는 presigned URL 패턴: 서버가 URL 발급, 클라이언트가 직접 업로드.
 //  - 로컬 개발은 MinIO(S3 호환, docker-compose.yml) 를 같은 클라이언트로 쓴다.
-//  - DB 에는 오브젝트 키만 저장한다. 공개 URL 조립은 lib/config.ts assetUrl().
+//  - DB 에는 오브젝트 키만 저장한다. 공개 URL 조립은 lib/assets.ts assetUrl().
 // ============================================================
-import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { DeleteObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { storageConfig } from "./config";
 
@@ -45,4 +45,10 @@ export async function createUploadUrl(opts: {
   const command = new PutObjectCommand({ Bucket: bucket, Key: objectKey, ContentType: opts.contentType });
   const uploadUrl = await getSignedUrl(client, command, { expiresIn: opts.expiresInSec ?? 600 });
   return { uploadUrl, objectKey };
+}
+
+/** 오브젝트 삭제 — 미디어 라이브러리에서 자산을 지울 때만 쓴다. */
+export async function deleteObject(objectKey: string): Promise<void> {
+  const { client, bucket } = getClient();
+  await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: objectKey }));
 }

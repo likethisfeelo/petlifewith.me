@@ -8,7 +8,8 @@ import { ITEM_CATEGORY_LABEL, OFFER_VENDOR_LABEL, formatDate, idSlugPath, parseI
 import { renderMarkdown } from "@/lib/markdown";
 import { guidesMentioningItem } from "@/lib/queries/guides";
 import { getItemDetail } from "@/lib/queries/items";
-import { canonicalUrl, itemListLd, robotsMeta } from "@/lib/seo";
+import { buildMeta, itemListLd, robotsMeta } from "@/lib/seo";
+import { assetUrl } from "@/lib/assets";
 
 export const revalidate = 21600; // REVALIDATE.item
 
@@ -26,13 +27,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const detail = id ? await getItemDetail(id) : null;
   if (!detail) return { robots: robotsMeta(false) };
   const mentions = await guidesMentioningItem(detail.item.id);
-  return {
-    title: `${detail.item.name} — 언급된 글 ${mentions.length}개`,
-    description: detail.item.summary ?? undefined,
-    alternates: { canonical: canonicalUrl(idSlugPath("item", detail.item.id, detail.item.slug)) },
+  const { item } = detail;
+  return buildMeta({
+    title: item.seoTitle ?? `${item.name} — 언급된 글 ${mentions.length}개`,
+    description: item.seoDescription ?? item.summary,
+    path: idSlugPath("item", item.id, item.slug),
     // 역참조가 본질 — 언급한 발행 글이 없으면 얇은 페이지라 색인하지 않는다
-    robots: robotsMeta(mentions.length > 0),
-  };
+    indexable: mentions.length > 0,
+    ogImageUrl: assetUrl(item.ogImageKey ?? item.imageKey),
+  });
 }
 
 export default async function ItemPage({ params }: Props) {
@@ -60,6 +63,10 @@ export default async function ItemPage({ params }: Props) {
         <span className="rounded-full bg-accent-soft px-2.5 py-1 text-xs font-medium text-accent-deep">
           {ITEM_CATEGORY_LABEL[item.category] ?? item.category}
         </span>
+        {assetUrl(item.imageKey) && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={assetUrl(item.imageKey)} alt={item.name} className="mt-4 w-full rounded-2xl bg-sand" decoding="async" />
+        )}
         <h1 className="mt-3 text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">{item.name}</h1>
         {item.summary && <p className="mt-2 text-ink-soft">{item.summary}</p>}
         {maker && (

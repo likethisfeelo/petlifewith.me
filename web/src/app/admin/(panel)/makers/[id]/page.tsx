@@ -65,6 +65,8 @@ export default async function AdminMakerEditPage({ params, searchParams }: Props
             badgeNote: maker.badgeNote,
             selectionMemo: maker.selectionMemo,
             status: maker.status,
+            heroImageKey: maker.heroImageKey,
+            seo: { seoTitle: maker.seoTitle, seoDescription: maker.seoDescription, ogImageKey: maker.ogImageKey },
           }}
           regions={regionRows.map((r) => ({ id: r.id, label: `${r.sidoName} ${r.sigunguName}` }))}
           links={links.map((l) => ({ kind: l.kind, url: l.url, label: l.label ?? "" }))}

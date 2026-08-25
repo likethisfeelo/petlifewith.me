@@ -6,7 +6,8 @@ import { JsonLd } from "@/components/jsonld";
 import { formatDate } from "@/lib/format";
 import { renderMarkdown } from "@/lib/markdown";
 import { getCurationByTheme } from "@/lib/queries/curations";
-import { articleLd, canonicalUrl, robotsMeta } from "@/lib/seo";
+import { articleLd, buildMeta, robotsMeta } from "@/lib/seo";
+import { assetUrl } from "@/lib/assets";
 
 export const revalidate = 86400; // REVALIDATE.curation
 
@@ -22,13 +23,18 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { theme } = await params;
   const found = await getCurationByTheme(decodeURIComponent(theme));
   if (!found) return { robots: robotsMeta(false) };
-  return {
-    title: found.curation.title,
-    description: found.curation.introMd?.split("\n")[0] ?? undefined,
-    alternates: { canonical: canonicalUrl(`/curation/${found.curation.themeSlug}`) },
+  const { curation } = found;
+  return buildMeta({
+    title: curation.seoTitle ?? curation.title,
+    description: curation.seoDescription ?? curation.introMd?.split("\n")[0],
+    path: `/curation/${curation.themeSlug}`,
     // 자체 가치 판정(3-3): 항목이 없으면 색인하지 않는다
-    robots: robotsMeta(found.entries.length > 0),
-  };
+    indexable: found.entries.length > 0,
+    ogImageUrl: assetUrl(curation.ogImageKey),
+    type: "article",
+    publishedAt: curation.publishedAt,
+    modifiedAt: curation.updatedAt,
+  });
 }
 
 export default async function CurationPage({ params }: Props) {

@@ -7,6 +7,7 @@ import { and, eq } from "drizzle-orm";
 import { getDb, isDbConfigured, schema } from "@/lib/db";
 import { getSession, loginWithToken, logout } from "@/lib/auth";
 import { slugify } from "@app/data";
+import { isValidObjectKey } from "@/lib/assets";
 
 const { guides, claims, spots, spotTypes, guideItemTags, guideSpotTags, guideMakerTags, promotions } = schema;
 
@@ -59,6 +60,15 @@ export async function saveGuideAction(_prev: ActionState, formData: FormData): P
   const existing = (await db.select().from(guides).where(eq(guides.id, id)).limit(1))[0];
   if (!existing) return { error: "가이드를 찾을 수 없습니다." };
 
+  const seoTitle = String(formData.get("seoTitle") ?? "").trim() || null;
+  const seoDescription = String(formData.get("seoDescription") ?? "").trim() || null;
+  const ogImageKey = String(formData.get("ogImageKey") ?? "").trim() || null;
+  const heroImageKey = String(formData.get("heroImageKey") ?? "").trim() || null;
+  if (seoTitle && seoTitle.length > 70) return { error: "검색·공유 제목은 70자 이하로 쓰세요." };
+  if (seoDescription && seoDescription.length > 200) return { error: "검색·공유 설명은 200자 이하로 쓰세요." };
+  if (ogImageKey && !isValidObjectKey(ogImageKey)) return { error: "OG 이미지 키가 올바르지 않습니다." };
+  if (heroImageKey && !isValidObjectKey(heroImageKey)) return { error: "대표 이미지 키가 올바르지 않습니다." };
+
   const publishedAt = status === "published" ? (existing.publishedAt ?? new Date()) : existing.publishedAt;
 
   await db
@@ -74,6 +84,10 @@ export async function saveGuideAction(_prev: ActionState, formData: FormData): P
       vetReviewed,
       vetReviewerName,
       vetReviewedAt: String(formData.get("vetReviewedAt") ?? "").trim() || null,
+      heroImageKey,
+      seoTitle,
+      seoDescription,
+      ogImageKey,
       publishedAt,
       updatedAt: new Date(),
     })

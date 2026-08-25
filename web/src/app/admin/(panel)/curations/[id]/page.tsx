@@ -44,6 +44,7 @@ export default async function AdminCurationEditPage({ params, searchParams }: Pr
             title: curation.title,
             introMd: curation.introMd,
             status: curation.status,
+            seo: { seoTitle: curation.seoTitle, seoDescription: curation.seoDescription, ogImageKey: curation.ogImageKey },
           }}
           entries={entries.map((e) => ({
             embedSource: e.embedSource,

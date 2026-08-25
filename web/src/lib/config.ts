@@ -39,6 +39,11 @@ export function contactEmail(): string | undefined {
   return getOptionalEnv("NEXT_PUBLIC_CONTACT_EMAIL");
 }
 
+/** 페이지별 이미지가 없을 때 쓰는 사이트 기본 OG 이미지 (완성 URL, 1200x630 권장) */
+export function defaultOgImageUrl(): string | undefined {
+  return getOptionalEnv("NEXT_PUBLIC_DEFAULT_OG_IMAGE_URL");
+}
+
 // ---------- DB ----------
 // 연결 문자열은 여기서만 읽는다. 나중에 RDS Proxy 를 붙일 때도 이 한 곳만 바뀐다. (claude.md 10-2)
 
@@ -85,10 +90,4 @@ export function storageConfig(): StorageConfig | undefined {
   };
 }
 
-/** DB 에는 오브젝트 키만 저장한다. 공개 URL 은 렌더 시점에 여기서 조립한다. */
-export function assetUrl(objectKey: string | null | undefined): string | undefined {
-  if (!objectKey) return undefined;
-  const base = getOptionalEnv("ASSET_BASE_URL");
-  if (!base) return undefined;
-  return `${base.replace(/\/$/, "")}/${objectKey.replace(/^\//, "")}`;
-}
+// 공개 자산 URL 조립은 lib/assets.ts (클라이언트에서도 쓰므로 NEXT_PUBLIC_ 기반).

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { renderMarkdown } from "./markdown";
 
 describe("renderMarkdown — 임베드 규칙 (기획서 3-2·3-4)", () => {
@@ -54,5 +54,39 @@ describe("renderMarkdown — 링크·안전성", () => {
   it("헤딩에 앵커 id 가 붙는다", () => {
     const { html } = renderMarkdown("## 무엇을 살펴볼까");
     expect(html).toContain('<h2 id="무엇을-살펴볼까">');
+  });
+});
+
+describe("renderMarkdown — 업로드 미디어 숏코드 (키만 저장, URL 은 렌더 시 조립)", () => {
+  beforeEach(() => {
+    process.env.NEXT_PUBLIC_ASSET_BASE_URL = "https://assets.example.com/bucket";
+  });
+
+  it("이미지: alt 와 캡션이 붙는다", () => {
+    const { html } = renderMarkdown("{{image:media/image/123-photo.jpg|목욕하는 강아지|직접 촬영}}");
+    expect(html).toContain('src="https://assets.example.com/bucket/media/image/123-photo.jpg"');
+    expect(html).toContain('alt="목욕하는 강아지"');
+    expect(html).toContain("직접 촬영");
+    expect(html).toContain('loading="lazy"');
+  });
+
+  it("영상: video 태그로 렌더된다", () => {
+    const { html } = renderMarkdown("{{video:media/video/123-clip.mp4|노즈워크 시연}}");
+    expect(html).toContain("<video controls");
+    expect(html).toContain("media/video/123-clip.mp4");
+    expect(html).toContain("노즈워크 시연");
+  });
+
+  it("자산 베이스 URL 미설정이면 렌더하지 않고 사유를 보여준다", () => {
+    delete process.env.NEXT_PUBLIC_ASSET_BASE_URL;
+    const { html } = renderMarkdown("{{image:media/image/123-photo.jpg|alt}}");
+    expect(html).toContain("md-embed-invalid");
+    expect(html).not.toContain("<img");
+  });
+
+  it("경로 탈출 등 이상한 키는 거부한다", () => {
+    const { html } = renderMarkdown("{{image:../../etc/passwd|x}}");
+    expect(html).toContain("md-embed-invalid");
+    expect(html).not.toContain("<img");
   });
 });

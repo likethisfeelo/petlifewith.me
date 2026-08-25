@@ -10,6 +10,8 @@ import {
   TextField,
 } from "../../../_components/fields";
 import { RowsEditor, type RowValue } from "../../../_components/rows-editor";
+import { SeoFields, type SeoDefaults } from "../../../_components/seo-fields";
+import { UploadField } from "../../../_components/upload-field";
 import { MAKER_LINK_KINDS } from "@/lib/links";
 import { createMakerAction, saveMakerAction, type ActionState } from "../../../directory-actions";
 
@@ -26,6 +28,8 @@ export interface MakerFormValues {
   badgeNote: string | null;
   selectionMemo: string | null;
   status: string;
+  heroImageKey?: string | null;
+  seo?: SeoDefaults;
 }
 
 const CATEGORY_OPTIONS = [
@@ -98,7 +102,16 @@ export function MakerEditor({
           mono
           hint="만든 이유와 과정에 실체가 있는지가 선정 기준입니다. 소개가 비어 있으면 공개해도 색인되지 않습니다."
         />
+
+        <UploadField
+          name="heroImageKey"
+          label="대표 이미지"
+          defaultKey={maker.heroImageKey}
+          hint="브랜드 제공 이미지는 사용 허락을 받은 것만 올립니다."
+        />
       </section>
+
+      <SeoFields defaults={maker.seo ?? {}} />
 
       {/* 배지는 평가가 아니라 공적 데이터에 근거한 사실 진술이다 (claude.md 7) */}
       <section className="space-y-4 rounded-xl border border-line bg-surface p-4">

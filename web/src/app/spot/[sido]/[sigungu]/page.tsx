@@ -13,7 +13,7 @@ import {
   getRegionDogStats,
   listSpotsInRegion,
 } from "@/lib/queries/spots";
-import { canonicalUrl, itemListLd, robotsMeta, shouldIndexRegionPage } from "@/lib/seo";
+import { buildMeta, itemListLd, robotsMeta, shouldIndexRegionPage } from "@/lib/seo";
 import { idSlugPath } from "@/lib/format";
 
 export const revalidate = 21600; // REVALIDATE.spotDirectory
@@ -32,12 +32,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!region) return { robots: robotsMeta(false) };
   // 얇은 콘텐츠 방지: 스팟 3개 미만 지역 페이지 → noindex (claude.md 5-3)
   const indexableCount = await countIndexableSpotsInRegion(region.id);
-  return {
+  return buildMeta({
     title: `${region.sidoName} ${region.sigunguName} 반려동물 스팟`,
     description: `${region.sigunguName}의 스파·셀프목욕·수영장·놀이터·재활 시설과 지역 데이터를 정리했습니다.`,
-    alternates: { canonical: canonicalUrl(`/spot/${region.sidoSlug}/${region.sigunguSlug}`) },
-    robots: robotsMeta(shouldIndexRegionPage(indexableCount)),
-  };
+    path: `/spot/${region.sidoSlug}/${region.sigunguSlug}`,
+    indexable: shouldIndexRegionPage(indexableCount),
+  });
 }
 
 export default async function SigunguPage({ params }: Props) {

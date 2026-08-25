@@ -83,6 +83,10 @@ export default async function AdminGuideEditPage({ params, searchParams }: Props
               vetReviewed: guide.vetReviewed,
               vetReviewerName: guide.vetReviewerName,
               vetReviewedAt: guide.vetReviewedAt,
+              heroImageKey: guide.heroImageKey,
+              seoTitle: guide.seoTitle,
+              seoDescription: guide.seoDescription,
+              ogImageKey: guide.ogImageKey,
             }}
           />
         </div>

@@ -3,7 +3,7 @@ import "./globals.css";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { JsonLd } from "@/components/jsonld";
-import { siteName, siteUrl } from "@/lib/config";
+import { defaultOgImageUrl, siteName, siteUrl } from "@/lib/config";
 import { robotsMeta, websiteLd } from "@/lib/seo";
 
 export function generateMetadata(): Metadata {
@@ -18,6 +18,13 @@ export function generateMetadata(): Metadata {
     // 기본값: 색인 허용. 단 프로덕션 URL 미설정(로컬·프리뷰)이면 전면 noindex 가드가 걸린다.
     // 개별 페이지의 게이트(robotsMeta)가 이 기본값을 덮어쓴다.
     robots: robotsMeta(true),
+    openGraph: {
+      siteName: siteName(),
+      locale: "ko_KR",
+      type: "website",
+      ...(defaultOgImageUrl() ? { images: [{ url: defaultOgImageUrl()! }] } : {}),
+    },
+    twitter: { card: defaultOgImageUrl() ? "summary_large_image" : "summary" },
   };
 }
 

@@ -8,7 +8,8 @@ import { ITEM_CATEGORY_LABEL, MAKER_CATEGORY_LABEL, idSlugPath, parseIdSlug } fr
 import { renderMarkdown } from "@/lib/markdown";
 import { guidesMentioningMaker } from "@/lib/queries/guides";
 import { getMakerProfile } from "@/lib/queries/makers";
-import { canonicalUrl, itemListLd, robotsMeta } from "@/lib/seo";
+import { buildMeta, itemListLd, robotsMeta } from "@/lib/seo";
+import { assetUrl } from "@/lib/assets";
 
 export const revalidate = 21600; // REVALIDATE.maker
 
@@ -34,13 +35,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const profile = id ? await getMakerProfile(id) : null;
   if (!profile || profile.maker.status !== "published") return { robots: robotsMeta(false) };
   const { maker } = profile;
-  return {
-    title: `${maker.name} — ${MAKER_CATEGORY_LABEL[maker.category] ?? maker.category} 메이커`,
-    description: maker.storyMd?.split("\n")[0] ?? undefined,
-    alternates: { canonical: canonicalUrl(idSlugPath("maker", maker.id, maker.slug)) },
+  return buildMeta({
+    title: maker.seoTitle ?? `${maker.name} — ${MAKER_CATEGORY_LABEL[maker.category] ?? maker.category} 메이커`,
+    description: maker.seoDescription ?? maker.storyMd?.split("\n")[0],
+    path: idSlugPath("maker", maker.id, maker.slug),
     // 스토리가 없으면 얇은 프로필 — 색인하지 않는다
-    robots: robotsMeta(Boolean(maker.storyMd && maker.storyMd.trim().length > 0)),
-  };
+    indexable: Boolean(maker.storyMd && maker.storyMd.trim().length > 0),
+    ogImageUrl: assetUrl(maker.ogImageKey ?? maker.heroImageKey),
+  });
 }
 
 export default async function MakerPage({ params }: Props) {
@@ -89,6 +91,10 @@ export default async function MakerPage({ params }: Props) {
           <p className="mt-2 text-xs text-ink-faint">
             배지는 평가·인증이 아니라 공적 등록 데이터에 근거한 사실 확인 표기입니다.
           </p>
+        )}
+        {assetUrl(maker.heroImageKey) && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={assetUrl(maker.heroImageKey)} alt={maker.name} className="mt-4 w-full rounded-2xl bg-sand" decoding="async" />
         )}
       </header>
 

@@ -3,17 +3,17 @@ import Link from "next/link";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { RegionSuggestBanner } from "@/components/region-banner";
 import { listSidoSummaries, listSpotTypes } from "@/lib/queries/spots";
-import { canonicalUrl, robotsMeta } from "@/lib/seo";
+import { buildMeta } from "@/lib/seo";
 
 export const revalidate = 21600; // REVALIDATE.spotDirectory
 
 export function generateMetadata(): Metadata {
-  return {
+  return buildMeta({
     title: "스팟 디렉토리 — 반려동물이 즐거운 곳",
     description: "스파, 셀프목욕, 수영장, 놀이터, 재활 시설. 동반 가능 여부가 아니라 즐거움에 직접 기여하는 곳만 모았습니다.",
-    alternates: { canonical: canonicalUrl("/spot") },
-    robots: robotsMeta(true),
-  };
+    path: "/spot",
+    indexable: true,
+  });
 }
 
 export default async function SpotIndexPage() {

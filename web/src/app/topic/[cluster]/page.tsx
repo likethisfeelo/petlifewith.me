@@ -6,7 +6,7 @@ import { GuideCard } from "@/components/cards";
 import { JsonLd } from "@/components/jsonld";
 import { TOPIC_PHASE_LABEL } from "@/lib/format";
 import { getTopicBySlug, listGuidesForTopic } from "@/lib/queries/guides";
-import { canonicalUrl, itemListLd, robotsMeta } from "@/lib/seo";
+import { buildMeta, itemListLd, robotsMeta } from "@/lib/seo";
 import { topicStyle } from "@/lib/topic-style";
 
 export const revalidate = 3600; // REVALIDATE.topic
@@ -30,12 +30,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const topic = await getTopicBySlug(decodeURIComponent(cluster));
   if (!topic) return { robots: robotsMeta(false) };
   const { all } = await listGuidesForTopic(topic.id);
-  return {
+  return buildMeta({
     title: `${topic.name} — 토픽 허브`,
-    description: topic.description ?? undefined,
-    alternates: { canonical: canonicalUrl(`/topic/${topic.slug}`) },
-    robots: robotsMeta(all.length > 0),
-  };
+    description: topic.description,
+    path: `/topic/${topic.slug}`,
+    indexable: all.length > 0,
+  });
 }
 
 export default async function TopicPage({ params }: Props) {

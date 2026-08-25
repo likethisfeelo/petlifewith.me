@@ -10,6 +10,7 @@ import { slugify } from "@app/data";
 import { getDb, isDbConfigured, schema } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { isSafeHttpUrl } from "@/lib/links";
+import { isValidObjectKey } from "@/lib/assets";
 import { parseRows, rowBool, rowString, type ParsedRow } from "./_components/parse-rows";
 
 const {
@@ -53,6 +54,30 @@ function checked(formData: FormData, name: string): boolean {
 function intOrNull(formData: FormData, name: string): number | null {
   const n = Number(str(formData, name));
   return Number.isSafeInteger(n) && n > 0 ? n : null;
+}
+
+interface SeoFieldValues {
+  seoTitle: string | null;
+  seoDescription: string | null;
+  ogImageKey: string | null;
+}
+
+/** 페이지별 SEO 오버라이드 읽기 — 길이 상한과 키 형식을 검증한다. */
+function readSeoFields(formData: FormData): { error?: string; values: SeoFieldValues } {
+  const seoTitle = nullable(formData, "seoTitle");
+  const seoDescription = nullable(formData, "seoDescription");
+  const ogImageKey = nullable(formData, "ogImageKey");
+  if (seoTitle && seoTitle.length > 70) return { error: "검색·공유 제목은 70자 이하로 쓰세요.", values: { seoTitle, seoDescription, ogImageKey } };
+  if (seoDescription && seoDescription.length > 200) return { error: "검색·공유 설명은 200자 이하로 쓰세요.", values: { seoTitle, seoDescription, ogImageKey } };
+  if (ogImageKey && !isValidObjectKey(ogImageKey)) return { error: "OG 이미지 키가 올바르지 않습니다.", values: { seoTitle, seoDescription, ogImageKey } };
+  return { values: { seoTitle, seoDescription, ogImageKey } };
+}
+
+/** 대표 이미지 키 읽기 */
+function readImageKey(formData: FormData, name: string): { error?: string; key: string | null } {
+  const key = nullable(formData, name);
+  if (key && !isValidObjectKey(key)) return { error: "이미지 키가 올바르지 않습니다.", key };
+  return { key };
 }
 
 /** slug 정규화 + 중복 검사용 기본값 */
@@ -109,6 +134,10 @@ export async function createSpotAction(_prev: ActionState, formData: FormData): 
 
   const links = validateLinkRows(parseRows(formData, "linksJson"));
   if (!links.ok) return { error: links.error };
+  const seo = readSeoFields(formData);
+  if (seo.error) return { error: seo.error };
+  const hero = readImageKey(formData, "heroImageKey");
+  if (hero.error) return { error: hero.error };
 
   const inserted = await db
     .insert(spots)
@@ -127,6 +156,8 @@ export async function createSpotAction(_prev: ActionState, formData: FormData): 
       parkingText: nullable(formData, "parkingText"),
       descriptionMd: nullable(formData, "descriptionMd"),
       dataReferenceDate: nullable(formData, "dataReferenceDate"),
+      heroImageKey: hero.key,
+      ...seo.values,
     })
     .returning({ id: spots.id });
 
@@ -150,6 +181,10 @@ export async function saveSpotAction(_prev: ActionState, formData: FormData): Pr
 
   const links = validateLinkRows(parseRows(formData, "linksJson"));
   if (!links.ok) return { error: links.error };
+  const seo = readSeoFields(formData);
+  if (seo.error) return { error: seo.error };
+  const hero = readImageKey(formData, "heroImageKey");
+  if (hero.error) return { error: hero.error };
 
   await db
     .update(spots)
@@ -163,6 +198,8 @@ export async function saveSpotAction(_prev: ActionState, formData: FormData): Pr
       priceText: nullable(formData, "priceText"),
       parkingText: nullable(formData, "parkingText"),
       descriptionMd: nullable(formData, "descriptionMd"),
+      heroImageKey: hero.key,
+      ...seo.values,
       updatedAt: new Date(),
     })
     .where(eq(spots.id, id));
@@ -209,6 +246,7 @@ function makerValues(formData: FormData) {
     category: str(formData, "category") || "goods",
     regionId: intOrNull(formData, "regionId"),
     storyMd: nullable(formData, "storyMd"),
+    heroImageKey: nullable(formData, "heroImageKey"),
     badgeFeedRegistered: checked(formData, "badgeFeedRegistered"),
     badgeIngredientRegistered: checked(formData, "badgeIngredientRegistered"),
     badgeVerifiedAt: nullable(formData, "badgeVerifiedAt"),
@@ -225,6 +263,9 @@ export async function createMakerAction(_prev: ActionState, formData: FormData):
 
   const badgeError = validateBadges(formData);
   if (badgeError) return { error: badgeError };
+  const seo = readSeoFields(formData);
+  if (seo.error) return { error: seo.error };
+  if (values.heroImageKey && !isValidObjectKey(values.heroImageKey)) return { error: "대표 이미지 키가 올바르지 않습니다." };
 
   const slug = resolveSlug(formData, values.name);
   const dup = await db.select({ id: makers.id }).from(makers).where(eq(makers.slug, slug)).limit(1);
@@ -233,7 +274,7 @@ export async function createMakerAction(_prev: ActionState, formData: FormData):
   const links = validateLinkRows(parseRows(formData, "linksJson"));
   if (!links.ok) return { error: links.error };
 
-  const inserted = await db.insert(makers).values({ ...values, slug }).returning({ id: makers.id });
+  const inserted = await db.insert(makers).values({ ...values, ...seo.values, slug }).returning({ id: makers.id });
   const makerId = inserted[0]!.id;
   await replaceMakerLinks(db, makerId, links.rows);
 
@@ -254,11 +295,14 @@ export async function saveMakerAction(_prev: ActionState, formData: FormData): P
 
   const badgeError = validateBadges(formData);
   if (badgeError) return { error: badgeError };
+  const seo = readSeoFields(formData);
+  if (seo.error) return { error: seo.error };
+  if (values.heroImageKey && !isValidObjectKey(values.heroImageKey)) return { error: "대표 이미지 키가 올바르지 않습니다." };
 
   const links = validateLinkRows(parseRows(formData, "linksJson"));
   if (!links.ok) return { error: links.error };
 
-  await db.update(makers).set({ ...values, updatedAt: new Date() }).where(eq(makers.id, id));
+  await db.update(makers).set({ ...values, ...seo.values, updatedAt: new Date() }).where(eq(makers.id, id));
   await replaceMakerLinks(db, id, links.rows);
 
   revalidatePath(`/maker/${id}-${existing.slug}`);
@@ -297,6 +341,7 @@ function itemValues(formData: FormData) {
     makerId: intOrNull(formData, "makerId"),
     summary: nullable(formData, "summary"),
     descriptionMd: nullable(formData, "descriptionMd"),
+    imageKey: nullable(formData, "imageKey"),
   };
 }
 
@@ -311,8 +356,11 @@ export async function createItemAction(_prev: ActionState, formData: FormData): 
 
   const offers = validateLinkRows(parseRows(formData, "offersJson"));
   if (!offers.ok) return { error: offers.error };
+  const seo = readSeoFields(formData);
+  if (seo.error) return { error: seo.error };
+  if (values.imageKey && !isValidObjectKey(values.imageKey)) return { error: "대표 이미지 키가 올바르지 않습니다." };
 
-  const inserted = await db.insert(items).values({ ...values, slug }).returning({ id: items.id });
+  const inserted = await db.insert(items).values({ ...values, ...seo.values, slug }).returning({ id: items.id });
   const itemId = inserted[0]!.id;
   await replaceItemOffers(db, itemId, offers.rows);
 
@@ -332,8 +380,11 @@ export async function saveItemAction(_prev: ActionState, formData: FormData): Pr
 
   const offers = validateLinkRows(parseRows(formData, "offersJson"));
   if (!offers.ok) return { error: offers.error };
+  const seo = readSeoFields(formData);
+  if (seo.error) return { error: seo.error };
+  if (values.imageKey && !isValidObjectKey(values.imageKey)) return { error: "대표 이미지 키가 올바르지 않습니다." };
 
-  await db.update(items).set({ ...values, updatedAt: new Date() }).where(eq(items.id, id));
+  await db.update(items).set({ ...values, ...seo.values, updatedAt: new Date() }).where(eq(items.id, id));
   await replaceItemOffers(db, id, offers.rows);
 
   revalidatePath(`/item/${id}-${existing.slug}`);
@@ -483,6 +534,8 @@ export async function createCurationAction(_prev: ActionState, formData: FormDat
 
   const entries = validateEntries(parseRows(formData, "entriesJson"));
   if (!entries.ok) return { error: entries.error };
+  const seo = readSeoFields(formData);
+  if (seo.error) return { error: seo.error };
 
   const status = (str(formData, "status") || "draft") as "draft" | "review_pending" | "published" | "archived";
   const inserted = await db
@@ -493,6 +546,7 @@ export async function createCurationAction(_prev: ActionState, formData: FormDat
       introMd: nullable(formData, "introMd"),
       status,
       publishedAt: status === "published" ? new Date() : null,
+      ...seo.values,
     })
     .returning({ id: curations.id });
 
@@ -516,6 +570,8 @@ export async function saveCurationAction(_prev: ActionState, formData: FormData)
 
   const entries = validateEntries(parseRows(formData, "entriesJson"));
   if (!entries.ok) return { error: entries.error };
+  const seo = readSeoFields(formData);
+  if (seo.error) return { error: seo.error };
 
   const status = (str(formData, "status") || existing.status) as typeof existing.status;
   await db
@@ -524,6 +580,7 @@ export async function saveCurationAction(_prev: ActionState, formData: FormData)
       title,
       introMd: nullable(formData, "introMd"),
       status,
+      ...seo.values,
       publishedAt: status === "published" ? (existing.publishedAt ?? new Date()) : existing.publishedAt,
       updatedAt: new Date(),
     })

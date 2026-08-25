@@ -2,6 +2,8 @@
 
 import { useActionState } from "react";
 import { saveGuideAction, type ActionState } from "../../../actions";
+import { SeoFields } from "../../../_components/seo-fields";
+import { UploadField } from "../../../_components/upload-field";
 
 interface GuideValues {
   id: number;
@@ -15,6 +17,10 @@ interface GuideValues {
   vetReviewed: boolean;
   vetReviewerName: string | null;
   vetReviewedAt: string | null;
+  heroImageKey: string | null;
+  seoTitle: string | null;
+  seoDescription: string | null;
+  ogImageKey: string | null;
 }
 
 const input = "mt-1 w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm outline-none focus:border-ink";
@@ -84,9 +90,18 @@ export function GuideEditor({ guide }: { guide: GuideValues }) {
         </div>
       </div>
 
+      <UploadField
+        name="heroImageKey"
+        label="대표 이미지"
+        defaultKey={guide.heroImageKey}
+        hint="글 상단과 카드·공유 미리보기에 쓰입니다. 직접 촬영·제작한 이미지만."
+      />
+
+      <SeoFields defaults={{ seoTitle: guide.seoTitle, seoDescription: guide.seoDescription, ogImageKey: guide.ogImageKey }} />
+
       <div>
         <label className="block text-sm font-medium text-ink" htmlFor="bodyMd">
-          본문 (마크다운 · 임베드는 {"{{youtube:ID|창작자|원본URL}}"} 형식만)
+          본문 (마크다운 · 이미지는 {"{{image:키|대체텍스트|캡션}}"} — 미디어 탭에서 업로드 후 복사 · 외부 임베드는 {"{{youtube:ID|창작자|원본URL}}"})
         </label>
         <textarea id="bodyMd" name="bodyMd" rows={24} defaultValue={guide.bodyMd} className={`${input} font-mono text-xs leading-relaxed`} />
       </div>
