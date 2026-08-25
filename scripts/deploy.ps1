@@ -182,6 +182,9 @@ if (-not $SkipMigrate) {
     $env:DATABASE_URL = $stageDbUrl
     try {
         Invoke-Pnpm "migrate ($Stage)" @('--filter', '@app/data', 'db:migrate')
+        # Reference data (topics / spot types / regions) - idempotent upsert.
+        # Content seeds are NOT run here: they would overwrite admin edits.
+        Invoke-Pnpm "seed:base ($Stage)" @('--filter', '@app/data', 'seed:base')
     } finally {
         if ($null -ne $prevDbUrl) { $env:DATABASE_URL = $prevDbUrl } else { Remove-Item Env:DATABASE_URL -ErrorAction SilentlyContinue }
     }
