@@ -12,6 +12,8 @@ export function getPool(): Pool {
     pool = new Pool({
       connectionString: requiredEnv("DATABASE_URL"),
       max: Number(process.env.DB_POOL_MAX ?? 5),
+      // 원격 DB(RDS) 불통 시 무한 대기 대신 빠르게 실패한다
+      connectionTimeoutMillis: 10_000,
     });
   }
   return pool;

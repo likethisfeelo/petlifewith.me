@@ -34,6 +34,8 @@ export function getDb(): NodePgDatabase<typeof schema> {
       connectionString: url,
       max: dbPoolMax(),
       idleTimeoutMillis: 30_000,
+      // DB 불통 시 무한 대기 금지 — Lambda 가 타임아웃까지 매달리는 대신 빠르게 500 을 낸다
+      connectionTimeoutMillis: 8_000,
     });
     globalForDb.__appDb = drizzle(globalForDb.__appDbPool, { schema });
   }
