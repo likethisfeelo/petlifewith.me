@@ -213,5 +213,6 @@ if ($Stage -eq 'prod') {
     Write-Host '  Naver Search Advisor, and set NEXT_PUBLIC_DEFAULT_OG_IMAGE_URL (docs).'
 } else {
     Write-Host '  https://dev.petlifewith.me  (preview stage: robots blocked, all pages noindex)'
-    Write-Host '  Admin: https://dev.petlifewith.me/admin (no admin subdomain on dev)'
+    Write-Host '  Subdomains (hyphenated - wildcard cert covers one level only):'
+    Write-Host '    admin-dev.petlifewith.me / service-dev.petlifewith.me / product-dev.petlifewith.me'
 }
