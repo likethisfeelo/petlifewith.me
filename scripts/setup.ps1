@@ -33,8 +33,8 @@ param(
     # Only used when .env.local is created. Default matches docker-compose.yml.
     [string]$DatabaseUrl = 'postgresql://app:app_dev_password@localhost:5432/app_dev',
 
-    # Display brand name. Left empty on purpose - the brand is not decided yet
-    # and must never be hardcoded in source (see claude.md section 9).
+    # Display brand name override. Leave empty to use the confirmed brand
+    # (the app falls back to it); set only for experiments/preview labels.
     [string]$SiteName = ''
 )
 

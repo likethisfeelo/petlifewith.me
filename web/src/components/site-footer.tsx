@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { contactEmail, siteName } from "@/lib/config";
+import { contactEmail, siteName, siteTagline } from "@/lib/config";
 
 export function SiteFooter() {
   const email = contactEmail();
@@ -7,7 +7,8 @@ export function SiteFooter() {
     <footer className="mt-16 border-t border-line bg-sand/50">
       <div className="mx-auto max-w-5xl px-4 py-10 text-sm text-ink-soft">
         <p className="font-semibold text-ink">{siteName()}</p>
-        <p className="mt-1 max-w-2xl">
+        <p className="mt-0.5 text-xs text-ink-faint">{siteTagline()}</p>
+        <p className="mt-2 max-w-2xl">
           어디에 데려갈 수 있는지가 아니라, 무엇이 즐거운지를 다룹니다. 주어는 사람이 아니라 반려동물입니다.
         </p>
         <div className="mt-6 grid gap-6 sm:grid-cols-3">
@@ -24,6 +25,8 @@ export function SiteFooter() {
             <ul className="mt-2 space-y-1">
               <li><Link className="hover:text-ink" href="/spot">스팟 — 가는 곳</Link></li>
               <li><Link className="hover:text-ink" href="/maker">메이커 — 만드는 곳</Link></li>
+              <li><Link className="hover:text-ink" href="/portal/spot">업체 관리 (사장님)</Link></li>
+              <li><Link className="hover:text-ink" href="/portal/product">브랜드·제품 등록</Link></li>
             </ul>
           </div>
           <div>

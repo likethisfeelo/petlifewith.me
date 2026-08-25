@@ -8,7 +8,7 @@
 // ============================================================
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
-import { adminToken, authSecret, isProductionSite } from "./config";
+import { adminToken, authSecret, isHttpsSite } from "./config";
 
 const COOKIE_NAME = "admin_session";
 const SESSION_TTL_SEC = 60 * 60 * 24 * 7; // 7일
@@ -64,7 +64,7 @@ export async function loginWithToken(token: string): Promise<boolean> {
   store.set(COOKIE_NAME, encodeSession(session, secret), {
     httpOnly: true,
     sameSite: "lax",
-    secure: isProductionSite(),
+    secure: isHttpsSite(),
     path: "/",
     maxAge: SESSION_TTL_SEC,
   });

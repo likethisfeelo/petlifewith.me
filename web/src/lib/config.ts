@@ -20,9 +20,17 @@ export function getOptionalEnv(name: string): string | undefined {
 
 // ---------- 사이트 ----------
 
-/** 표시용 브랜드명. 브랜드 확정 전까지 환경변수로만 관리한다 — 코드에 하드코딩 금지. */
+/**
+ * 표시용 브랜드명 — 확정: 펫라이프위드미 (pet life with me).
+ * env 가 있으면 그것을 우선한다 (표기 실험·프리뷰 구분용).
+ */
 export function siteName(): string {
-  return getOptionalEnv("NEXT_PUBLIC_SITE_NAME") ?? "PetLife (가칭)";
+  return getOptionalEnv("NEXT_PUBLIC_SITE_NAME") ?? "펫라이프위드미";
+}
+
+/** 브랜드 태그라인 */
+export function siteTagline(): string {
+  return getOptionalEnv("NEXT_PUBLIC_SITE_TAGLINE") ?? "나와 함께한 행복한 인생, pet life with me";
 }
 
 /** 배포 URL. 미설정이면 로컬로 간주하고 전역 noindex 가드가 걸린다 (lib/seo.ts). */
@@ -30,9 +38,37 @@ export function siteUrl(): string {
   return getOptionalEnv("NEXT_PUBLIC_SITE_URL") ?? "http://localhost:3000";
 }
 
-export function isProductionSite(): boolean {
+export type SiteEnv = "local" | "preview" | "production";
+
+/**
+ * 사이트 환경.
+ * - NEXT_PUBLIC_SITE_ENV 가 명시되면 그 값 (dev.petlifewith.me 배포는 반드시 preview)
+ * - 미설정이면 URL 로 추정: localhost → local, 그 외 → production
+ */
+export function siteEnv(): SiteEnv {
+  const explicit = getOptionalEnv("NEXT_PUBLIC_SITE_ENV");
+  if (explicit === "preview" || explicit === "production" || explicit === "local") return explicit;
   const url = siteUrl();
-  return !url.includes("localhost") && !url.includes("127.0.0.1");
+  return url.includes("localhost") || url.includes("127.0.0.1") ? "local" : "production";
+}
+
+/** 색인 허용 여부의 근거 — production 에서만 true. preview(dev 서브도메인)·local 은 전면 noindex. */
+export function isProductionSite(): boolean {
+  return siteEnv() === "production";
+}
+
+/** 쿠키 secure 플래그 등 전송 보안 판단은 색인 여부가 아니라 https 여부로 한다. */
+export function isHttpsSite(): boolean {
+  return siteUrl().startsWith("https://");
+}
+
+/** 호스트 기반 서브도메인 라우팅의 기준 도메인 (예: petlifewith.me / localhost) */
+export function apexDomain(): string {
+  try {
+    return new URL(siteUrl()).hostname.replace(/^www\./, "");
+  } catch {
+    return "localhost";
+  }
 }
 
 export function contactEmail(): string | undefined {

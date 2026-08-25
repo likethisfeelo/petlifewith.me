@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { siteName } from "@/lib/config";
+import { siteName, siteTagline } from "@/lib/config";
 
 const NAV = [
   { href: "/topic/senior-life", label: "노견생활" },
@@ -15,9 +15,7 @@ export function SiteHeader() {
       <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3">
         <Link href="/" className="shrink-0 text-lg font-extrabold tracking-tight text-ink">
           {siteName()}
-          <span className="ml-2 hidden text-xs font-medium text-ink-faint sm:inline">
-            반려동물의 즐거움을 다루는 미디어
-          </span>
+          <span className="ml-2 hidden text-xs font-medium text-ink-faint sm:inline">{siteTagline()}</span>
         </Link>
         <nav className="-mx-1 flex items-center gap-1 overflow-x-auto text-sm font-medium text-ink-soft">
           {NAV.map((item) => (
