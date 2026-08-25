@@ -62,6 +62,7 @@ export const claimTarget = pgEnum("claim_target", ["spot", "maker"]);
 export const embedSource = pgEnum("embed_source", ["youtube", "instagram", "none"]);
 export const offerVendor = pgEnum("offer_vendor", ["coupang", "brand_store", "other"]);
 export const promotionKind = pgEnum("promotion_kind", ["region_top", "content_card"]);
+export const mediaKind = pgEnum("media_kind", ["image", "video"]);
 export const deviceCategory = pgEnum("device_category", [
   "laser",
   "stethoscope",
@@ -86,6 +87,26 @@ export const users = pgTable(
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
+);
+
+// ---------- 미디어 자산 (직접 촬영·제작한 것만 — 재호스팅 금지는 3-1) ----------
+// 업로드는 presigned URL 로 S3(로컬은 MinIO)에 직접 올린다 (claude.md 10-1).
+// DB 에는 오브젝트 키만 저장하고, 공개 URL 은 렌더 시점에 조립한다.
+
+export const mediaAssets = pgTable(
+  "media_assets",
+  {
+    id: bigint("id", { mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
+    objectKey: text("object_key").notNull().unique(),
+    kind: mediaKind("kind").notNull(),
+    mimeType: text("mime_type").notNull(),
+    sizeBytes: bigint("size_bytes", { mode: "number" }).notNull(),
+    width: integer("width"), // 이미지: 업로드 시 측정. 영상: null
+    height: integer("height"),
+    originalName: text("original_name"),
+    createdAt: createdAt(),
+  },
+  (t) => [index("media_assets_kind_idx").on(t.kind, t.createdAt)],
 );
 
 // ---------- 토픽 (클러스터) ----------
@@ -123,6 +144,10 @@ export const guides = pgTable(
     vetReviewerName: text("vet_reviewer_name"), // "○○ 수의사 감수" 표기용
     vetReviewedAt: date("vet_reviewed_at"),
     heroImageKey: text("hero_image_key"), // S3 오브젝트 키 (URL 아님)
+    // 페이지별 SEO 오버라이드 — 비우면 제목·요약·대표 이미지에서 자동 생성
+    seoTitle: text("seo_title"),
+    seoDescription: text("seo_description"),
+    ogImageKey: text("og_image_key"),
     publishedAt: timestamp("published_at", { withTimezone: true }),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
@@ -157,6 +182,10 @@ export const makers = pgTable(
     badgeVerifiedAt: date("badge_verified_at"), // 배지 툴팁에 기준일 명시
     badgeNote: text("badge_note"), // 검증 항목 설명
     selectionMemo: text("selection_memo"), // 선정 기준(4-4) 검증 내부 메모 — 렌더링 금지
+    heroImageKey: text("hero_image_key"),
+    seoTitle: text("seo_title"),
+    seoDescription: text("seo_description"),
+    ogImageKey: text("og_image_key"),
     status: makerStatus("status").notNull().default("draft"),
     claimedBy: uuid("claimed_by").references(() => users.id),
     createdAt: createdAt(),
@@ -212,6 +241,9 @@ export const items = pgTable(
     summary: text("summary"),
     descriptionMd: text("description_md"),
     imageKey: text("image_key"),
+    seoTitle: text("seo_title"),
+    seoDescription: text("seo_description"),
+    ogImageKey: text("og_image_key"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -320,6 +352,9 @@ export const spots = pgTable(
     priceText: text("price_text"),
     parkingText: text("parking_text"),
     heroImageKey: text("hero_image_key"),
+    seoTitle: text("seo_title"),
+    seoDescription: text("seo_description"),
+    ogImageKey: text("og_image_key"),
     claimedBy: uuid("claimed_by").references(() => users.id),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
@@ -466,6 +501,9 @@ export const curations = pgTable("curations", {
   title: text("title").notNull(),
   introMd: text("intro_md"), // 임베드를 빼도 읽을 가치가 있어야 한다 (기획서 3-3)
   status: guideStatus("status").notNull().default("draft"),
+  seoTitle: text("seo_title"),
+  seoDescription: text("seo_description"),
+  ogImageKey: text("og_image_key"),
   publishedAt: timestamp("published_at", { withTimezone: true }),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
