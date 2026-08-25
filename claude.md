@@ -8,20 +8,28 @@
 
 ---
 
-## 1. 현재 단계 — 로컬 개발
+## 1. 현재 단계 — 로컬 개발 + AWS 준비
 
-**AWS 인프라는 아직 없다.** 도메인 연결, CloudFront, RDS 배포는 나중이다. 지금은 로컬에서 빌드하고 GitHub에만 푸시한다.
+**계정 준비는 끝났고 배포는 아직이다.** 도메인 구매·ACM 인증서·IAM 사용자(프로필 `petlife`)까지 완료.
+CloudFront/Lambda/RDS 배포는 다음 단계다. 준비 절차와 검증 명령은 `docs/배포준비.md`.
 
-- CDK 스택을 만들지 않는다. 배포 스크립트를 작성하지 않는다.
+- CDK 스택·배포 스크립트는 배포 방식 확정 후에 만든다.
 - DB는 로컬 PostgreSQL 또는 Docker 컨테이너를 쓴다.
-- 시크릿은 `.env.local` (gitignore 대상). Secrets Manager 코드를 미리 넣지 않는다.
-- 다만 **나중에 CloudFront + Lambda 배포로 간다는 전제**로 설계한다. Vercel 전용 기능에 의존하지 않는다.
+- 시크릿은 `.env.local` (gitignore 대상). Secrets Manager 코드를 미리 넣지 않는다. AWS 액세스 키는 코드·채팅 어디에도 넣지 않는다.
+- **CloudFront + Lambda(OpenNext) 배포 전제**로 설계한다. Vercel 전용 기능에 의존하지 않는다.
+- CloudFront 인증서는 us-east-1 발급이어야 한다 (`petlifewith.me` + `*.petlifewith.me` 와일드카드 권장).
 
 ```
 로컬 경로  C:\petlifewithme
 리포       github.com/likethisfeelo/petlifewith.me (private)
-도메인     petlifewith.me (미연결)
+도메인     petlifewith.me (Route53 보유, 배포 대기)
+호스트     메인 petlifewith.me / admin. 전체 관리자 / service. 업체 사장님 /
+           product. 제품 사장님 / dev. 스테이징(preview, 전면 noindex)
 ```
+
+호스트 라우팅은 `web/src/middleware.ts` — admin/service/product 는 같은 앱에서 호스트로 갈라진다.
+기획서의 "지역별 서브도메인 금지"는 콘텐츠 SEO 결정이라 이 운영용 분리와 충돌하지 않는다
+(지역 URL 은 계속 서브폴더, 서브도메인 페이지는 전부 noindex).
 
 ---
 
@@ -207,7 +215,7 @@ fix(seo): 스팟 3개 미만 지역 noindex 누락
 
 **추측하지 않는다.** 공공데이터 API의 파라미터나 응답 구조를 모르면 문서를 확인하거나 물어본다. 지어내지 않는다.
 
-**브랜드명이 확정되지 않았다.** `package.json`의 name, DB 이름, 패키지명에 서비스명을 하드코딩하지 않는다. 표시용 브랜드명은 `NEXT_PUBLIC_SITE_NAME` 환경변수로 뺀다.
+**브랜드 확정: 펫라이프위드미 (나와 함께한 행복한 인생, pet life with me).** 표시명은 `NEXT_PUBLIC_SITE_NAME`(기본값이 확정 브랜드), 태그라인은 `NEXT_PUBLIC_SITE_TAGLINE`. `package.json` name·DB 이름·패키지명에는 여전히 서비스명을 넣지 않는다 — 표기 변경 비용을 코드에 만들지 않기 위해서다.
 
 ---
 
@@ -317,6 +325,8 @@ CDK 스택, 배포 파이프라인, Secrets Manager 호출 코드, Cognito User 
 3. 의료 인접 편 수의사 감수 → review_pending 해제. 초안 스포크(심장·인지·눈귀·치아·체중·마지막 시간) 본문 완성
 4. 셀프목욕·방문목욕·재활 직접 발굴 입력 (`/admin/spots/new` 로 등록)
 5. 메이커 1차 발굴 10+10, 큐레이션 첫 테마 (샘플 픽스처 교체)
-6. GSC·네이버 서치어드바이저 등록, 쿠팡 파트너스 실링크 연동 (프로덕션 URL 확정 후)
+6. GSC·네이버 서치어드바이저 등록, 쿠팡 파트너스 실링크 연동 (배포 후)
+7. 배포: `docs/배포준비.md` 의 준비 검증 → dev 스택 먼저 → 메인. 사장님 포털(service./product.)은 랜딩+클레임 연결 상태 — 업주 셀프 편집은 Cognito 이후
 
-미확정: 브랜드명(`NEXT_PUBLIC_SITE_NAME` 으로만 표시 중), DB 인스턴스 유형, AWS 계정 및 배포 구성, 카카오·네이버 OIDC 연동 가능 여부
+확정: 브랜드 펫라이프위드미(pet life with me), 도메인·서브도메인 구조(`docs/배포준비.md`).
+미확정: DB 인스턴스 유형, 배포 방식(OpenNext 구성), 카카오·네이버 OIDC 연동 가능 여부
