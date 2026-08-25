@@ -1,0 +1,73 @@
+# 배포 — GitHub Actions (리눅스 러너)
+#
+# OpenNext 는 Windows 빌드를 지원하지 않아 로컬(Windows)에서 sst deploy 하면
+# 서버 번들에 node_modules 가 빠진다 (Lambda: "Cannot find package 'next'").
+# 그래서 배포는 여기(리눅스)에서 한다. 실행: GitHub → Actions → deploy →
+# Run workflow → 브랜치 선택 → stage 선택.
+#
+# 필요한 저장소 Secrets (Settings → Secrets and variables → Actions):
+#   AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY  - petlife IAM 사용자 액세스 키
+#   ENV_DEPLOY_DEV                             - 로컬 .env.deploy.dev 파일 내용 전체
+#   ENV_DEPLOY_PROD                            - (운영 배포 시) .env.deploy.prod 내용 전체
+name: deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      stage:
+        description: "배포 스테이지"
+        required: true
+        default: "dev"
+        type: choice
+        options:
+          - dev
+          - prod
+
+concurrency:
+  group: deploy-${{ inputs.stage }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_REGION: ap-northeast-2
+      SST_TELEMETRY_DISABLE: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: pnpm (corepack)
+        run: corepack enable
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck + tests
+        run: |
+          pnpm -r typecheck
+          pnpm -r test
+
+      - name: Write stage env file
+        env:
+          ENV_FILE: ${{ inputs.stage == 'prod' && secrets.ENV_DEPLOY_PROD || secrets.ENV_DEPLOY_DEV }}
+        run: |
+          printf '%s\n' "$ENV_FILE" > ".env.deploy.${{ inputs.stage }}"
+          # 시크릿 미설정이면 여기서 바로 실패시킨다
+          grep -q '^DATABASE_URL=' ".env.deploy.${{ inputs.stage }}" || {
+            echo "ENV_DEPLOY_${{ inputs.stage }} secret is missing or has no DATABASE_URL" >&2; exit 1; }
+
+      - name: Migrate + base seed
+        run: |
+          export DATABASE_URL="$(grep -m1 '^DATABASE_URL=' ".env.deploy.${{ inputs.stage }}" | cut -d= -f2-)"
+          pnpm --filter @app/data db:migrate
+          pnpm --filter @app/data seed:base
+
+      - name: sst deploy
+        run: pnpm exec sst deploy --stage ${{ inputs.stage }}

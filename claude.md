@@ -11,9 +11,11 @@
 ## 1. 현재 단계 — 배포 도구 준비 완료, 첫 배포 대기
 
 도메인·ACM 인증서(us-east-1, ARN 은 `sst.config.ts`)·IAM 사용자(프로필 `petlife`)까지 완료.
-**배포 방식은 SST v4(OpenNext) 로 확정** — 정의는 루트 `sst.config.ts`, 실행은
-`scripts/aws-db.ps1` → `scripts/deploy.ps1 -Stage dev|prod` (무프롬프트). 런북은 `docs/배포.md`,
-사전 준비·검증은 `docs/배포준비.md`.
+**배포 방식은 SST v4(OpenNext) 로 확정** — 정의는 루트 `sst.config.ts`. **배포 실행은
+GitHub Actions**(`.github/workflows/deploy.yml`, 리눅스 러너)가 표준이다 — OpenNext 는
+Windows 빌드를 지원하지 않아 로컬(Windows) `sst deploy` 는 깨진 번들을 만든다(실증:
+Lambda `Cannot find package 'next'`). `deploy.ps1` 은 Windows 에서 이를 거부하는 가드가
+있고 WSL/리눅스용으로만 쓴다. DB 준비는 `scripts/aws-db.ps1`, 런북은 `docs/배포.md`.
 
 - 로컬 개발 DB는 계속 로컬 PostgreSQL/Docker. 배포 DB(RDS `petlife-db`)는 SST 밖에서
   `aws-db.ps1` 이 관리한다 — 상태 리소스를 IaC 에 넣지 않는다.
