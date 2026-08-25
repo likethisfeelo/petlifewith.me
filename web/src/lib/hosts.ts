@@ -6,6 +6,10 @@
 //   product.<apex>  → /portal/product  제품·브랜드 등록 — 사장님용
 //   dev.<apex>      → (매핑 없음)   개발 배포는 별도 스택. NEXT_PUBLIC_SITE_ENV=preview
 //
+// 하이픈 형식: apex 가 이미 서브도메인인 스테이지(dev.petlifewith.me)에서는
+// admin.dev.petlifewith.me 가 2단계라 와일드카드 인증서(*.petlifewith.me)에 안 잡힌다.
+// 대신 <sub>-<apex> (admin-dev.petlifewith.me 등) 를 같은 서브도메인으로 취급한다.
+//
 // 기획서의 "지역별 서브도메인 금지"(SECTION 01)는 콘텐츠 SEO 이야기다.
 // 여기는 운영용 기능 분리라 그 결정과 충돌하지 않는다 — 지역 URL 은
 // 계속 단일 도메인 서브폴더(/spot/[시도]/[시군구])로 간다.
@@ -24,6 +28,12 @@ export function subdomainOf(hostHeader: string, apex: string): string | null {
     const sub = host.slice(0, -(apexHost.length + 1));
     // a.b.<apex> 같은 다단계는 다루지 않는다
     return sub.includes(".") ? null : sub;
+  }
+  // 하이픈 형식 <sub>-<apex> — apex 자체가 서브도메인(라벨 3개 이상)일 때만.
+  // 운영 apex(petlifewith.me)에서 admin-petlifewith.me 같은 남의 도메인이 잡히지 않게 한다.
+  if (apexHost.split(".").length >= 3 && host.endsWith(`-${apexHost}`)) {
+    const sub = host.slice(0, -(apexHost.length + 1));
+    return sub && !sub.includes(".") ? sub : null;
   }
   return null;
 }

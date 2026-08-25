@@ -28,6 +28,8 @@
 도메인     petlifewith.me (Route53 보유, 배포 대기)
 호스트     메인 petlifewith.me / admin. 전체 관리자 / service. 업체 사장님 /
            product. 제품 사장님 / dev. 스테이징(preview, 전면 noindex)
+           dev 의 기능 서브도메인은 하이픈: admin-dev. service-dev. product-dev.
+           (2단계 서브도메인은 와일드카드 인증서 미커버 — lib/hosts.ts 하이픈 형식)
 ```
 
 호스트 라우팅은 `web/src/middleware.ts` — admin/service/product 는 같은 앱에서 호스트로 갈라진다.

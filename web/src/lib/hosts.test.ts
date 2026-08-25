@@ -16,6 +16,19 @@ describe("subdomainOf", () => {
     expect(subdomainOf("a.b.petlifewith.me", "petlifewith.me")).toBeNull();
     expect(subdomainOf("fakepetlifewith.me", "petlifewith.me")).toBeNull();
   });
+  it("하이픈 형식 — 스테이지 apex(dev.petlifewith.me)의 기능 서브도메인", () => {
+    expect(subdomainOf("admin-dev.petlifewith.me", "dev.petlifewith.me")).toBe("admin");
+    expect(subdomainOf("service-dev.petlifewith.me", "dev.petlifewith.me")).toBe("service");
+    expect(subdomainOf("PRODUCT-dev.petlifewith.me:443", "dev.petlifewith.me")).toBe("product");
+    // 점 형식(admin.dev....)도 로직상 동작하지만 와일드카드 인증서에 안 잡혀 배포는 하이픈만 쓴다
+    expect(subdomainOf("admin.dev.petlifewith.me", "dev.petlifewith.me")).toBe("admin");
+  });
+  it("하이픈 형식은 apex 가 서브도메인일 때만 — 운영 apex·변형 호스트는 null", () => {
+    expect(subdomainOf("admin-petlifewith.me", "petlifewith.me")).toBeNull();
+    expect(subdomainOf("x.admin-dev.petlifewith.me", "dev.petlifewith.me")).toBeNull();
+    expect(subdomainOf("-dev.petlifewith.me", "dev.petlifewith.me")).toBeNull();
+    expect(subdomainOf("dev.petlifewith.me", "dev.petlifewith.me")).toBeNull();
+  });
 });
 
 describe("rewritePathForHost", () => {

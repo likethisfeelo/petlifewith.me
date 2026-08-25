@@ -106,11 +106,17 @@ export default $config({
             siteEnv: "preview",
             domain: {
               name: "dev.petlifewith.me",
+              // admin.dev.… 는 2단계라 와일드카드 인증서(*.petlifewith.me)에 안 잡힌다 —
+              // 하이픈 연결(1단계)로 기능 서브도메인을 dev 에서도 제공한다 (lib/hosts.ts)
+              aliases: [
+                "admin-dev.petlifewith.me",
+                "service-dev.petlifewith.me",
+                "product-dev.petlifewith.me",
+              ],
               cert: certArn,
               dns: sst.aws.dns(),
             },
-            // dev 는 서브도메인 없이 경로(/admin)로 접근한다 — 와일드카드 인증서는 1단계만 커버
-            corsOrigins: ["https://dev.petlifewith.me"],
+            corsOrigins: ["https://dev.petlifewith.me", "https://admin-dev.petlifewith.me"],
             warm: 0,
           };
     const deployEnv = await readDeployEnv(stage);
