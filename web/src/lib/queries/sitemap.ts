@@ -67,10 +67,20 @@ export async function sitemapRegions(): Promise<SitemapEntry[]> {
     .groupBy(regions.sidoSlug, regions.sigunguSlug, spotTypes.slug)
     .having(gte(sql`count(*)`, MIN_SPOTS_FOR_INDEX));
 
+  // 유형 허브(/spot/type/[slug]) — 색인 가능 스팟 3곳 이상인 공개 유형만
+  const typeTotals = await db
+    .select({ typeSlug: spotTypes.slug, count: sql<number>`count(*)`.mapWith(Number) })
+    .from(spots)
+    .innerJoin(spotTypes, eq(spots.typeId, spotTypes.id))
+    .where(and(indexableSpot, eq(spotTypes.listed, true)))
+    .groupBy(spotTypes.slug)
+    .having(gte(sql`count(*)`, MIN_SPOTS_FOR_INDEX));
+
   const sidoWithAny = new Set(regionCounts.map((r) => r.sidoSlug));
 
   return [
     { path: "/spot" },
+    ...typeTotals.map((t) => ({ path: `/spot/type/${t.typeSlug}` })),
     ...[...sidoWithAny].map((s) => ({ path: `/spot/${s}` })),
     ...regionCounts.map((r) => ({ path: `/spot/${r.sidoSlug}/${r.sigunguSlug}` })),
     ...regionTypeCounts.map((r) => ({ path: `/spot/${r.sidoSlug}/${r.sigunguSlug}/${r.typeSlug}` })),

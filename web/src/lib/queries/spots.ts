@@ -163,6 +163,35 @@ export async function countIndexableSpotsInRegion(regionId: number, typeId?: num
   return rows[0]?.count ?? 0;
 }
 
+export interface TypeRegionCount {
+  region: RegionRow;
+  count: number;
+}
+
+/** 유형 허브(/spot/type/[slug]) — 전국 시군구별 분포. 영업 중만. */
+export async function listRegionCountsForType(typeId: number): Promise<TypeRegionCount[]> {
+  if (!isDbConfigured()) return [];
+  const db = getDb();
+  return db
+    .select({ region: regions, count: sql<number>`count(*)`.mapWith(Number) })
+    .from(spots)
+    .innerJoin(regions, eq(spots.regionId, regions.id))
+    .where(and(eq(spots.typeId, typeId), eq(spots.status, "operating")))
+    .groupBy(regions.id)
+    .orderBy(regions.sidoName, sql`count(*) desc`, regions.sigunguName);
+}
+
+/** 유형 허브 색인 게이트용 — 샘플 제외 전국 카운트 */
+export async function countIndexableSpotsForType(typeId: number): Promise<number> {
+  if (!isDbConfigured()) return 0;
+  const db = getDb();
+  const rows = await db
+    .select({ count: sql<number>`count(*)`.mapWith(Number) })
+    .from(spots)
+    .where(and(eq(spots.typeId, typeId), eq(spots.status, "operating"), ne(spots.source, "sample")));
+  return rows[0]?.count ?? 0;
+}
+
 /** 스팟의 유형이 공개(listed) 유형인지 — 집계 조인 조건용 EXISTS */
 function listedTypeExists() {
   return sql`exists (select 1 from ${spotTypes} where ${spotTypes.id} = ${spots.typeId} and ${spotTypes.listed} = true)`;

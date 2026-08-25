@@ -40,16 +40,19 @@ export default async function SpotIndexPage() {
           <h2 className="text-sm font-bold text-ink">유형</h2>
           <div className="mt-3 flex flex-wrap gap-2">
             {types.map((t) => (
-              <span
+              <Link
                 key={t.id}
+                href={`/spot/type/${t.slug}`}
                 title={t.description ?? undefined}
-                className={`rounded-full px-3 py-1 text-sm ${
-                  t.monetizable ? "bg-sea-soft text-sea" : "bg-sand text-ink-soft"
+                className={`rounded-full px-3 py-1 text-sm transition-colors ${
+                  t.monetizable
+                    ? "bg-sea-soft text-sea hover:bg-sea hover:text-white"
+                    : "bg-sand text-ink-soft hover:bg-ink hover:text-cream"
                 }`}
               >
                 {t.name}
-                {!t.monetizable && <span className="ml-1 text-xs text-ink-faint">· 광고 없음</span>}
-              </span>
+                {!t.monetizable && <span className="ml-1 text-xs opacity-70">· 광고 없음</span>}
+              </Link>
             ))}
           </div>
         </section>
