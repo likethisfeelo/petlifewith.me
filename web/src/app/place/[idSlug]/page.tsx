@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { JsonLd } from "@/components/jsonld";
-import { DataReferenceNote } from "@/components/notices";
+import { DataReferenceNote, PharmacyNote } from "@/components/notices";
 import { RememberRegion } from "@/components/region-banner";
 import { contactEmail } from "@/lib/config";
 import { SPOT_STATUS_LABEL, formatDate, idSlugPath, parseIdSlug } from "@/lib/format";
@@ -28,7 +28,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { idSlug } = await params;
   const id = parseIdSlug(idSlug);
   const found = id ? await getPlace(id) : null;
-  if (!found) return { robots: robotsMeta(false) };
+  // 비공개 유형(B2B 인허가)의 개별 페이지는 만들지 않는다
+  if (!found || !found.typeListed) return { robots: robotsMeta(false) };
   const { spot, typeName, region } = found;
   const linkCount = (await getSpotLinks(spot.id)).length;
   return buildMeta({
@@ -47,7 +48,7 @@ export default async function PlacePage({ params }: Props) {
   const id = parseIdSlug(idSlug);
   if (!id) notFound();
   const found = await getPlace(id);
-  if (!found) notFound();
+  if (!found || !found.typeListed) notFound();
 
   const { spot, typeName, typeMonetizable, region } = found;
   const [mentions, links] = await Promise.all([guidesMentioningSpot(spot.id), getSpotLinks(spot.id)]);
@@ -123,12 +124,13 @@ export default async function PlacePage({ params }: Props) {
         )}
       </header>
 
-      {/* 장묘: 광고·추천 없이 사실 정보만 (기획서 4-1) */}
+      {/* 장묘·동물약국: 광고·추천 없이 사실 정보만 (기획서 4-1·6-2) */}
       {!typeMonetizable && (
         <p className="mt-5 rounded-lg border border-line bg-sand px-4 py-3 text-sm text-ink-soft">
           이 페이지는 광고 없이 인허가 기반 사실 정보만 담담하게 정리합니다.
         </p>
       )}
+      {found.typeSlug === "pharmacy" && <PharmacyNote />}
 
       {infoRows.length > 0 && (
         <section className="mt-6 overflow-hidden rounded-xl border border-line bg-surface">
@@ -144,7 +146,7 @@ export default async function PlacePage({ params }: Props) {
       )}
 
       <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-        <DataReferenceNote date={spot.dataReferenceDate} />
+        <DataReferenceNote date={spot.dataReferenceDate} source={spot.source} licenseMgmtNo={spot.licenseMgmtNo} />
         {spot.licenseDate && <p className="text-xs text-ink-faint">인허가일: {formatDate(spot.licenseDate)}</p>}
       </div>
 

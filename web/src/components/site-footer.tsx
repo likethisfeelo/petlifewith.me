@@ -32,7 +32,10 @@ export function SiteFooter() {
           <div>
             <p className="font-medium text-ink">정보 안내</p>
             <ul className="mt-2 space-y-1">
-              <li>시설 정보는 공공데이터(data.go.kr)와 직접 확인을 바탕으로 하며, 데이터 기준일을 페이지에 표기합니다.</li>
+              <li>
+                시설 정보는 행정안전부 지방행정 인허가데이터 등 공공데이터(data.go.kr)와 직접 확인을
+                바탕으로 하며, 출처와 데이터 기준일을 페이지에 표기합니다.
+              </li>
               {email ? (
                 <li>
                   잘못된 정보 정정 요청:{" "}

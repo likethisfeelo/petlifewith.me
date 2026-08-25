@@ -48,7 +48,8 @@ export async function sitemapRegions(): Promise<SitemapEntry[]> {
     })
     .from(spots)
     .innerJoin(regions, eq(spots.regionId, regions.id))
-    .where(indexableSpot)
+    .innerJoin(spotTypes, eq(spots.typeId, spotTypes.id))
+    .where(and(indexableSpot, eq(spotTypes.listed, true)))
     .groupBy(regions.sidoSlug, regions.sigunguSlug)
     .having(gte(sql`count(*)`, MIN_SPOTS_FOR_INDEX));
 
@@ -62,7 +63,7 @@ export async function sitemapRegions(): Promise<SitemapEntry[]> {
     .from(spots)
     .innerJoin(regions, eq(spots.regionId, regions.id))
     .innerJoin(spotTypes, eq(spots.typeId, spotTypes.id))
-    .where(indexableSpot)
+    .where(and(indexableSpot, eq(spotTypes.listed, true)))
     .groupBy(regions.sidoSlug, regions.sigunguSlug, spotTypes.slug)
     .having(gte(sql`count(*)`, MIN_SPOTS_FOR_INDEX));
 
@@ -76,14 +77,15 @@ export async function sitemapRegions(): Promise<SitemapEntry[]> {
   ];
 }
 
-/** 개별 장소 — 영업 중 + 비샘플 + 정보 3항목 이상만 (링크도 정보 항목으로 센다) */
+/** 개별 장소 — 영업 중 + 비샘플 + 공개 유형 + 정보 3항목 이상만 (링크도 정보 항목으로 센다) */
 export async function sitemapPlaces(): Promise<SitemapEntry[]> {
   if (!isDbConfigured()) return [];
   const db = getDb();
   const rows = await db
-    .select()
+    .select({ spot: spots })
     .from(spots)
-    .where(and(eq(spots.status, "operating"), ne(spots.source, "sample")));
+    .innerJoin(spotTypes, eq(spots.typeId, spotTypes.id))
+    .where(and(eq(spots.status, "operating"), ne(spots.source, "sample"), eq(spotTypes.listed, true)));
   if (rows.length === 0) return [];
 
   const linkCounts = await db
@@ -93,6 +95,7 @@ export async function sitemapPlaces(): Promise<SitemapEntry[]> {
   const byId = new Map(linkCounts.map((r) => [r.spotId, r.count]));
 
   return rows
+    .map((r) => r.spot)
     .filter((s) => placeInfoItemCount(s, byId.get(s.id) ?? 0) >= MIN_PLACE_INFO_ITEMS)
     .map((s) => ({ path: `/place/${s.id}-${encodeURIComponent(s.slug)}`, lastModified: s.updatedAt }));
 }
