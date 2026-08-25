@@ -57,7 +57,10 @@ if (-not (Get-Command aws -ErrorAction SilentlyContinue)) {
 Write-Host "== Lambda log groups for stage '$Stage' ==" -ForegroundColor Cyan
 $r = Invoke-Aws @('logs', 'describe-log-groups', '--log-group-name-prefix', '/aws/lambda/', '--query', 'logGroups[].logGroupName', '--output', 'json')
 if ($r.ExitCode -ne 0) { Fail "describe-log-groups failed: $($r.Text)" }
-$all = @($r.Text | ConvertFrom-Json)
+# Windows PowerShell 5.1: ConvertFrom-Json emits a JSON array as ONE array
+# object (PowerShell 7 enumerates it) - pipe through ForEach-Object so both
+# editions yield one string per log group.
+$all = @(($r.Text | ConvertFrom-Json) | ForEach-Object { "$_" })
 $needle = "petlife-$Stage"
 $groups = @($all | Where-Object { $_ -match [regex]::Escape($needle) })
 if ($groups.Count -eq 0) {

@@ -44,7 +44,14 @@ param(
     # Skip certificate / hosted zone checks.
     [switch]$SkipPreflight,
     # Skip DB migrations (when you know the schema did not change).
-    [switch]$SkipMigrate
+    [switch]$SkipMigrate,
+
+    # OpenNext bundles built on Windows are BROKEN in Lambda (missing
+    # node_modules -> "Cannot find package 'next'", confirmed on this project).
+    # Deploy from GitHub Actions instead (Actions -> deploy). This switch
+    # overrides the guard at your own risk (e.g. inside WSL the guard does
+    # not trigger anyway because WSL is Linux).
+    [switch]$AllowWindowsBuild
 )
 
 $ErrorActionPreference = 'Stop'
@@ -59,6 +66,19 @@ $DefaultCertArn = 'arn:aws:acm:us-east-1:532393804562:certificate/90e71d55-1296-
 
 if (-not (Test-Path 'pnpm-workspace.yaml')) {
     throw 'Run this from the repository root (pnpm-workspace.yaml not found).'
+}
+
+if ($env:OS -eq 'Windows_NT' -and -not $AllowWindowsBuild) {
+    Write-Host '  [FAIL] Deploying from Windows produces a BROKEN server bundle' -ForegroundColor Red
+    Write-Host '         (OpenNext does not support Windows builds; Lambda then fails with' -ForegroundColor Red
+    Write-Host '          "Cannot find package next" - confirmed on this project).' -ForegroundColor Red
+    Write-Host ''
+    Write-Host '  Deploy from GitHub Actions instead (Linux runner):'
+    Write-Host '    GitHub repo -> Actions -> deploy -> Run workflow -> branch + stage'
+    Write-Host '  Setup (once): docs/baepo.md section 2-1 - three repository secrets.'
+    Write-Host ''
+    Write-Host '  Override at your own risk: -AllowWindowsBuild'
+    exit 1
 }
 
 # --------------------------------------------------------------------
