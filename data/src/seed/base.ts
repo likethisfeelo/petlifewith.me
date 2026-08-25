@@ -56,9 +56,10 @@ const SPOT_TYPES = [
   { slug: "memorial", name: "장묘", description: "광고 없음. 인허가 기반 사실 정보만 담담하게 정리한다", monetizable: false, listed: true, sortOrder: 10 },
   // 의료 인접 (기획서 6-2): 광고·순위·추천 없이 사실 정보만. 프로모션 생성 불가.
   { slug: "pharmacy", name: "동물약국", description: "동물약국 인허가(행정안전부) 기반. 광고 없음 — 사실 정보만", monetizable: false, listed: true, sortOrder: 11 },
-  // B2B 인허가 — 개별 페이지를 만들지 않는다 (5-3 덤프 금지). 지역 인프라 집계·내부 참고 전용.
-  { slug: "drug-wholesale", name: "동물용의약품 도매", description: "B2B — 공개 디렉토리 미노출, 지역 인프라 집계 전용", monetizable: false, listed: false, sortOrder: 12 },
-  { slug: "medical-device-shop", name: "동물용 의료용구 판매", description: "B2B — 공개 디렉토리 미노출, 지역 인프라 집계 전용", monetizable: false, listed: false, sortOrder: 13 },
+  // B2B 인허가 — 소비자 디렉토리(listed)와 분리된 '참고 디렉토리'로 게시한다.
+  // 광고·추천 없음, 지역 혼합 목록·소비자 집계에는 섞이지 않고 유형 허브·지역x유형·개별 페이지만 제공.
+  { slug: "drug-wholesale", name: "동물용의약품 도매", description: "B2B 참고 — 광고 없음, 소비자 목록과 분리해 인허가 사실 정보만 게시", monetizable: false, listed: false, sortOrder: 12 },
+  { slug: "medical-device-shop", name: "동물용 의료용구 판매", description: "B2B 참고 — 광고 없음, 소비자 목록과 분리해 인허가 사실 정보만 게시", monetizable: false, listed: false, sortOrder: 13 },
 ] as const;
 
 async function main() {

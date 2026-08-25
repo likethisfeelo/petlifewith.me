@@ -17,7 +17,12 @@ export function generateMetadata(): Metadata {
 }
 
 export default async function SpotIndexPage() {
-  const [sidoSummaries, types] = await Promise.all([listSidoSummaries(), listSpotTypes()]);
+  const [sidoSummaries, allTypes] = await Promise.all([
+    listSidoSummaries(),
+    listSpotTypes({ includeUnlisted: true }),
+  ]);
+  const types = allTypes.filter((t) => t.listed);
+  const b2bTypes = allTypes.filter((t) => !t.listed);
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-10">
@@ -55,6 +60,21 @@ export default async function SpotIndexPage() {
               </Link>
             ))}
           </div>
+          {b2bTypes.length > 0 && (
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-ink-faint">
+              <span>유통·산업 (B2B 참고):</span>
+              {b2bTypes.map((t) => (
+                <Link
+                  key={t.id}
+                  href={`/spot/type/${t.slug}`}
+                  title={t.description ?? undefined}
+                  className="rounded-full border border-line px-2.5 py-0.5 transition-colors hover:bg-sand hover:text-ink"
+                >
+                  {t.name}
+                </Link>
+              ))}
+            </div>
+          )}
         </section>
       )}
 

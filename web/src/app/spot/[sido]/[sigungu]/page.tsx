@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { SpotCard } from "@/components/cards";
@@ -53,7 +54,7 @@ export default async function SigunguPage({ params }: Props) {
     getRegionDogStats(region.id),
     guidesForRegion(region.id),
   ]);
-  // 공개 유형만 디렉토리로. 비공개 유형(B2B 인허가)은 지역 인프라 참고 수치로만 노출한다.
+  // 소비자 유형만 혼합 목록·분포에. B2B 참고 유형은 아래 별도 줄에서 지역x유형 페이지로 링크한다.
   const typeCounts = allTypeCounts.filter((c) => c.listed);
   const infraCounts = allTypeCounts.filter((c) => !c.listed);
   const listedTotal = typeCounts.reduce((a, c) => a + c.count, 0);
@@ -92,10 +93,19 @@ export default async function SigunguPage({ params }: Props) {
       </div>
 
       {infraCounts.length > 0 && (
-        <p className="mt-3 text-xs text-ink-faint">
-          유통 인프라 참고: {infraCounts.map((c) => `${c.typeName} ${c.count}곳`).join(" · ")} — 소비자
-          대상 시설이 아니라 개별 페이지 없이 집계만 표기합니다 (행정안전부 지방행정 인허가데이터).
-        </p>
+        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-ink-faint">
+          <span>유통·산업 인허가 (B2B 참고):</span>
+          {infraCounts.map((c) => (
+            <Link
+              key={c.typeId}
+              href={`/spot/${region.sidoSlug}/${region.sigunguSlug}/${c.typeSlug}`}
+              className="rounded-full border border-line px-2.5 py-0.5 transition-colors hover:bg-sand hover:text-ink"
+            >
+              {c.typeName} {c.count}곳
+            </Link>
+          ))}
+          <span>— 소비자 시설이 아닌 업체 간 인허가 정보입니다</span>
+        </div>
       )}
 
       <section className="mt-10">

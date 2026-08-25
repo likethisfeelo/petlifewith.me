@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Breadcrumbs } from "@/components/breadcrumbs";
-import { PharmacyNote } from "@/components/notices";
+import { B2BNote, PharmacyNote } from "@/components/notices";
 import {
   countIndexableSpotsForType,
   getSpotTypeBySlug,
@@ -25,8 +25,7 @@ interface Props {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { type } = await params;
   const spotType = await getSpotTypeBySlug(decodeURIComponent(type));
-  // 비공개 유형(B2B 인허가)은 허브도 만들지 않는다
-  if (!spotType || !spotType.listed) return { robots: robotsMeta(false) };
+  if (!spotType) return { robots: robotsMeta(false) };
   const indexableCount = await countIndexableSpotsForType(spotType.id);
   return buildMeta({
     title: `전국 ${spotType.name}`,
@@ -39,7 +38,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function SpotTypeHubPage({ params }: Props) {
   const { type } = await params;
   const spotType = await getSpotTypeBySlug(decodeURIComponent(type));
-  if (!spotType || !spotType.listed) notFound();
+  if (!spotType) notFound();
 
   const rows = await listRegionCountsForType(spotType.id);
   const total = rows.reduce((a, r) => a + r.count, 0);
@@ -80,6 +79,7 @@ export default async function SpotTypeHubPage({ params }: Props) {
         </p>
       )}
       {spotType.slug === "pharmacy" && <PharmacyNote />}
+      {!spotType.listed && <B2BNote />}
 
       {groups.length === 0 ? (
         <p className="mt-8 rounded-xl border border-dashed border-line p-8 text-center text-sm text-ink-faint">
