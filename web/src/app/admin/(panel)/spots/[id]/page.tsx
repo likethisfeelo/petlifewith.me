@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { getDb, isDbConfigured, schema } from "@/lib/db";
-import { idSlugPath } from "@/lib/format";
+import { SPOT_SOURCE_LABEL, idSlugPath } from "@/lib/format";
 import { getSpotLinks } from "@/lib/queries/spots";
 import { AdminPageHeader } from "../../../_components/fields";
 import { SpotEditor } from "./spot-editor";
@@ -33,7 +33,10 @@ export default async function AdminSpotEditPage({ params, searchParams }: Props)
   if (!row) notFound();
 
   const [types, links] = await Promise.all([
-    db.select({ id: spotTypes.id, name: spotTypes.name }).from(spotTypes).orderBy(spotTypes.sortOrder),
+    db
+      .select({ id: spotTypes.id, name: spotTypes.name, listed: spotTypes.listed })
+      .from(spotTypes)
+      .orderBy(spotTypes.sortOrder),
     getSpotLinks(spotId),
   ]);
 
@@ -64,6 +67,32 @@ export default async function AdminSpotEditPage({ params, searchParams }: Props)
         필드와 링크는 ETL 이 덮어쓰지 않습니다.
       </p>
 
+      {/* 원천 데이터 명시 — 어디서 온 행인지 관리 화면에서도 그대로 보인다 */}
+      <dl className="mt-4 grid gap-x-6 gap-y-1 rounded-xl border border-line bg-surface p-4 text-xs text-ink-soft sm:grid-cols-2">
+        <div className="flex gap-2">
+          <dt className="text-ink-faint">출처</dt>
+          <dd>{SPOT_SOURCE_LABEL[spot.source] ?? spot.source}</dd>
+        </div>
+        {spot.licenseMgmtNo && (
+          <div className="flex gap-2">
+            <dt className="text-ink-faint">인허가 관리번호</dt>
+            <dd>{spot.licenseMgmtNo}</dd>
+          </div>
+        )}
+        {spot.licenseDate && (
+          <div className="flex gap-2">
+            <dt className="text-ink-faint">인허가일</dt>
+            <dd>{spot.licenseDate}</dd>
+          </div>
+        )}
+        {spot.dataReferenceDate && (
+          <div className="flex gap-2">
+            <dt className="text-ink-faint">데이터 기준일</dt>
+            <dd>{spot.dataReferenceDate}</dd>
+          </div>
+        )}
+      </dl>
+
       <div className="mt-5">
         <SpotEditor
           mode="edit"
@@ -81,7 +110,7 @@ export default async function AdminSpotEditPage({ params, searchParams }: Props)
             heroImageKey: spot.heroImageKey,
             seo: { seoTitle: spot.seoTitle, seoDescription: spot.seoDescription, ogImageKey: spot.ogImageKey },
           }}
-          types={types.map((t) => ({ id: t.id, label: t.name }))}
+          types={types.map((t) => ({ id: t.id, label: t.listed ? t.name : `${t.name} (비공개)` }))}
           links={links.map((l) => ({ kind: l.kind, url: l.url, label: l.label ?? "" }))}
         />
       </div>

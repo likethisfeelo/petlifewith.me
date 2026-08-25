@@ -62,8 +62,37 @@ export function FactBadge({ label, verifiedAt, note }: { label: string; verified
   );
 }
 
-/** 데이터 기준일 표기 — 스팟 정보 부정확 리스크 대응 (기획서 SECTION 07) */
-export function DataReferenceNote({ date }: { date: string | null }) {
-  if (!date) return null;
-  return <p className="text-xs text-ink-faint">인허가 데이터 기준일: {date}</p>;
+/**
+ * 데이터 출처·기준일 표기 — 스팟 정보 부정확 리스크 대응 (기획서 SECTION 07).
+ * 공공데이터 행은 원천(행정안전부 지방행정 인허가데이터)과 관리번호까지 명시한다.
+ */
+export function DataReferenceNote({
+  date,
+  source,
+  licenseMgmtNo,
+}: {
+  date: string | null;
+  source?: string | null;
+  licenseMgmtNo?: string | null;
+}) {
+  const parts: string[] = [];
+  if (source === "public_data") {
+    parts.push("출처: 행정안전부 지방행정 인허가데이터 (공공데이터포털 data.go.kr) 확인 자료");
+  } else if (source === "direct") {
+    parts.push("출처: 직접 확인 정보");
+  }
+  if (date) parts.push(`기준일 ${date}`);
+  if (source === "public_data" && licenseMgmtNo) parts.push(`관리번호 ${licenseMgmtNo}`);
+  if (parts.length === 0) return null;
+  return <p className="text-xs text-ink-faint">{parts.join(" · ")}</p>;
+}
+
+/** 동물약국 안내 (claude.md 6-2) — 진단·처방의 주체는 수의사임을 명시한다 */
+export function PharmacyNote() {
+  return (
+    <p className="mt-3 rounded-lg border border-line bg-sand px-4 py-3 text-sm text-ink-soft">
+      동물용의약품 중 처방대상 의약품은 수의사 처방전이 있어야 구입할 수 있습니다. 증상이 있다면
+      자가 투약보다 동물병원 진료가 먼저입니다. 구입·투여 전에 수의사·약사와 상의하세요.
+    </p>
+  );
 }

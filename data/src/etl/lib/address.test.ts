@@ -45,4 +45,18 @@ describe("resolveRegionFromAddress — 시군구 귀속", () => {
     expect(resolveRegionFromAddress("서울특별시 없는구 어딘가 1")).toBeUndefined();
     expect(resolveRegionFromAddress("")).toBeUndefined();
   });
+  it("2026 통합 표기(전남광주통합특별시)는 시군구명으로 옛 시도에 귀속", () => {
+    const gu = resolveRegionFromAddress("전남광주통합특별시 북구 용봉로 77");
+    expect(gu?.region.sidoSlug).toBe("gwangju");
+    expect(gu?.region.sigunguSlug).toBe("buk-gu");
+    const si = resolveRegionFromAddress("전남광주통합특별시 순천시 중앙로 1");
+    expect(si?.region.sidoSlug).toBe("jeonnam");
+    expect(si?.region.sigunguName).toBe("순천시");
+  });
+  it("2026 인천 신설 구(검단·영종·서해·제물포)를 인식", () => {
+    expect(resolveRegionFromAddress("인천광역시 검단구 아라로 1")?.region.sigunguSlug).toBe("geomdan-gu");
+    expect(resolveRegionFromAddress("인천광역시 서해구 청라커낼로 1")?.region.sigunguSlug).toBe("seohae-gu");
+    expect(resolveRegionFromAddress("인천광역시 영종구 공항로 1")?.region.sigunguSlug).toBe("yeongjong-gu");
+    expect(resolveRegionFromAddress("인천광역시 제물포구 참외전로 1")?.region.sigunguSlug).toBe("jemulpo-gu");
+  });
 });

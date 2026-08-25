@@ -13,13 +13,17 @@ export interface SpotWithMeta {
   typeName: string;
   typeSlug: string;
   typeMonetizable: boolean;
+  typeListed: boolean;
   region: RegionRow;
   promoted: boolean;
 }
 
-export async function listSpotTypes(): Promise<SpotTypeRow[]> {
+/** 공개 노출 유형만 (listed). 관리자 화면은 includeUnlisted 로 B2B 유형까지 본다. */
+export async function listSpotTypes(opts?: { includeUnlisted?: boolean }): Promise<SpotTypeRow[]> {
   if (!isDbConfigured()) return [];
-  return getDb().select().from(spotTypes).orderBy(spotTypes.sortOrder);
+  const db = getDb();
+  if (opts?.includeUnlisted) return db.select().from(spotTypes).orderBy(spotTypes.sortOrder);
+  return db.select().from(spotTypes).where(eq(spotTypes.listed, true)).orderBy(spotTypes.sortOrder);
 }
 
 export async function getSpotTypeBySlug(slug: string): Promise<SpotTypeRow | null> {
@@ -42,7 +46,14 @@ export async function getPlace(id: number): Promise<SpotWithMeta | null> {
   if (!isDbConfigured()) return null;
   const db = getDb();
   const rows = await db
-    .select({ spot: spots, typeName: spotTypes.name, typeSlug: spotTypes.slug, typeMonetizable: spotTypes.monetizable, region: regions })
+    .select({
+      spot: spots,
+      typeName: spotTypes.name,
+      typeSlug: spotTypes.slug,
+      typeMonetizable: spotTypes.monetizable,
+      typeListed: spotTypes.listed,
+      region: regions,
+    })
     .from(spots)
     .innerJoin(spotTypes, eq(spots.typeId, spotTypes.id))
     .innerJoin(regions, eq(spots.regionId, regions.id))
@@ -75,10 +86,11 @@ export async function countLinksBySpot(spotIds: number[]): Promise<Map<number, n
  * 프로모션(region_top) 활성 스팟이 앞으로 오되 반드시 "광고" 라벨과 함께 렌더된다.
  * 광고 없이 순수 목록만 원하는 곳(장묘)은 monetizable=false 유형이라 프로모션이 생성될 수 없다.
  */
-export async function listSpotsInRegion(regionId: number, typeId?: number): Promise<SpotWithMeta[]> {
+export async function listSpotsInRegion(regionId: number, typeId?: number, limit?: number): Promise<SpotWithMeta[]> {
   if (!isDbConfigured()) return [];
   const db = getDb();
-  const conds = [eq(spots.regionId, regionId), eq(spots.status, "operating")];
+  // 공개 목록 — 비공개 유형(B2B 인허가)은 제외한다
+  const conds = [eq(spots.regionId, regionId), eq(spots.status, "operating"), eq(spotTypes.listed, true)];
   if (typeId) conds.push(eq(spots.typeId, typeId));
   const rows = await db
     .select({
@@ -86,6 +98,7 @@ export async function listSpotsInRegion(regionId: number, typeId?: number): Prom
       typeName: spotTypes.name,
       typeSlug: spotTypes.slug,
       typeMonetizable: spotTypes.monetizable,
+      typeListed: spotTypes.listed,
       region: regions,
       promoted: sql<boolean>`exists (
         select 1 from ${promotions} p
@@ -99,7 +112,8 @@ export async function listSpotsInRegion(regionId: number, typeId?: number): Prom
     .orderBy(sql`case when exists (
         select 1 from ${promotions} p
         where p.spot_id = ${spots.id} and p.active = true and p.kind = 'region_top'
-      ) then 0 else 1 end`, asc(spots.name));
+      ) then 0 else 1 end`, asc(spots.name))
+    .limit(limit ?? 100_000);
   return rows;
 }
 
@@ -107,10 +121,11 @@ export interface RegionTypeCount {
   typeId: number;
   typeName: string;
   typeSlug: string;
+  listed: boolean;
   count: number;
 }
 
-/** 지역 페이지 고유 데이터 블록 — 유형 분포 */
+/** 지역 페이지 고유 데이터 블록 — 유형 분포. 비공개 유형도 집계로는 포함한다 (페이지에서 분리 렌더). */
 export async function countSpotsByTypeInRegion(regionId: number): Promise<RegionTypeCount[]> {
   if (!isDbConfigured()) return [];
   const db = getDb();
@@ -119,26 +134,38 @@ export async function countSpotsByTypeInRegion(regionId: number): Promise<Region
       typeId: spotTypes.id,
       typeName: spotTypes.name,
       typeSlug: spotTypes.slug,
+      listed: spotTypes.listed,
       count: sql<number>`count(*)`.mapWith(Number),
     })
     .from(spots)
     .innerJoin(spotTypes, eq(spots.typeId, spotTypes.id))
     .where(and(eq(spots.regionId, regionId), eq(spots.status, "operating")))
-    .groupBy(spotTypes.id, spotTypes.name, spotTypes.slug)
+    .groupBy(spotTypes.id, spotTypes.name, spotTypes.slug, spotTypes.listed)
     .orderBy(sql`count(*) desc`);
 }
 
-/** noindex 게이트용 카운트 — 샘플 픽스처 제외 (프로덕션 색인 판단은 실데이터만) */
+/** noindex 게이트용 카운트 — 샘플 픽스처·비공개 유형 제외 (색인 판단은 공개 실데이터만) */
 export async function countIndexableSpotsInRegion(regionId: number, typeId?: number): Promise<number> {
   if (!isDbConfigured()) return 0;
   const db = getDb();
-  const conds = [eq(spots.regionId, regionId), eq(spots.status, "operating"), ne(spots.source, "sample")];
+  const conds = [
+    eq(spots.regionId, regionId),
+    eq(spots.status, "operating"),
+    ne(spots.source, "sample"),
+    eq(spotTypes.listed, true),
+  ];
   if (typeId) conds.push(eq(spots.typeId, typeId));
   const rows = await db
     .select({ count: sql<number>`count(*)`.mapWith(Number) })
     .from(spots)
+    .innerJoin(spotTypes, eq(spots.typeId, spotTypes.id))
     .where(and(...conds));
   return rows[0]?.count ?? 0;
+}
+
+/** 스팟의 유형이 공개(listed) 유형인지 — 집계 조인 조건용 EXISTS */
+function listedTypeExists() {
+  return sql`exists (select 1 from ${spotTypes} where ${spotTypes.id} = ${spots.typeId} and ${spotTypes.listed} = true)`;
 }
 
 export interface SidoSummary {
@@ -159,7 +186,7 @@ export async function listSidoSummaries(): Promise<SidoSummary[]> {
       spotCount: sql<number>`count(${spots.id})`.mapWith(Number),
     })
     .from(regions)
-    .leftJoin(spots, and(eq(spots.regionId, regions.id), eq(spots.status, "operating")))
+    .leftJoin(spots, and(eq(spots.regionId, regions.id), eq(spots.status, "operating"), listedTypeExists()))
     .groupBy(regions.sidoName, regions.sidoSlug)
     .orderBy(sql`count(${spots.id}) desc`, regions.sidoName);
 }
@@ -178,7 +205,7 @@ export async function listSigunguSummaries(sidoSlug: string): Promise<SigunguSum
       spotCount: sql<number>`count(${spots.id})`.mapWith(Number),
     })
     .from(regions)
-    .leftJoin(spots, and(eq(spots.regionId, regions.id), eq(spots.status, "operating")))
+    .leftJoin(spots, and(eq(spots.regionId, regions.id), eq(spots.status, "operating"), listedTypeExists()))
     .where(eq(regions.sidoSlug, sidoSlug))
     .groupBy(regions.id)
     .orderBy(sql`count(${spots.id}) desc`, regions.sigunguName);

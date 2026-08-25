@@ -21,6 +21,13 @@ export const SPOT_STATUS_LABEL: Record<string, string> = {
   unknown: "확인 필요",
 };
 
+export const SPOT_SOURCE_LABEL: Record<string, string> = {
+  public_data: "공공데이터 (행안부 인허가)",
+  direct: "직접 발굴",
+  claimed: "클레임 보강",
+  sample: "개발용 샘플",
+};
+
 export const GUIDE_STATUS_LABEL: Record<string, string> = {
   draft: "작성 중",
   review_pending: "감수 대기",

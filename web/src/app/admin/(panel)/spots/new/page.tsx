@@ -9,7 +9,7 @@ export default async function AdminSpotNewPage() {
   const db = getDb();
 
   const [types, regionRows] = await Promise.all([
-    db.select({ id: spotTypes.id, name: spotTypes.name }).from(spotTypes).orderBy(spotTypes.sortOrder),
+    db.select({ id: spotTypes.id, name: spotTypes.name, listed: spotTypes.listed }).from(spotTypes).orderBy(spotTypes.sortOrder),
     db.select().from(regions).orderBy(regions.sidoName, regions.sigunguName),
   ]);
 
@@ -34,7 +34,7 @@ export default async function AdminSpotNewPage() {
             parkingText: null,
             descriptionMd: null,
           }}
-          types={types.map((t) => ({ id: t.id, label: t.name }))}
+          types={types.map((t) => ({ id: t.id, label: t.listed ? t.name : `${t.name} (비공개)` }))}
           regions={regionRows.map((r) => ({ id: r.id, label: `${r.sidoName} ${r.sigunguName}` }))}
           links={[]}
         />

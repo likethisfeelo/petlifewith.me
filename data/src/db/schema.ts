@@ -316,6 +316,9 @@ export const spotTypes = pgTable("spot_types", {
   description: text("description"),
   // 장묘는 광고를 붙이지 않는다 (기획서 4-1). 프로모션 로직이 이 플래그를 본다.
   monetizable: boolean("monetizable").notNull().default(true),
+  // 공개 디렉토리 노출 여부. B2B 인허가(의약품 도매·의료용구 판매)는 개별 페이지를
+  // 만들지 않고(claude.md 5-3 덤프 금지·6-2 의료 인접) 지역 인프라 집계에만 쓴다.
+  listed: boolean("listed").notNull().default(true),
   sortOrder: integer("sort_order").notNull().default(0),
 });
 

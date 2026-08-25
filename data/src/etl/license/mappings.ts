@@ -7,13 +7,14 @@
 export const LICENSE_HEADER_SPEC = {
   name: { candidates: ["사업장명"], required: true },
   mgmtNo: { candidates: ["관리번호"], required: true },
-  roadAddress: { candidates: ["도로명전체주소", "소재지도로명주소"], required: false },
-  lotAddress: { candidates: ["소재지전체주소", "소재지지번주소"], required: false },
+  // 공공데이터포털 일괄 다운로드본은 "도로명전체주소", 행안부 API 추출본(사용자 다운로드)은 "도로명주소"
+  roadAddress: { candidates: ["도로명전체주소", "소재지도로명주소", "도로명주소"], required: false },
+  lotAddress: { candidates: ["소재지전체주소", "소재지지번주소", "지번주소"], required: false },
   statusName: { candidates: ["영업상태명", "영업상태구분명"], required: false },
   statusDetailName: { candidates: ["상세영업상태명"], required: false },
   licenseDate: { candidates: ["인허가일자"], required: false },
   closedDate: { candidates: ["폐업일자"], required: false },
-  phone: { candidates: ["소재지전화"], required: false },
+  phone: { candidates: ["소재지전화", "전화번호"], required: false },
   bizKind: { candidates: ["업태구분명"], required: false },
   coordX: { candidates: ["좌표정보(x)", "좌표정보(X)", "좌표정보x", "좌표정보X"], required: false },
   coordY: { candidates: ["좌표정보(y)", "좌표정보(Y)", "좌표정보y", "좌표정보Y"], required: false },
@@ -41,6 +42,11 @@ export const DATASETS: Record<string, DatasetDef> = {
   "animal-boarding": { kind: "spot", label: "동물위탁관리업", spotTypeSlug: "boarding" },
   "animal-memorial": { kind: "spot", label: "동물장묘업", spotTypeSlug: "memorial" },
   "animal-transport": { kind: "spot", label: "동물운송업", spotTypeSlug: "transport" },
+  // 의료 인접 — 광고·순위 없이 사실 정보만 (기획서 6-2, 장묘와 동일 등급)
+  "animal-pharmacy": { kind: "spot", label: "동물약국", spotTypeSlug: "pharmacy" },
+  // B2B — 공개 디렉토리 미노출(spot_types.listed=false), 지역 인프라 집계 전용
+  "animal-drug-wholesale": { kind: "spot", label: "동물용의약품 도매상", spotTypeSlug: "drug-wholesale" },
+  "animal-medical-device": { kind: "spot", label: "동물용 의료용구 판매업", spotTypeSlug: "medical-device-shop" },
   // 메이커 배지 근거 (기획서 4-4) — feed_licenses 원장으로 적재
   "feed-manufacture": { kind: "feed", label: "사료제조업" },
 };

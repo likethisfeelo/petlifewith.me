@@ -4,6 +4,7 @@ import { Breadcrumbs } from "@/components/breadcrumbs";
 import { SpotCard } from "@/components/cards";
 import { JsonLd } from "@/components/jsonld";
 import { RememberRegion } from "@/components/region-banner";
+import { PharmacyNote } from "@/components/notices";
 import {
   countIndexableSpotsInRegion,
   getRegionBySlugs,
@@ -29,7 +30,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     getRegionBySlugs(decodeURIComponent(sido), decodeURIComponent(sigungu)),
     getSpotTypeBySlug(decodeURIComponent(type)),
   ]);
-  if (!region || !spotType) return { robots: robotsMeta(false) };
+  // 비공개 유형(B2B 인허가)은 공개 페이지를 만들지 않는다
+  if (!region || !spotType || !spotType.listed) return { robots: robotsMeta(false) };
   const indexableCount = await countIndexableSpotsInRegion(region.id, spotType.id);
   return buildMeta({
     title: `${region.sigunguName} ${spotType.name}`,
@@ -46,7 +48,7 @@ export default async function RegionTypePage({ params }: Props) {
     getRegionBySlugs(decodeURIComponent(sido), decodeURIComponent(sigungu)),
     getSpotTypeBySlug(decodeURIComponent(type)),
   ]);
-  if (!region || !spotType) notFound();
+  if (!region || !spotType || !spotType.listed) notFound();
 
   const spots = await listSpotsInRegion(region.id, spotType.id);
   const basePath = `/spot/${region.sidoSlug}/${region.sigunguSlug}`;
@@ -75,12 +77,13 @@ export default async function RegionTypePage({ params }: Props) {
       </h1>
       {spotType.description && <p className="mt-2 text-sm text-ink-soft">{spotType.description}</p>}
 
-      {/* 장묘: 광고를 붙이지 않는 영역 — 담담한 실무 정보만 (기획서 4-1) */}
+      {/* 장묘·동물약국: 광고를 붙이지 않는 영역 — 담담한 실무 정보만 (기획서 4-1·6-2) */}
       {!spotType.monetizable && (
         <p className="mt-4 rounded-lg border border-line bg-sand px-4 py-3 text-sm text-ink-soft">
           이 목록에는 광고·추천·순위가 없습니다. 인허가 기반 사실 정보만 가나다순으로 정리합니다.
         </p>
       )}
+      {spotType.slug === "pharmacy" && <PharmacyNote />}
 
       <section className="mt-8">
         {spots.length === 0 ? (
@@ -95,6 +98,11 @@ export default async function RegionTypePage({ params }: Props) {
           </div>
         )}
       </section>
+
+      <p className="mt-6 text-xs text-ink-faint">
+        시설 정보는 행정안전부 지방행정 인허가데이터(공공데이터포털 data.go.kr)와 직접 확인을 바탕으로
+        하며, 각 장소 페이지에 출처·기준일을 표기합니다.
+      </p>
 
       {spots.length > 0 && (
         <JsonLd
