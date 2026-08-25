@@ -1,0 +1,89 @@
+// 콘텐츠 시드 — data/content/guides/*.md 를 slug 기준으로 upsert.
+// 본문은 git 이 원본, DB 는 서빙 뷰다. 관리자에서 고친 본문은 여기 재실행 시 덮어써진다.
+//
+// frontmatter:
+//   slug, title, topic(토픽 슬러그) — 필수
+//   summary, role(hub|spoke), spokeGroup(body|support|...), status,
+//   medicalAdjacent, vetReviewed, vetReviewerName, vetReviewedAt — 선택
+import { readFileSync, readdirSync } from "node:fs";
+import path from "node:path";
+import matter from "gray-matter";
+import { eq } from "drizzle-orm";
+import { repoRoot } from "../env.js";
+import { closeDb, getDb } from "../db/client.js";
+import { guides, topics } from "../db/schema.js";
+
+const GUIDES_DIR = path.join(repoRoot, "data", "content", "guides");
+
+type GuideStatus = "draft" | "review_pending" | "published" | "archived";
+
+async function main() {
+  const db = getDb();
+  const topicRows = await db.select().from(topics);
+  if (topicRows.length === 0) throw new Error("topics 가 비어 있습니다. seed:base 를 먼저 실행하세요.");
+  const topicBySlug = new Map(topicRows.map((t) => [t.slug, t.id]));
+
+  const files = readdirSync(GUIDES_DIR).filter((f) => f.endsWith(".md")).sort();
+  let count = 0;
+
+  for (const file of files) {
+    const raw = readFileSync(path.join(GUIDES_DIR, file), "utf8");
+    const { data, content } = matter(raw);
+
+    const slug = String(data.slug ?? "").trim();
+    const title = String(data.title ?? "").trim();
+    const topicSlug = String(data.topic ?? "").trim();
+    if (!slug || !title || !topicSlug) {
+      throw new Error(`${file}: frontmatter 에 slug/title/topic 이 필요합니다.`);
+    }
+    const topicId = topicBySlug.get(topicSlug);
+    if (!topicId) throw new Error(`${file}: 알 수 없는 topic "${topicSlug}"`);
+
+    const medicalAdjacent = Boolean(data.medicalAdjacent ?? false);
+    const vetReviewed = Boolean(data.vetReviewed ?? false);
+    let status = (data.status ?? "draft") as GuideStatus;
+
+    // 의료 인접 편은 감수 전 발행 불가 — DB CHECK 와 동일 규칙을 시드에서 먼저 적용.
+    if (status === "published" && medicalAdjacent && !vetReviewed) {
+      console.warn(`  ! ${slug}: 의료 인접 + 감수 미완료 → review_pending 으로 강등`);
+      status = "review_pending";
+    }
+
+    const existing = await db.select({ id: guides.id, publishedAt: guides.publishedAt }).from(guides).where(eq(guides.slug, slug));
+    const publishedAt =
+      status === "published" ? (existing[0]?.publishedAt ?? new Date()) : (existing[0]?.publishedAt ?? null);
+
+    const values = {
+      slug,
+      title,
+      summary: data.summary ? String(data.summary) : null,
+      bodyMd: content.trim(),
+      topicId,
+      role: (data.role === "hub" ? "hub" : "spoke") as "hub" | "spoke",
+      spokeGroup: data.spokeGroup ? String(data.spokeGroup) : null,
+      status,
+      medicalAdjacent,
+      vetReviewed,
+      vetReviewerName: data.vetReviewerName ? String(data.vetReviewerName) : null,
+      vetReviewedAt: data.vetReviewedAt ? String(data.vetReviewedAt) : null,
+      publishedAt,
+    };
+
+    if (existing[0]) {
+      await db.update(guides).set({ ...values, updatedAt: new Date() }).where(eq(guides.id, existing[0].id));
+    } else {
+      await db.insert(guides).values(values);
+    }
+    count += 1;
+    console.log(`  ${status.padEnd(14)} ${slug}`);
+  }
+
+  console.log(`guides: ${count}건 upsert (${GUIDES_DIR})`);
+  await closeDb();
+}
+
+main().catch(async (e) => {
+  console.error(e instanceof Error ? e.message : e);
+  await closeDb();
+  process.exit(1);
+});

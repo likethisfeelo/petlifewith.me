@@ -1,0 +1,34 @@
+import Link from "next/link";
+import { siteName, siteTagline } from "@/lib/config";
+
+const NAV = [
+  { href: "/topic/senior-life", label: "노견생활" },
+  { href: "/topic/play", label: "놀이" },
+  { href: "/spot", label: "스팟" },
+  { href: "/maker", label: "메이커" },
+  { href: "/curation", label: "큐레이션" },
+];
+
+export function SiteHeader() {
+  return (
+    <header className="sticky top-0 z-40 border-b border-line bg-cream/95 backdrop-blur">
+      <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3">
+        <Link href="/" className="shrink-0 text-lg font-extrabold tracking-tight text-ink">
+          {siteName()}
+          <span className="ml-2 hidden text-xs font-medium text-ink-faint sm:inline">{siteTagline()}</span>
+        </Link>
+        <nav className="-mx-1 flex items-center gap-1 overflow-x-auto text-sm font-medium text-ink-soft">
+          {NAV.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className="whitespace-nowrap rounded-full px-3 py-1.5 transition-colors hover:bg-sand hover:text-ink"
+            >
+              {item.label}
+            </Link>
+          ))}
+        </nav>
+      </div>
+    </header>
+  );
+}

@@ -1,0 +1,54 @@
+# 로컬 개발용 인프라. 배포용이 아니다 (배포는 나중에 AWS 직접 구성).
+#   docker compose up -d db        # PostgreSQL 만
+#   docker compose up -d           # PostgreSQL + MinIO(S3 호환)
+services:
+  db:
+    image: postgres:16
+    container_name: app-dev-db
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app_dev_password
+      POSTGRES_DB: app_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d app_dev"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # 파일 업로드는 처음부터 S3 전제(presigned URL)로 설계한다.
+  # 로컬에서는 MinIO 가 S3 를 대신한다. (claude.md 10-1)
+  minio:
+    image: minio/minio:latest
+    container_name: app-dev-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minio_dev
+      MINIO_ROOT_PASSWORD: minio_dev_password
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio-data:/data
+
+  # 최초 기동 시 미디어 버킷을 만들고 공개 읽기(다운로드)로 연다.
+  # NEXT_PUBLIC_ASSET_BASE_URL=http://localhost:9000/app-media 와 짝이다.
+  minio-init:
+    image: minio/mc:latest
+    container_name: app-dev-minio-init
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      until mc alias set local http://minio:9000 minio_dev minio_dev_password >/dev/null 2>&1; do sleep 1; done;
+      mc mb -p local/app-media >/dev/null 2>&1 || true;
+      mc anonymous set download local/app-media;
+      echo 'app-media bucket ready';
+      "
+
+volumes:
+  db-data:
+  minio-data:

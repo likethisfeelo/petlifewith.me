@@ -1,0 +1,21 @@
+{
+  "name": "app-root",
+  "private": true,
+  "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @app/web dev",
+    "build": "pnpm --filter @app/web build",
+    "start": "pnpm --filter @app/web start",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "db:generate": "pnpm --filter @app/data db:generate",
+    "db:migrate": "pnpm --filter @app/data db:migrate",
+    "seed": "pnpm --filter @app/data seed:base && pnpm --filter @app/data seed:content",
+    "seed:dev": "pnpm --filter @app/data seed:dev",
+    "etl:license": "pnpm --filter @app/data etl:license",
+    "etl:stats": "pnpm --filter @app/data etl:stats"
+  }
+}

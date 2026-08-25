@@ -1,0 +1,137 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
+@theme {
+  /* 따뜻한 에디토리얼 팔레트 — "즐거움" 축, 주어는 반려동물 */
+  --color-cream: #fbf9f5;
+  --color-surface: #ffffff;
+  --color-sand: #f3eee6;
+  --color-ink: #221e19;
+  --color-ink-soft: #6b6257;
+  --color-ink-faint: #a39b8b;
+  --color-line: #e8e1d5;
+
+  --color-accent: #d4531f;
+  --color-accent-deep: #b34317;
+  --color-accent-soft: #fcebe1;
+
+  --color-sage: #4f7465;
+  --color-sage-deep: #3d5c50;
+  --color-sage-soft: #e6eee9;
+
+  --color-plum: #74628f;
+  --color-plum-soft: #eeeaf4;
+
+  --color-honey: #a97a1f;
+  --color-honey-soft: #f7eed6;
+
+  --color-sea: #3f739b;
+  --color-sea-soft: #e4edf4;
+
+  --font-sans: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont,
+    system-ui, "Segoe UI", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: var(--color-cream);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  word-break: keep-all;
+  overflow-wrap: break-word;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---------- 본문(prose) 한국어 최적화 ---------- */
+.guide-prose {
+  --tw-prose-body: var(--color-ink);
+  --tw-prose-headings: var(--color-ink);
+  --tw-prose-links: var(--color-accent-deep);
+  --tw-prose-bold: var(--color-ink);
+  --tw-prose-quotes: var(--color-ink-soft);
+  --tw-prose-quote-borders: var(--color-line);
+  --tw-prose-counters: var(--color-ink-soft);
+  --tw-prose-bullets: var(--color-ink-faint);
+  --tw-prose-hr: var(--color-line);
+  --tw-prose-th-borders: var(--color-line);
+  --tw-prose-td-borders: var(--color-line);
+  line-height: 1.85;
+}
+.guide-prose h2 {
+  scroll-margin-top: 5rem;
+  letter-spacing: -0.01em;
+}
+.guide-prose h3 {
+  scroll-margin-top: 5rem;
+}
+.guide-prose blockquote {
+  font-style: normal;
+  background: var(--color-sand);
+  border-radius: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  border-left-color: var(--color-ink-faint);
+}
+.guide-prose table {
+  font-size: 0.9em;
+}
+
+/* ---------- 임베드 (공식 임베드만 — lib/markdown.ts) ---------- */
+.md-embed {
+  margin: 2rem 0;
+}
+.md-embed-frame {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  border-radius: 0.75rem;
+  overflow: hidden;
+  background: var(--color-sand);
+}
+.md-embed-frame iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+.md-embed figcaption {
+  margin-top: 0.5rem;
+  font-size: 0.8125rem;
+  color: var(--color-ink-soft);
+}
+.md-embed blockquote.instagram-media {
+  margin: 0 auto !important;
+  min-width: 240px;
+  max-width: 540px;
+}
+.md-media {
+  margin: 2rem 0;
+}
+.md-media img,
+.md-media video {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 0.75rem;
+  background: var(--color-sand);
+}
+.md-media video {
+  aspect-ratio: 16 / 9;
+}
+.md-media figcaption {
+  margin-top: 0.5rem;
+  font-size: 0.8125rem;
+  color: var(--color-ink-soft);
+}
+
+.md-embed-invalid {
+  margin: 2rem 0;
+  border: 1px dashed var(--color-accent);
+  background: var(--color-accent-soft);
+  color: var(--color-accent-deep);
+  border-radius: 0.5rem;
+  padding: 0.875rem 1rem;
+  font-size: 0.875rem;
+}

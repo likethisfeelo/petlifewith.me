@@ -8,20 +8,28 @@
 
 ---
 
-## 1. 현재 단계 — 로컬 개발
+## 1. 현재 단계 — 로컬 개발 + AWS 준비
 
-**AWS 인프라는 아직 없다.** 도메인 연결, CloudFront, RDS 배포는 나중이다. 지금은 로컬에서 빌드하고 GitHub에만 푸시한다.
+**계정 준비는 끝났고 배포는 아직이다.** 도메인 구매·ACM 인증서·IAM 사용자(프로필 `petlife`)까지 완료.
+CloudFront/Lambda/RDS 배포는 다음 단계다. 준비 절차와 검증 명령은 `docs/배포준비.md`.
 
-- CDK 스택을 만들지 않는다. 배포 스크립트를 작성하지 않는다.
+- CDK 스택·배포 스크립트는 배포 방식 확정 후에 만든다.
 - DB는 로컬 PostgreSQL 또는 Docker 컨테이너를 쓴다.
-- 시크릿은 `.env.local` (gitignore 대상). Secrets Manager 코드를 미리 넣지 않는다.
-- 다만 **나중에 CloudFront + Lambda 배포로 간다는 전제**로 설계한다. Vercel 전용 기능에 의존하지 않는다.
+- 시크릿은 `.env.local` (gitignore 대상). Secrets Manager 코드를 미리 넣지 않는다. AWS 액세스 키는 코드·채팅 어디에도 넣지 않는다.
+- **CloudFront + Lambda(OpenNext) 배포 전제**로 설계한다. Vercel 전용 기능에 의존하지 않는다.
+- CloudFront 인증서는 us-east-1 발급이어야 한다 (`petlifewith.me` + `*.petlifewith.me` 와일드카드 권장).
 
 ```
 로컬 경로  C:\petlifewithme
 리포       github.com/likethisfeelo/petlifewith.me (private)
-도메인     petlifewith.me (미연결)
+도메인     petlifewith.me (Route53 보유, 배포 대기)
+호스트     메인 petlifewith.me / admin. 전체 관리자 / service. 업체 사장님 /
+           product. 제품 사장님 / dev. 스테이징(preview, 전면 noindex)
 ```
+
+호스트 라우팅은 `web/src/middleware.ts` — admin/service/product 는 같은 앱에서 호스트로 갈라진다.
+기획서의 "지역별 서브도메인 금지"는 콘텐츠 SEO 결정이라 이 운영용 분리와 충돌하지 않는다
+(지역 URL 은 계속 서브폴더, 서브도메인 페이지는 전부 noindex).
 
 ---
 
@@ -207,7 +215,7 @@ fix(seo): 스팟 3개 미만 지역 noindex 누락
 
 **추측하지 않는다.** 공공데이터 API의 파라미터나 응답 구조를 모르면 문서를 확인하거나 물어본다. 지어내지 않는다.
 
-**브랜드명이 확정되지 않았다.** `package.json`의 name, DB 이름, 패키지명에 서비스명을 하드코딩하지 않는다. 표시용 브랜드명은 `NEXT_PUBLIC_SITE_NAME` 환경변수로 뺀다.
+**브랜드 확정: 펫라이프위드미 (나와 함께한 행복한 인생, pet life with me).** 표시명은 `NEXT_PUBLIC_SITE_NAME`(기본값이 확정 브랜드), 태그라인은 `NEXT_PUBLIC_SITE_TAGLINE`. `package.json` name·DB 이름·패키지명에는 여전히 서비스명을 넣지 않는다 — 표기 변경 비용을 코드에 만들지 않기 위해서다.
 
 ---
 
@@ -297,11 +305,28 @@ CDK 스택, 배포 파이프라인, Secrets Manager 호출 코드, Cognito User 
 
 ---
 
-## 11. 다음 작업
+## 11. 구현 현황 (2026-08 플랫폼 구축 완료)
 
-1. DB 스키마 전체 정의 (콘텐츠, 상품, 스팟, 메이커, 태깅 관계 — 최종형)
-2. Next.js 앱 스캐폴딩
-3. 페이지 템플릿: 콘텐츠 상세, 토픽 허브
-4. 공공데이터 수집 스크립트 (`data/`) — API 활용신청 승인 후
+플랫폼 1차 구축이 끝났다. 상세는 `docs/스키마.md`(스키마·강제 규칙·가정), `docs/운영.md`(실행·ETL·콘텐츠 워크플로).
 
-미확정: 브랜드명, DB 인스턴스 유형, AWS 계정 및 배포 구성, 카카오·네이버 OIDC 연동 가능 여부
+- **DB**: 22개 테이블 최종형 (Drizzle, `data/src/db/schema.ts`, 마이그레이션 `data/drizzle/`). 의료 감수 게이트·클레임 단일 대상·출처 표기 필수를 CHECK/NOT NULL 로 강제.
+- **web**: 기획서의 URL 구조 전체 (홈 / guide / topic / item / spot 4단 / place / maker / curation) + 클레임 접수. AWS 전환 제약 준수 — config/db/auth/storage 단일 진입점, revalidate 상수 모듈(+일치 테스트), presigned URL 스토리지.
+- **관리자**: 게시글(작성·편집·개체 태깅) / 스팟 / 메이커 / 상품 / 기기 / 큐레이션 등록·편집 + 클레임 승인 + 미디어 라이브러리. 외부 링크는 `spot_links`·`maker_links` 로 필요한 것만 선택(홈페이지·카카오톡·예약·스마트스토어 등), 상품 구매 링크는 쿠팡 파트너스 제휴 플래그와 고지 자동 연동.
+- **미디어·SEO**: 이미지·영상 업로드는 presigned URL(로컬 MinIO, `docker compose up -d minio` 로 버킷 자동 생성) — DB 에는 오브젝트 키만, 본문 삽입은 `{{image:키|alt}}` 숏코드. 전 공개 페이지에 OG/Twitter 메타 자동 + 페이지별 오버라이드(seo_title/seo_description/og_image_key, 게시글·스팟·메이커·상품·큐레이션).
+- **SEO**: noindex 게이트(스팟 3곳·정보 3항목·언급 0건) 코드 강제 + 사이트맵 분할 + JSON-LD + 로컬 전면 noindex 가드.
+- **ETL**: 인허가 CSV 헤더 기반 정규화(미매핑은 실패·리포트, 추측 없음), 관리번호 upsert, 상세주소 제거, 동물등록 통계 → 노령견 비율.
+- **콘텐츠**: 노견 13편(발행 4·감수 대기 3·초안 6) + 놀이 5편(전부 발행) 시드. 의료 인접 편은 감수 전 발행 불가가 3중(시드·관리자·DB)으로 막혀 있다.
+- **테스트**: data 15개 + web 28개 통과. `pnpm build` 통과. 관리자 등록 흐름은 브라우저로 실동작 검증.
+
+### 다음 작업
+
+1. data.go.kr 활용신청 승인 후 실제 인허가 CSV/API 적재 (헤더 불일치 시 mappings.ts 후보 추가 → 리포트 확인 루프)
+2. 동물등록 현황 실데이터 적재 → 지역 페이지 노령견 비율 활성화
+3. 의료 인접 편 수의사 감수 → review_pending 해제. 초안 스포크(심장·인지·눈귀·치아·체중·마지막 시간) 본문 완성
+4. 셀프목욕·방문목욕·재활 직접 발굴 입력 (`/admin/spots/new` 로 등록)
+5. 메이커 1차 발굴 10+10, 큐레이션 첫 테마 (샘플 픽스처 교체)
+6. GSC·네이버 서치어드바이저 등록, 쿠팡 파트너스 실링크 연동 (배포 후)
+7. 배포: `docs/배포준비.md` 의 준비 검증 → dev 스택 먼저 → 메인. 사장님 포털(service./product.)은 랜딩+클레임 연결 상태 — 업주 셀프 편집은 Cognito 이후
+
+확정: 브랜드 펫라이프위드미(pet life with me), 도메인·서브도메인 구조(`docs/배포준비.md`).
+미확정: DB 인스턴스 유형, 배포 방식(OpenNext 구성), 카카오·네이버 OIDC 연동 가능 여부

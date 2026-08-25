@@ -1,0 +1,90 @@
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { eq } from "drizzle-orm";
+import { getDb, isDbConfigured, schema } from "@/lib/db";
+import { idSlugPath } from "@/lib/format";
+import { getSpotLinks } from "@/lib/queries/spots";
+import { AdminPageHeader } from "../../../_components/fields";
+import { SpotEditor } from "./spot-editor";
+
+const { spots, spotTypes, regions } = schema;
+
+interface Props {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ created?: string }>;
+}
+
+export default async function AdminSpotEditPage({ params, searchParams }: Props) {
+  if (!isDbConfigured()) return <p className="text-sm text-ink-soft">DATABASE_URL 미설정</p>;
+  const { id } = await params;
+  const { created } = await searchParams;
+  const spotId = Number(id);
+  if (!Number.isSafeInteger(spotId)) notFound();
+
+  const db = getDb();
+  const row = (
+    await db
+      .select({ spot: spots, sigunguName: regions.sigunguName, sidoName: regions.sidoName })
+      .from(spots)
+      .innerJoin(regions, eq(spots.regionId, regions.id))
+      .where(eq(spots.id, spotId))
+      .limit(1)
+  )[0];
+  if (!row) notFound();
+
+  const [types, links] = await Promise.all([
+    db.select({ id: spotTypes.id, name: spotTypes.name }).from(spotTypes).orderBy(spotTypes.sortOrder),
+    getSpotLinks(spotId),
+  ]);
+
+  const { spot } = row;
+
+  return (
+    <div>
+      <AdminPageHeader
+        title={spot.name}
+        description={`${row.sidoName} ${row.sigunguName}${spot.addressRoad ? ` · ${spot.addressRoad}` : ""}${
+          spot.licenseMgmtNo ? ` · 관리번호 ${spot.licenseMgmtNo}` : ""
+        }`}
+        right={
+          <Link href={idSlugPath("place", spot.id, spot.slug)} className="text-sm font-medium text-sea hover:underline">
+            공개 페이지 보기 →
+          </Link>
+        }
+      />
+
+      {created && (
+        <p className="mt-4 rounded-lg border border-sage/30 bg-sage-soft px-3 py-2 text-sm text-sage-deep">
+          등록되었습니다. 이어서 정보를 보강하세요 — 정보 3항목을 채워야 검색 색인 대상이 됩니다.
+        </p>
+      )}
+
+      <p className="mt-2 text-xs text-ink-faint">
+        인허가 원천 필드(이름·주소·영업상태·기준일)는 ETL 재실행 시 갱신됩니다. 여기서 채우는 에디토리얼
+        필드와 링크는 ETL 이 덮어쓰지 않습니다.
+      </p>
+
+      <div className="mt-5">
+        <SpotEditor
+          mode="edit"
+          spot={{
+            id: spot.id,
+            name: spot.name,
+            typeId: spot.typeId,
+            status: spot.status,
+            addressRoad: spot.addressRoad,
+            phone: spot.phone,
+            hoursText: spot.hoursText,
+            priceText: spot.priceText,
+            parkingText: spot.parkingText,
+            descriptionMd: spot.descriptionMd,
+            heroImageKey: spot.heroImageKey,
+            seo: { seoTitle: spot.seoTitle, seoDescription: spot.seoDescription, ogImageKey: spot.ogImageKey },
+          }}
+          types={types.map((t) => ({ id: t.id, label: t.name }))}
+          links={links.map((l) => ({ kind: l.kind, url: l.url, label: l.label ?? "" }))}
+        />
+      </div>
+    </div>
+  );
+}
