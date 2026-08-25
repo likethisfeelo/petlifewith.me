@@ -108,17 +108,21 @@ export interface StorageConfig {
   endpoint?: string;
   region: string;
   bucket: string;
-  accessKeyId: string;
-  secretAccessKey: string;
+  /** 미설정이면 SDK 기본 자격 증명 체인 — Lambda 실행 역할이 여기에 해당한다. 로컬 MinIO 는 키 필수. */
+  accessKeyId?: string;
+  secretAccessKey?: string;
 }
 
 export function storageConfig(): StorageConfig | undefined {
   const bucket = getOptionalEnv("STORAGE_BUCKET");
+  if (!bucket) return undefined;
+  const endpoint = getOptionalEnv("STORAGE_ENDPOINT");
   const accessKeyId = getOptionalEnv("STORAGE_ACCESS_KEY_ID");
   const secretAccessKey = getOptionalEnv("STORAGE_SECRET_ACCESS_KEY");
-  if (!bucket || !accessKeyId || !secretAccessKey) return undefined;
+  // 커스텀 엔드포인트(MinIO 등)는 명시적 키가 있어야 서명이 성립한다.
+  if (endpoint && (!accessKeyId || !secretAccessKey)) return undefined;
   return {
-    endpoint: getOptionalEnv("STORAGE_ENDPOINT"),
+    endpoint,
     region: getOptionalEnv("STORAGE_REGION") ?? "ap-northeast-2",
     bucket,
     accessKeyId,
