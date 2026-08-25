@@ -25,7 +25,10 @@ function getClient(): { client: S3Client; bucket: string } {
     client = new S3Client({
       region: cfg.region,
       ...(cfg.endpoint ? { endpoint: cfg.endpoint, forcePathStyle: true } : {}),
-      credentials: { accessKeyId: cfg.accessKeyId, secretAccessKey: cfg.secretAccessKey },
+      // 키 미설정이면 SDK 기본 자격 증명 체인 — Lambda 에서는 실행 역할이 잡힌다 (claude.md 10-1).
+      ...(cfg.accessKeyId && cfg.secretAccessKey
+        ? { credentials: { accessKeyId: cfg.accessKeyId, secretAccessKey: cfg.secretAccessKey } }
+        : {}),
     });
     bucketName = cfg.bucket;
   }

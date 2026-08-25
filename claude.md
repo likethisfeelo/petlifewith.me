@@ -8,16 +8,19 @@
 
 ---
 
-## 1. 현재 단계 — 로컬 개발 + AWS 준비
+## 1. 현재 단계 — 배포 도구 준비 완료, 첫 배포 대기
 
-**계정 준비는 끝났고 배포는 아직이다.** 도메인 구매·ACM 인증서·IAM 사용자(프로필 `petlife`)까지 완료.
-CloudFront/Lambda/RDS 배포는 다음 단계다. 준비 절차와 검증 명령은 `docs/배포준비.md`.
+도메인·ACM 인증서(us-east-1, ARN 은 `sst.config.ts`)·IAM 사용자(프로필 `petlife`)까지 완료.
+**배포 방식은 SST v4(OpenNext) 로 확정** — 정의는 루트 `sst.config.ts`, 실행은
+`scripts/aws-db.ps1` → `scripts/deploy.ps1 -Stage dev|prod` (무프롬프트). 런북은 `docs/배포.md`,
+사전 준비·검증은 `docs/배포준비.md`.
 
-- CDK 스택·배포 스크립트는 배포 방식 확정 후에 만든다.
-- DB는 로컬 PostgreSQL 또는 Docker 컨테이너를 쓴다.
-- 시크릿은 `.env.local` (gitignore 대상). Secrets Manager 코드를 미리 넣지 않는다. AWS 액세스 키는 코드·채팅 어디에도 넣지 않는다.
-- **CloudFront + Lambda(OpenNext) 배포 전제**로 설계한다. Vercel 전용 기능에 의존하지 않는다.
-- CloudFront 인증서는 us-east-1 발급이어야 한다 (`petlifewith.me` + `*.petlifewith.me` 와일드카드 권장).
+- 로컬 개발 DB는 계속 로컬 PostgreSQL/Docker. 배포 DB(RDS `petlife-db`)는 SST 밖에서
+  `aws-db.ps1` 이 관리한다 — 상태 리소스를 IaC 에 넣지 않는다.
+- 시크릿: 로컬 `.env.local`, 배포는 `.env.deploy.<stage>` (둘 다 gitignore). Secrets Manager
+  코드는 아직 넣지 않는다. AWS 액세스 키는 코드·채팅 어디에도 넣지 않는다.
+- **CloudFront + Lambda(OpenNext) 전제**로 설계한다. Vercel 전용 기능에 의존하지 않는다.
+- CloudFront 인증서는 us-east-1 발급 (`petlifewith.me` + `*.petlifewith.me` 와일드카드).
 
 ```
 로컬 경로  C:\petlifewithme
@@ -299,9 +302,11 @@ Vercel KV, Blob, Edge Config, `@vercel/*` 패키지에 의존하지 않는다. E
 
 ### 10-8. 지금 만들지 않는 것
 
-CDK 스택, 배포 파이프라인, Secrets Manager 호출 코드, Cognito User Pool. 인프라를 미리 세우면 쓰지도 않는 리소스에 비용이 나가고, 브랜드명이 바뀔 때 묶인다.
+Secrets Manager 호출 코드, Cognito User Pool, CI/CD 파이프라인(배포는 로컬 `deploy.ps1`),
+VPC/RDS Proxy. 쓰지 않는 리소스를 미리 세우면 비용만 나간다.
 
-**설계만 AWS를 향하고, 구현은 로컬에 머문다.**
+배포 정의는 `sst.config.ts` 로 확정됐다(스테이지 prod/dev 만 허용, prod 는 protect+retain).
+보안 트레이드오프(퍼블릭 RDS, `sslmode=no-verify`)와 강화 경로는 `docs/배포.md` 6장에 명시.
 
 ---
 
@@ -315,6 +320,7 @@ CDK 스택, 배포 파이프라인, Secrets Manager 호출 코드, Cognito User 
 - **미디어·SEO**: 이미지·영상 업로드는 presigned URL(로컬 MinIO, `docker compose up -d minio` 로 버킷 자동 생성) — DB 에는 오브젝트 키만, 본문 삽입은 `{{image:키|alt}}` 숏코드. 전 공개 페이지에 OG/Twitter 메타 자동 + 페이지별 오버라이드(seo_title/seo_description/og_image_key, 게시글·스팟·메이커·상품·큐레이션).
 - **SEO**: noindex 게이트(스팟 3곳·정보 3항목·언급 0건) 코드 강제 + 사이트맵 분할 + JSON-LD + 로컬 전면 noindex 가드.
 - **ETL**: 인허가 CSV 헤더 기반 정규화(미매핑은 실패·리포트, 추측 없음), 관리번호 upsert, 상세주소 제거, 동물등록 통계 → 노령견 비율.
+- **배포 도구**: `sst.config.ts`(SST v4/OpenNext — prod 별칭 4개·dev 스테이지·미디어 버킷·Lambda 역할 스토리지) + `scripts/aws-profile.ps1`(프로필 확인·전환), `aws-db.ps1`(RDS+env+마이그레이션·시드), `deploy.ps1`(프리플라이트→검사→배포), `aws-destroy.ps1`. 전부 무프롬프트. 런북 `docs/배포.md`.
 - **콘텐츠**: 노견 13편(발행 4·감수 대기 3·초안 6) + 놀이 5편(전부 발행) 시드. 의료 인접 편은 감수 전 발행 불가가 3중(시드·관리자·DB)으로 막혀 있다.
 - **테스트**: data 15개 + web 28개 통과. `pnpm build` 통과. 관리자 등록 흐름은 브라우저로 실동작 검증.
 
@@ -326,7 +332,8 @@ CDK 스택, 배포 파이프라인, Secrets Manager 호출 코드, Cognito User 
 4. 셀프목욕·방문목욕·재활 직접 발굴 입력 (`/admin/spots/new` 로 등록)
 5. 메이커 1차 발굴 10+10, 큐레이션 첫 테마 (샘플 픽스처 교체)
 6. GSC·네이버 서치어드바이저 등록, 쿠팡 파트너스 실링크 연동 (배포 후)
-7. 배포: `docs/배포준비.md` 의 준비 검증 → dev 스택 먼저 → 메인. 사장님 포털(service./product.)은 랜딩+클레임 연결 상태 — 업주 셀프 편집은 Cognito 이후
+7. 첫 배포 실행: `.\scripts\aws-db.ps1 -DevFixtures` → `.\scripts\deploy.ps1 -Stage dev` → 검증 → `-Stage prod` (`docs/배포.md`). 사장님 포털(service./product.)은 랜딩+클레임 연결 상태 — 업주 셀프 편집은 Cognito 이후
 
-확정: 브랜드 펫라이프위드미(pet life with me), 도메인·서브도메인 구조(`docs/배포준비.md`).
-미확정: DB 인스턴스 유형, 배포 방식(OpenNext 구성), 카카오·네이버 OIDC 연동 가능 여부
+확정: 브랜드 펫라이프위드미(pet life with me), 도메인·서브도메인 구조(`docs/배포준비.md`),
+배포 방식 SST v4(OpenNext)·RDS db.t4g.micro 퍼블릭(강화 경로 문서화, `docs/배포.md` 6장).
+미확정: 카카오·네이버 OIDC 연동 가능 여부 (Cognito 단계에서 확인)
