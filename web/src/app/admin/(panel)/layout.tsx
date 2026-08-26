@@ -35,11 +35,16 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             </Link>
           ))}
         </nav>
-        <form action={logoutAction}>
-          <button type="submit" className="text-xs text-ink-faint hover:text-ink">
-            로그아웃
-          </button>
-        </form>
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-ink-faint" title="ADMIN_TOKEN 의 계정 라벨">
+            {session.sub}
+          </span>
+          <form action={logoutAction}>
+            <button type="submit" className="text-xs text-ink-faint hover:text-ink">
+              로그아웃
+            </button>
+          </form>
+        </div>
       </div>
       <div className="mt-6">{children}</div>
     </div>

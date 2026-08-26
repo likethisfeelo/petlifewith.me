@@ -6,16 +6,36 @@
 // 세션은 무상태 JWT 전략과 동일 — Lambda 에서 세션 조회 DB 왕복이 없다.
 // 런칭 시점에 인증이 필요한 범위는 관리자와 클레임 처리뿐이다.
 // ============================================================
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
-import { adminToken, authSecret, isHttpsSite } from "./config";
+import { adminAccounts, authSecret, isHttpsSite } from "./config";
 
 const COOKIE_NAME = "admin_session";
 const SESSION_TTL_SEC = 60 * 60 * 24 * 7; // 7일
 
 export interface Session {
   role: "admin";
+  /** 계정 라벨 — 여러 관리자를 구분한다 (ADMIN_TOKEN 의 "라벨:토큰") */
+  sub: string;
+  /** 토큰 지문 — 계정을 빼거나 토큰을 교체하면 기존 세션이 즉시 무효가 된다 */
+  fp: string;
   exp: number; // epoch seconds
+}
+
+/** 토큰을 그대로 담지 않고 지문만 세션에 넣는다 */
+function fingerprint(token: string): string {
+  return createHash("sha256").update(token).digest("hex").slice(0, 16);
+}
+
+/**
+ * 길이와 무관하게 상수 시간 비교 — 해시로 길이를 고정한 뒤 비교한다.
+ * (timingSafeEqual 은 길이가 다르면 던지므로 길이 자체가 새어나가지 않게 한다)
+ */
+function tokenMatches(a: string, b: string): boolean {
+  return timingSafeEqual(
+    createHash("sha256").update(a).digest(),
+    createHash("sha256").update(b).digest(),
+  );
 }
 
 function b64url(buf: Buffer): string {
@@ -44,6 +64,10 @@ function decodeSession(value: string, secret: string): Session | null {
     const parsed = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as Session;
     if (parsed.role !== "admin") return null;
     if (parsed.exp * 1000 < Date.now()) return null;
+    if (!parsed.sub || !parsed.fp) return null;
+    // 계정이 아직 존재하고 토큰이 그대로인지 확인 — 회수·교체 즉시 반영된다
+    const account = adminAccounts().find((a) => a.label === parsed.sub);
+    if (!account || fingerprint(account.token) !== parsed.fp) return null;
     return parsed;
   } catch {
     return null;
@@ -52,14 +76,23 @@ function decodeSession(value: string, secret: string): Session | null {
 
 /** 로그인 시도. 성공 시 세션 쿠키를 굽는다. */
 export async function loginWithToken(token: string): Promise<boolean> {
-  const expected = adminToken();
   const secret = authSecret();
-  if (!expected || !secret) return false;
-  const a = Buffer.from(token);
-  const b = Buffer.from(expected);
-  if (a.length !== b.length || !timingSafeEqual(a, b)) return false;
+  const accounts = adminAccounts();
+  if (accounts.length === 0 || !secret) return false;
 
-  const session: Session = { role: "admin", exp: Math.floor(Date.now() / 1000) + SESSION_TTL_SEC };
+  // 어느 계정에서 멈췄는지 시간으로 드러나지 않게 전부 순회한다
+  let matched: (typeof accounts)[number] | undefined;
+  for (const account of accounts) {
+    if (tokenMatches(token, account.token)) matched = account;
+  }
+  if (!matched) return false;
+
+  const session: Session = {
+    role: "admin",
+    sub: matched.label,
+    fp: fingerprint(matched.token),
+    exp: Math.floor(Date.now() / 1000) + SESSION_TTL_SEC,
+  };
   const store = await cookies();
   store.set(COOKIE_NAME, encodeSession(session, secret), {
     httpOnly: true,

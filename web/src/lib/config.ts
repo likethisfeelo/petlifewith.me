@@ -94,8 +94,46 @@ export function dbPoolMax(): number {
 
 // ---------- 인증 (로컬 임시 — Cognito 전환 시 lib/auth.ts 와 함께 교체) ----------
 
-export function adminToken(): string | undefined {
-  return getOptionalEnv("ADMIN_TOKEN");
+export interface AdminAccount {
+  /** 화면·로그에 보이는 이름. 라벨 없이 토큰만 넣으면 "admin" */
+  label: string;
+  token: string;
+}
+
+const LABEL_RE = /^[A-Za-z0-9._-]{1,32}$/;
+
+/**
+ * 관리자 계정 목록 — ADMIN_TOKEN 하나에 여러 개를 담는다.
+ *
+ *   ADMIN_TOKEN=<토큰>                       // 단일 (라벨 admin)
+ *   ADMIN_TOKEN=hee:<토큰1>,partner:<토큰2>  // 사람별 계정
+ *
+ * 쉼표·줄바꿈으로 구분한다. 라벨은 영숫자·._- 만이고 첫 콜론까지가 라벨이다
+ * (콜론 앞이 라벨 형식이 아니면 전체를 토큰으로 본다 — 문장형 비밀번호 보호).
+ * **토큰 자체에는 콜론·쉼표를 넣지 않는다.** scripts/admin-token.ps1 이 만드는
+ * 16진 토큰은 이 조건을 만족한다.
+ * 계정을 빼고 재배포하면 그 사람의 세션도 즉시 무효가 된다 (lib/auth.ts).
+ */
+export function adminAccounts(): AdminAccount[] {
+  const raw = getOptionalEnv("ADMIN_TOKEN");
+  if (!raw) return [];
+  const seen = new Set<string>();
+  const accounts: AdminAccount[] = [];
+  for (const entry of raw.split(/[,\n]/)) {
+    const trimmed = entry.trim();
+    if (!trimmed) continue;
+    const colon = trimmed.indexOf(":");
+    let label = "admin";
+    let token = trimmed;
+    if (colon > 0 && LABEL_RE.test(trimmed.slice(0, colon))) {
+      label = trimmed.slice(0, colon);
+      token = trimmed.slice(colon + 1).trim();
+    }
+    if (!token || seen.has(label)) continue;
+    seen.add(label);
+    accounts.push({ label, token });
+  }
+  return accounts;
 }
 
 export function authSecret(): string | undefined {
