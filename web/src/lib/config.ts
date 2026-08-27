@@ -80,6 +80,31 @@ export function defaultOgImageUrl(): string | undefined {
   return getOptionalEnv("NEXT_PUBLIC_DEFAULT_OG_IMAGE_URL");
 }
 
+// ---------- 애널리틱스·검증 (공개 식별자 — 시크릿이 아니다) ----------
+// 값이 소스에 있어도 되는 것들이라 기본값을 코드에 두고 env 로 덮어쓴다.
+// 끄려면 env 에 "off" 를 넣는다. production 이 아닌 환경에서는 config 와 무관하게
+// 아예 로드하지 않는다 (app/layout.tsx).
+
+function publicId(name: string, fallback: string): string | undefined {
+  const v = getOptionalEnv(name) ?? fallback;
+  return v.toLowerCase() === "off" ? undefined : v;
+}
+
+/** Google Tag Manager 컨테이너. GA4 는 이 컨테이너 안에서 태그로 설정한다(중복 집계 방지). */
+export function gtmContainerId(): string | undefined {
+  return publicId("NEXT_PUBLIC_GTM_ID", "GTM-TH2GC5MP");
+}
+
+/** GA4 측정 ID — GTM 을 끈 경우에만 gtag.js 를 직접 로드하는 폴백에 쓴다. */
+export function gaMeasurementId(): string | undefined {
+  return publicId("NEXT_PUBLIC_GA_ID", "G-54XBW1L9KE");
+}
+
+/** Google Search Console 소유 확인 메타 태그 값 */
+export function googleSiteVerification(): string | undefined {
+  return publicId("NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION", "2dOK8nJPk2N36jJdyzozSaMrVtxQKm6cqwRqPxwBbTk");
+}
+
 // ---------- DB ----------
 // 연결 문자열은 여기서만 읽는다. 나중에 RDS Proxy 를 붙일 때도 이 한 곳만 바뀐다. (claude.md 10-2)
 

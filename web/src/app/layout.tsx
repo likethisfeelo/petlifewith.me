@@ -3,7 +3,17 @@ import "./globals.css";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { JsonLd } from "@/components/jsonld";
-import { defaultOgImageUrl, siteName, siteUrl } from "@/lib/config";
+import { Analytics, GtmNoScript } from "@/components/analytics";
+import {
+  apexDomain,
+  defaultOgImageUrl,
+  gaMeasurementId,
+  googleSiteVerification,
+  gtmContainerId,
+  isProductionSite,
+  siteName,
+  siteUrl,
+} from "@/lib/config";
 import { robotsMeta, websiteLd } from "@/lib/seo";
 
 export function generateMetadata(): Metadata {
@@ -18,6 +28,8 @@ export function generateMetadata(): Metadata {
     // 기본값: 색인 허용. 단 프로덕션 URL 미설정(로컬·프리뷰)이면 전면 noindex 가드가 걸린다.
     // 개별 페이지의 게이트(robotsMeta)가 이 기본값을 덮어쓴다.
     robots: robotsMeta(true),
+    // Google Search Console 소유 확인 (공개 토큰)
+    ...(googleSiteVerification() ? { verification: { google: googleSiteVerification()! } } : {}),
     openGraph: {
       siteName: siteName(),
       locale: "ko_KR",
@@ -29,13 +41,20 @@ export function generateMetadata(): Metadata {
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  // 통계는 운영에서만 수집한다 — dev(preview)·로컬 트래픽이 섞이지 않게.
+  const analytics = isProductionSite();
+  const gtmId = analytics ? gtmContainerId() : undefined;
+  const gaId = analytics ? gaMeasurementId() : undefined;
+
   return (
     <html lang="ko">
       <body className="flex min-h-screen flex-col">
+        {gtmId && <GtmNoScript gtmId={gtmId} />}
         <SiteHeader />
         <main className="flex-1">{children}</main>
         <SiteFooter />
         <JsonLd data={websiteLd()} />
+        {analytics && <Analytics gtmId={gtmId} gaId={gaId} apexDomain={apexDomain()} />}
       </body>
     </html>
   );
