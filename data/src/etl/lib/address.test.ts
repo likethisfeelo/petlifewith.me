@@ -16,6 +16,32 @@ describe("sanitizeRoadAddress — 상세주소 제거 (claude.md 5-6)", () => {
     expect(sanitizeRoadAddress("  ")).toBeNull();
     expect(sanitizeRoadAddress(undefined)).toBeNull();
   });
+  it("쉼표 없이 이어진 동·호수·층도 건물번호 뒤에서 자른다", () => {
+    expect(sanitizeRoadAddress("경기도 용인시 기흥구 한일로9번길 20 103동 02호")).toBe("경기도 용인시 기흥구 한일로9번길 20");
+    expect(sanitizeRoadAddress("서울특별시 동작구 노들로2길 7 A동 2층 201호")).toBe("서울특별시 동작구 노들로2길 7");
+    expect(sanitizeRoadAddress("서울특별시 금천구 시흥대로126길 22-8 1층 102호")).toBe("서울특별시 금천구 시흥대로126길 22-8");
+    expect(sanitizeRoadAddress("인천광역시 남동구 청능대로 581 503-413호")).toBe("인천광역시 남동구 청능대로 581");
+  });
+  it("건물명·아파트 단지명은 남기지 않는다 (1인 사업장 = 주거지)", () => {
+    expect(sanitizeRoadAddress("경기 성남시 분당구 서현동 96 시범단지우성아파트")).toBe("경기 성남시 분당구 서현동 96");
+    expect(sanitizeRoadAddress("경기도 고양시 일산동구 정발산로 24 웨스턴돔1, 2층 A-263호 버블펫")).toBe(
+      "경기도 고양시 일산동구 정발산로 24",
+    );
+    expect(sanitizeRoadAddress("경기도 수원시 권선구 금곡로 229 다인로얄팰리스 3차 1층 116호 건물뒷편")).toBe(
+      "경기도 수원시 권선구 금곡로 229",
+    );
+  });
+  it("번지·읍면리·지하 표기를 유지한다", () => {
+    expect(sanitizeRoadAddress("광주 남구 주월동 1022-6번지 2층")).toBe("광주 남구 주월동 1022-6번지");
+    expect(sanitizeRoadAddress("부산광역시 기장군 일광읍 일광로 111-10")).toBe("부산광역시 기장군 일광읍 일광로 111-10");
+    expect(sanitizeRoadAddress("서울특별시 강남구 강남대로 지하 396")).toBe("서울특별시 강남구 강남대로 지하 396");
+    expect(sanitizeRoadAddress("전북 전주시 완산구 효자동1가 180-18")).toBe("전북 전주시 완산구 효자동1가 180-18");
+  });
+  it("건물번호가 없으면 상세 위치 토큰부터 버리고 나머지는 그대로 둔다", () => {
+    expect(sanitizeRoadAddress("서울특별시 강동구 길동")).toBe("서울특별시 강동구 길동");
+    expect(sanitizeRoadAddress("경기도 고양시 일산동구 정발산로24")).toBe("경기도 고양시 일산동구 정발산로24");
+    expect(sanitizeRoadAddress("어딘가 상가 3층 301호")).toBe("어딘가 상가");
+  });
 });
 
 describe("resolveRegionFromAddress — 시군구 귀속", () => {

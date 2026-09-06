@@ -16,7 +16,9 @@
     "seed:content": "tsx src/seed/content.ts",
     "seed:dev": "tsx src/seed/dev-fixtures.ts",
     "etl:license": "tsx src/etl/license/load.ts",
-    "etl:stats": "tsx src/etl/stats/load.ts"
+    "etl:stats": "tsx src/etl/stats/load.ts",
+    "etl:direct": "tsx src/etl/direct/load.ts",
+    "etl:rehab": "tsx src/etl/rehab/load.ts"
   },
   "dependencies": {
     "csv-parse": "^5.6.0",

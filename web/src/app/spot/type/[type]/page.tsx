@@ -80,6 +80,15 @@ export default async function SpotTypeHubPage({ params }: Props) {
       )}
       {spotType.slug === "pharmacy" && <PharmacyNote />}
       {!spotType.listed && <B2BNote />}
+      {spotType.slug === "rehab" && (
+        <p className="mt-4 rounded-lg border border-sage/30 bg-sage-soft px-4 py-3 text-sm text-sage-deep">
+          동물병원의 재활·한방·특수치료(침치료·수중런닝머신·체외충격파 등)는 치료법 기준의 별도 목록으로
+          정리합니다 —{" "}
+          <Link href="/rehab" className="font-semibold underline">
+            재활·한방·특수치료 어디서 받을 수 있나 →
+          </Link>
+        </p>
+      )}
 
       {groups.length === 0 ? (
         <p className="mt-8 rounded-xl border border-dashed border-line p-8 text-center text-sm text-ink-faint">

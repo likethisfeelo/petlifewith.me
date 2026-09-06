@@ -16,7 +16,9 @@
     "seed": "pnpm --filter @app/data seed:base && pnpm --filter @app/data seed:content",
     "seed:dev": "pnpm --filter @app/data seed:dev",
     "etl:license": "pnpm --filter @app/data etl:license",
-    "etl:stats": "pnpm --filter @app/data etl:stats"
+    "etl:stats": "pnpm --filter @app/data etl:stats",
+    "etl:direct": "pnpm --filter @app/data etl:direct",
+    "etl:rehab": "pnpm --filter @app/data etl:rehab"
   },
   "devDependencies": {
     "sst": "4.17.1"

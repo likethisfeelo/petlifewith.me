@@ -339,6 +339,8 @@ export const spots = pgTable(
     phone: text("phone"),
     status: spotStatus("status").notNull().default("unknown"),
     source: spotSource("source").notNull().default("public_data"),
+    // 직접 발굴 목록(CSV)의 안정 키 — 재적재 시 dedup. 예: "soomgo:10313516"
+    externalRef: text("external_ref").unique(),
     // 인허가 원천 필드
     licenseMgmtNo: text("license_mgmt_no").unique(), // 관리번호 — 재적재 시 dedup 키
     licenseDate: date("license_date"),
@@ -588,4 +590,39 @@ export const deviceSites = pgTable(
     updatedAt: updatedAt(),
   },
   (t) => [index("device_sites_device_idx").on(t.deviceModelId)],
+);
+
+// ---------- 재활·한방·특수치료 시행처 (주어는 병원이 아니라 치료법) ----------
+// 일반 동물병원 디렉토리가 아니다 (claude.md 6-2). 치료법 기준으로 "어디서 받을 수 있는가"만
+// 무료·사실·가나다순으로 게시한다. 순위·추천·평점·광고 없음.
+//  - modalities: data/src/rehab/modalities.ts 의 슬러그 배열 (치료법 태그)
+//  - internal_* 컬럼은 관리자 확인용 — 어디에도 렌더하지 않는다 (확인 수준이 곧 '등급'으로 읽힌다)
+//  - 담당 수의사 개인명은 컬럼 자체를 두지 않는다 (claude.md 5-6)
+
+export const rehabSites = pgTable(
+  "rehab_sites",
+  {
+    id: bigint("id", { mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
+    externalRef: text("external_ref").unique(), // 큐레이션 CSV 의 안정 키 — 재적재 dedup
+    name: text("name").notNull(),
+    regionId: integer("region_id")
+      .notNull()
+      .references(() => regions.id),
+    address: text("address"), // 소재지 — 동(洞) 단위까지만. 상세 주소 저장 금지
+    phone: text("phone"),
+    status: spotStatus("status").notNull().default("unknown"),
+    modalities: text("modalities").array().notNull().default(sql`'{}'::text[]`),
+    sourceLabel: text("source_label"), // 공개 — 근거 출처 (예: "CVA 공식 지도", "병원 공식 안내")
+    evidenceNote: text("evidence_note"), // 공개 — 사실 서술만 (표방·보유 사실), 평가 표현 금지
+    internalLevel: text("internal_level"), // 관리자 전용 — 확인 수준(A/B/C). 렌더 금지
+    internalNote: text("internal_note"), // 관리자 전용 — 원천 문구·메모. 렌더 금지
+    verifiedAt: date("verified_at"), // 확인 기준일 — 표기용
+    published: boolean("published").notNull().default(true),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    index("rehab_sites_region_idx").on(t.regionId),
+    index("rehab_sites_published_idx").on(t.published, t.name),
+  ],
 );

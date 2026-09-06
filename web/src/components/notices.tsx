@@ -106,3 +106,17 @@ export function PharmacyNote() {
     </p>
   );
 }
+
+/**
+ * 재활·한방·특수치료 시행처 목록 안내 (claude.md 6-2) — 병원 추천·순위가 아니라
+ * "치료법을 어디서 받을 수 있는가"의 사실 목록임을 명시한다.
+ */
+export function RehabListNote() {
+  return (
+    <p className="mt-3 rounded-lg border border-line bg-sand px-4 py-3 text-sm text-ink-soft">
+      이 목록은 병원 추천이 아닙니다. 치료법을 시행한다고 <strong>공개된 사실</strong>만 지역별 가나다순으로
+      정리하며, 광고·순위·평점·비용 비교를 두지 않습니다. 치료 적합 여부와 비용은 진료 시 수의사와 직접
+      상의하세요.
+    </p>
+  );
+}
