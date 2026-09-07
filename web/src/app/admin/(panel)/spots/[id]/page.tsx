@@ -73,6 +73,12 @@ export default async function AdminSpotEditPage({ params, searchParams }: Props)
           <dt className="text-ink-faint">출처</dt>
           <dd>{SPOT_SOURCE_LABEL[spot.source] ?? spot.source}</dd>
         </div>
+        {spot.externalRef && (
+          <div className="flex gap-2">
+            <dt className="text-ink-faint">직접 발굴 외부키</dt>
+            <dd>{spot.externalRef} <span className="text-ink-faint">(CSV 재적재 시 이 키로 갱신 — &quot;#&quot; 셀은 여기서 채운 값을 유지)</span></dd>
+          </div>
+        )}
         {spot.licenseMgmtNo && (
           <div className="flex gap-2">
             <dt className="text-ink-faint">인허가 관리번호</dt>

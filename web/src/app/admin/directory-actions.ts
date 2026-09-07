@@ -6,7 +6,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { and, eq } from "drizzle-orm";
-import { slugify } from "@app/data";
+import { REHAB_MODALITIES, slugify } from "@app/data";
 import { getDb, isDbConfigured, schema } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { isSafeHttpUrl } from "@/lib/links";
@@ -24,6 +24,7 @@ const {
   deviceSites,
   curations,
   curationEntries,
+  rehabSites,
 } = schema;
 
 export interface ActionState {
@@ -591,4 +592,95 @@ export async function saveCurationAction(_prev: ActionState, formData: FormData)
   revalidatePath(`/curation/${existing.themeSlug}`);
   revalidatePath("/curation");
   return { saved: true };
+}
+
+// ============================================================
+// 재활·한방·특수치료 시행처 (claude.md 6-2)
+// 주어는 치료법. 순위·추천·평점을 만들지 않는다 — 확인 수준(internal_level)은 관리 화면 전용이고
+// 공개 쿼리(lib/queries/rehab.ts)는 그 컬럼을 select 하지 않는다.
+// ============================================================
+
+type RehabStatus = "operating" | "suspended" | "closed" | "unknown";
+const REHAB_STATUS_VALUES: readonly RehabStatus[] = ["operating", "suspended", "closed", "unknown"];
+const REHAB_LEVEL_VALUES = ["A", "B", "C"] as const;
+
+function rehabValues(formData: FormData) {
+  const modalities = REHAB_MODALITIES.map((m) => m.slug).filter((slug) => checked(formData, `modality:${slug}`));
+  const statusRaw = str(formData, "status");
+  const levelRaw = str(formData, "internalLevel");
+  return {
+    name: str(formData, "name"),
+    regionId: intOrNull(formData, "regionId"),
+    address: nullable(formData, "address"),
+    phone: nullable(formData, "phone"),
+    status: (REHAB_STATUS_VALUES as readonly string[]).includes(statusRaw) ? (statusRaw as RehabStatus) : "unknown",
+    modalities,
+    sourceLabel: nullable(formData, "sourceLabel"),
+    evidenceNote: nullable(formData, "evidenceNote"),
+    internalLevel: (REHAB_LEVEL_VALUES as readonly string[]).includes(levelRaw) ? levelRaw : null,
+    internalNote: nullable(formData, "internalNote"),
+    verifiedAt: nullable(formData, "verifiedAt"),
+    published: checked(formData, "published"),
+  };
+}
+
+function validateRehab(v: ReturnType<typeof rehabValues>): string | null {
+  if (v.name.length < 2) return "병원명을 입력하세요.";
+  if (!v.regionId) return "지역(시군구)을 선택하세요.";
+  if (v.modalities.length === 0) return "치료법을 하나 이상 고르세요. 치료법 없는 병원 목록은 만들지 않습니다 (규칙 6-2).";
+  if (/(추천|최고|최상|1위|베스트|유명|잘하는)/.test(`${v.evidenceNote ?? ""} ${v.sourceLabel ?? ""}`)) {
+    return "공개 근거에는 평가·순위 표현(추천·최고·1위 등)을 쓸 수 없습니다. 사실(시행·보유·등재)만 적으세요.";
+  }
+  if (v.published && !v.sourceLabel) return "게시하려면 근거 출처(예: 병원 공식 안내, CVA 공식 지도)를 적어야 합니다.";
+  return null;
+}
+
+function revalidateRehab() {
+  revalidatePath("/rehab");
+  for (const m of REHAB_MODALITIES) revalidatePath(`/rehab/${m.slug}`);
+  revalidatePath("/admin/rehab");
+}
+
+export async function createRehabSiteAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const db = await requireDb();
+  const values = rehabValues(formData);
+  const error = validateRehab(values);
+  if (error) return { error };
+  const externalRef = nullable(formData, "externalRef");
+  if (externalRef) {
+    const dup = await db.select({ id: rehabSites.id }).from(rehabSites).where(eq(rehabSites.externalRef, externalRef)).limit(1);
+    if (dup[0]) return { error: `외부키 ${externalRef} 는 이미 있습니다 (#${dup[0].id}).` };
+  }
+  const inserted = await db
+    .insert(rehabSites)
+    .values({ ...values, regionId: values.regionId!, externalRef })
+    .returning({ id: rehabSites.id });
+  revalidateRehab();
+  redirect(`/admin/rehab/${inserted[0]!.id}?created=1`);
+}
+
+export async function saveRehabSiteAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const db = await requireDb();
+  const id = intOrNull(formData, "id");
+  if (!id) return { error: "잘못된 요청" };
+  const existing = (await db.select({ id: rehabSites.id }).from(rehabSites).where(eq(rehabSites.id, id)).limit(1))[0];
+  if (!existing) return { error: "시행처를 찾을 수 없습니다." };
+  const values = rehabValues(formData);
+  const error = validateRehab(values);
+  if (error) return { error };
+  await db
+    .update(rehabSites)
+    .set({ ...values, regionId: values.regionId!, updatedAt: new Date() })
+    .where(eq(rehabSites.id, id));
+  revalidateRehab();
+  return { saved: true };
+}
+
+export async function deleteRehabSiteAction(formData: FormData): Promise<void> {
+  const db = await requireDb();
+  const id = intOrNull(formData, "id");
+  if (!id) return;
+  await db.delete(rehabSites).where(eq(rehabSites.id, id));
+  revalidateRehab();
+  redirect("/admin/rehab?deleted=1");
 }

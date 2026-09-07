@@ -2,7 +2,7 @@ import Link from "next/link";
 import { sql, eq } from "drizzle-orm";
 import { getDb, isDbConfigured, schema } from "@/lib/db";
 
-const { guides, claims, spots, makers, items, deviceModels, curations } = schema;
+const { guides, claims, spots, makers, items, deviceModels, curations, rehabSites } = schema;
 
 export default async function AdminDashboardPage() {
   if (!isDbConfigured()) {
@@ -10,7 +10,7 @@ export default async function AdminDashboardPage() {
   }
   const db = getDb();
 
-  const [guideCounts, pendingClaims, spotCount, makerCount, itemCount, deviceCount, curationCount] = await Promise.all([
+  const [guideCounts, pendingClaims, spotCount, makerCount, itemCount, deviceCount, curationCount, rehabCount] = await Promise.all([
     db
       .select({ status: guides.status, count: sql<number>`count(*)`.mapWith(Number) })
       .from(guides)
@@ -21,6 +21,7 @@ export default async function AdminDashboardPage() {
     db.select({ count: sql<number>`count(*)`.mapWith(Number) }).from(items),
     db.select({ count: sql<number>`count(*)`.mapWith(Number) }).from(deviceModels),
     db.select({ count: sql<number>`count(*)`.mapWith(Number) }).from(curations),
+    db.select({ count: sql<number>`count(*)`.mapWith(Number) }).from(rehabSites),
   ]);
 
   const byStatus = Object.fromEntries(guideCounts.map((g) => [g.status, g.count]));
@@ -35,6 +36,7 @@ export default async function AdminDashboardPage() {
     { label: "상품", value: itemCount[0]?.count ?? 0, href: "/admin/items" },
     { label: "기기", value: deviceCount[0]?.count ?? 0, href: "/admin/devices" },
     { label: "큐레이션", value: curationCount[0]?.count ?? 0, href: "/admin/curations" },
+    { label: "재활·한방 시행처", value: rehabCount[0]?.count ?? 0, href: "/admin/rehab" },
   ];
 
   return (
@@ -61,6 +63,7 @@ export default async function AdminDashboardPage() {
             { href: "/admin/makers/new", label: "메이커 등록" },
             { href: "/admin/items/new", label: "상품 등록" },
             { href: "/admin/devices/new", label: "기기 등록" },
+            { href: "/admin/rehab/new", label: "재활·한방 시행처 등록" },
             { href: "/admin/curations/new", label: "큐레이션 등록" },
           ].map((l) => (
             <Link

@@ -4,6 +4,7 @@
 import { and, eq, gte, ne, sql } from "drizzle-orm";
 import { getDb, isDbConfigured, schema } from "../db";
 import { MIN_PLACE_INFO_ITEMS, MIN_SPOTS_FOR_INDEX, placeInfoItemCount } from "../seo";
+import { countRehabSites, countRehabSitesByModality } from "./rehab";
 
 const { guides, topics, spots, spotTypes, regions, makers, items, guideItemTags, curations, curationEntries, spotLinks } =
   schema;
@@ -151,4 +152,16 @@ export async function sitemapCurations(): Promise<SitemapEntry[]> {
   return rows
     .filter((c) => c.entryCount > 0)
     .map((c) => ({ path: `/curation/${c.themeSlug}`, lastModified: c.updatedAt }));
+}
+
+/** 재활·한방·특수치료 — 허브와 치료법 페이지. 시행처 3곳 이상인 것만 (지역 페이지와 같은 게이트) */
+export async function sitemapRehab(): Promise<SitemapEntry[]> {
+  if (!isDbConfigured()) return [];
+  const [total, byModality] = await Promise.all([countRehabSites(), countRehabSitesByModality()]);
+  const entries: SitemapEntry[] = [];
+  if (total >= MIN_SPOTS_FOR_INDEX) entries.push({ path: "/rehab" });
+  for (const [slug, count] of byModality) {
+    if (count >= MIN_SPOTS_FOR_INDEX) entries.push({ path: `/rehab/${slug}` });
+  }
+  return entries;
 }

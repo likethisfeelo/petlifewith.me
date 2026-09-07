@@ -78,6 +78,20 @@ export default async function SpotIndexPage() {
         </section>
       )}
 
+      {/* 의료 인접 — 치료법이 주어인 별도 목록. 광고·순위 없음 (claude.md 6-2) */}
+      <section className="mt-8 rounded-2xl border border-sage/30 bg-sage-soft/60 p-5">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 className="text-sm font-bold text-sage-deep">재활·한방·특수치료 — 어디서 받을 수 있나</h2>
+          <Link href="/rehab" className="text-sm font-medium text-sage-deep hover:underline">
+            치료법으로 찾기 →
+          </Link>
+        </div>
+        <p className="mt-1 text-sm text-ink-soft">
+          침치료(CVA)·한방재활·수중런닝머신·체외충격파·고압산소·도수치료를 시행한다고 공개된 동물병원을 치료법
+          기준, 지역별 가나다순으로 정리합니다. 병원 추천·순위·광고 없이 사실만 둡니다.
+        </p>
+      </section>
+
       <section className="mt-10">
         <h2 className="text-sm font-bold text-ink">지역에서 시작하기</h2>
         <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

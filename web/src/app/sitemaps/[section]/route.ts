@@ -8,6 +8,7 @@ import {
   sitemapMakers,
   sitemapPlaces,
   sitemapRegions,
+  sitemapRehab,
   sitemapTopics,
   type SitemapEntry,
 } from "@/lib/queries/sitemap";
@@ -26,8 +27,10 @@ async function entriesFor(section: string): Promise<SitemapEntry[] | null> {
     }
     case "guides":
       return sitemapGuides();
-    case "spots":
-      return sitemapRegions();
+    case "spots": {
+      const [regions, rehab] = await Promise.all([sitemapRegions(), sitemapRehab()]);
+      return [...regions, ...rehab];
+    }
     case "places":
       return sitemapPlaces();
     case "makers":
