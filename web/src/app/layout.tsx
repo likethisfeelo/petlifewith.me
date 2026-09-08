@@ -31,6 +31,8 @@ export function generateMetadata(): Metadata {
     robots: robotsMeta(true),
     // Google Search Console 소유 확인 (공개 토큰)
     ...(googleSiteVerification() ? { verification: { google: googleSiteVerification()! } } : {}),
+    // AdSense 사이트 소유 확인 메타 — 크롤러가 서버 HTML 에서 읽는다 (광고 스크립트는 클라이언트에서 뒤늦게 붙어 검출이 안 된다)
+    ...(adsenseClientId() ? { other: { "google-adsense-account": adsenseClientId()! } } : {}),
     openGraph: {
       siteName: siteName(),
       locale: "ko_KR",
