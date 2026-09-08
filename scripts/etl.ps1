@@ -23,6 +23,9 @@
       direct-spots           - hand-picked spots -> spots/spot_links (source=direct)
                                pnpm etl:direct   -File required
                                e.g. data\content\spots\soomgo-grooming-2026-09.csv
+      care-sample            - fictional sample pet-sitter / dog-walker rows (source=sample)
+                               pnpm etl:direct   -File optional
+                               default data\content\spots\care-sample-2026-09.csv
       rehab-sites            - rehab / oriental / special-treatment providers
                                pnpm etl:rehab    -File optional
                                default data\content\rehab\rehab-sites.csv
@@ -50,10 +53,10 @@ param(
     [Parameter(Mandatory)]
     [ValidateSet('animal-beauty', 'animal-boarding', 'animal-memorial', 'animal-transport',
         'animal-pharmacy', 'animal-drug-wholesale', 'animal-medical-device', 'feed-manufacture',
-        'direct-spots', 'rehab-sites')]
+        'direct-spots', 'care-sample', 'rehab-sites')]
     [string]$Dataset,
 
-    # CSV path. Required for every dataset except rehab-sites (which has a default).
+    # CSV path. Required for every dataset except rehab-sites and care-sample (which have defaults).
     [string]$File,
 
     # Load into a deployed stage database instead of the local one.
@@ -78,6 +81,7 @@ if (-not (Test-Path 'pnpm-workspace.yaml')) {
 
 $curated = @{
     'direct-spots' = @{ Script = 'etl:direct'; DefaultFile = $null }
+    'care-sample'  = @{ Script = 'etl:direct'; DefaultFile = 'data/content/spots/care-sample-2026-09.csv' }
     'rehab-sites'  = @{ Script = 'etl:rehab';  DefaultFile = 'data/content/rehab/rehab-sites.csv' }
 }
 

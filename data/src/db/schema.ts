@@ -411,6 +411,57 @@ export const spotLinks = pgTable(
   (t) => [index("spot_links_spot_idx").on(t.spotId)],
 );
 
+// 돌봄 파트너(펫시터·펫산책)의 서비스 지역 — 시설이 아니라 사람이 움직이는 서비스라
+// 주소 대신 시군구 단위로 노출된다. 관리자가 지역별 노출(exposed)을 켜고 끄며,
+// 지역 x 유형당 공개 자리는 MAX_EXPOSED_PER_AREA(5) — 앱 레이어에서 강제 (data/src/care/care.ts).
+export const spotServiceAreas = pgTable(
+  "spot_service_areas",
+  {
+    id: bigint("id", { mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
+    spotId: bigint("spot_id", { mode: "number" })
+      .notNull()
+      .references(() => spots.id, { onDelete: "cascade" }),
+    regionId: integer("region_id")
+      .notNull()
+      .references(() => regions.id, { onDelete: "cascade" }),
+    exposed: boolean("exposed").notNull().default(true),
+    sortOrder: integer("sort_order").notNull().default(0),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex("spot_service_areas_uq").on(t.spotId, t.regionId),
+    index("spot_service_areas_region_idx").on(t.regionId, t.exposed),
+  ],
+);
+
+// 예약 신청 — 돌봄 파트너 카드의 "예약 신청" 폼. 프로세스는 최소: 저장 + 슬랙 알림, 운영자가 연결한다.
+// 신청자 이름·연락처는 개인정보 — 관리자 화면에만 보이고 공개 페이지·사이트맵 어디에도 렌더하지 않는다.
+export const bookingRequests = pgTable(
+  "booking_requests",
+  {
+    id: bigint("id", { mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
+    spotId: bigint("spot_id", { mode: "number" }).references(() => spots.id, { onDelete: "set null" }),
+    spotName: text("spot_name").notNull(), // 파트너가 삭제돼도 기록이 남게 스냅샷
+    serviceKind: text("service_kind").notNull(), // spot_types.slug (pet-sitter / dog-walk)
+    regionId: integer("region_id").references(() => regions.id, { onDelete: "set null" }),
+    areaLabel: text("area_label"), // "서울특별시 마포구" 스냅샷
+    requesterName: text("requester_name").notNull(),
+    contact: text("contact").notNull(), // 전화 또는 카카오톡 ID
+    petNote: text("pet_note"),
+    preferredDate: text("preferred_date"),
+    message: text("message"),
+    ipHash: text("ip_hash"), // 시간당 신청 제한용 해시 — 원 IP 는 저장하지 않는다
+    slackSentAt: timestamp("slack_sent_at", { withTimezone: true }),
+    handledAt: timestamp("handled_at", { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("booking_requests_created_idx").on(t.createdAt),
+    index("booking_requests_ip_idx").on(t.ipHash, t.createdAt),
+  ],
+);
+
 // 노출 광고 (기획서 4-3). 가격은 트래픽 확보 후 책정 — 지금은 슬롯 구조만.
 // 장묘 스팟에는 생성 금지 (spot_types.monetizable — 앱 레이어에서 강제).
 export const promotions = pgTable(

@@ -1,5 +1,5 @@
 // 관리자 폼의 입력 요소 — 화면마다 같은 마크업을 반복하지 않기 위한 래퍼.
-import type { ReactNode } from "react";
+import type { ChangeEvent, ReactNode } from "react";
 
 export const inputClass =
   "mt-1 w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm outline-none focus:border-ink";
@@ -83,14 +83,18 @@ export function SelectField(props: {
   label: string;
   options: Array<{ value: string | number; label: string }>;
   defaultValue?: string | number;
+  /** 제어 컴포넌트로 쓸 때 — value 와 onChange 를 함께 준다 */
+  value?: string | number;
+  onChange?: (value: string) => void;
   hint?: string;
   required?: boolean;
   placeholder?: string;
 }) {
-  const { name, label, options, defaultValue, hint, required, placeholder } = props;
+  const { name, label, options, defaultValue, value, onChange, hint, required, placeholder } = props;
+  const controlled = value !== undefined ? { value, onChange: (e: ChangeEvent<HTMLSelectElement>) => onChange?.(e.target.value) } : { defaultValue: defaultValue ?? "" };
   return (
     <Field label={label} htmlFor={name} hint={hint} required={required}>
-      <select id={name} name={name} required={required} defaultValue={defaultValue ?? ""} className={inputClass}>
+      <select id={name} name={name} required={required} {...controlled} className={inputClass}>
         {placeholder && (
           <option value="" disabled>
             {placeholder}

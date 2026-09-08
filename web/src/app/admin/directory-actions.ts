@@ -5,17 +5,22 @@
 // DB 제약 이전에 여기서 사람이 읽을 수 있는 메시지로 막는다.
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { and, eq } from "drizzle-orm";
-import { REHAB_MODALITIES, slugify } from "@app/data";
+import { and, eq, inArray } from "drizzle-orm";
+import { MAX_EXPOSED_PER_AREA, REHAB_MODALITIES, isCareType, slugify } from "@app/data";
 import { getDb, isDbConfigured, schema } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { isSafeHttpUrl } from "@/lib/links";
 import { isValidObjectKey } from "@/lib/assets";
+import { countExposedInArea } from "@/lib/queries/care";
+import { careRelatedPaths } from "@/lib/revalidate-paths";
 import { parseRows, rowBool, rowString, type ParsedRow } from "./_components/parse-rows";
 
 const {
   spots,
   spotLinks,
+  spotServiceAreas,
+  spotTypes,
+  regions,
   makers,
   makerLinks,
   items,
@@ -119,6 +124,71 @@ async function replaceSpotLinks(db: Awaited<ReturnType<typeof requireDb>>, spotI
   );
 }
 
+// ---------- 돌봄 파트너 서비스 지역 (펫시터·펫산책) ----------
+
+interface ServiceAreaInput {
+  regionId: number;
+  exposed: boolean;
+}
+
+/** ServiceAreasEditor 가 보낸 JSON → 지역 행. 중복·잘못된 id 는 버린다. */
+function readServiceAreaRows(formData: FormData): ServiceAreaInput[] {
+  const raw = formData.get("serviceAreasJson");
+  if (typeof raw !== "string" || !raw.trim()) return [];
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return [];
+  }
+  if (!Array.isArray(parsed)) return [];
+  const out: ServiceAreaInput[] = [];
+  for (const row of parsed.slice(0, 100)) {
+    if (!row || typeof row !== "object") continue;
+    const regionId = Number((row as { regionId?: unknown }).regionId);
+    if (!Number.isSafeInteger(regionId) || regionId <= 0 || out.some((r) => r.regionId === regionId)) continue;
+    out.push({ regionId, exposed: (row as { exposed?: unknown }).exposed === true });
+  }
+  return out;
+}
+
+/**
+ * 돌봄 유형이면 지역 x 유형 자리 상한(MAX_EXPOSED_PER_AREA)을 검사한다.
+ * 돌봄 유형이 아니면 빈 목록을 돌려준다(지역 행은 저장 시 지워진다).
+ */
+async function validateServiceAreas(
+  db: Awaited<ReturnType<typeof requireDb>>,
+  typeId: number,
+  rows: ServiceAreaInput[],
+  homeRegionId: number,
+  excludeSpotId?: number,
+): Promise<{ rows: ServiceAreaInput[]; error?: string }> {
+  const type = (await db.select({ slug: spotTypes.slug }).from(spotTypes).where(eq(spotTypes.id, typeId)).limit(1))[0];
+  if (!type || !isCareType(type.slug)) return { rows: [] };
+  const list = rows.length > 0 ? rows : [{ regionId: homeRegionId, exposed: true }];
+  const regionIds = list.map((r) => r.regionId);
+  const known = await db.select({ id: regions.id, sidoName: regions.sidoName, sigunguName: regions.sigunguName }).from(regions).where(inArray(regions.id, regionIds));
+  const nameById = new Map(known.map((r) => [r.id, `${r.sidoName} ${r.sigunguName}`]));
+  for (const r of list) {
+    if (!nameById.has(r.regionId)) return { rows: [], error: `알 수 없는 지역 id ${r.regionId}` };
+    if (!r.exposed) continue;
+    const taken = await countExposedInArea(typeId, r.regionId, excludeSpotId);
+    if (taken >= MAX_EXPOSED_PER_AREA) {
+      return {
+        rows: [],
+        error: `${nameById.get(r.regionId)} 의 노출 자리가 찼습니다 (${taken}/${MAX_EXPOSED_PER_AREA}). 이 지역은 노출 OFF 로 저장하거나, 관리자 > 돌봄 파트너에서 다른 파트너의 노출을 끄세요.`,
+      };
+    }
+  }
+  return { rows: list };
+}
+
+async function writeServiceAreas(db: Awaited<ReturnType<typeof requireDb>>, spotId: number, rows: ServiceAreaInput[]) {
+  await db.delete(spotServiceAreas).where(eq(spotServiceAreas.spotId, spotId));
+  if (rows.length === 0) return;
+  await db.insert(spotServiceAreas).values(rows.map((r, i) => ({ spotId, regionId: r.regionId, exposed: r.exposed, sortOrder: i + 1 })));
+}
+
 export async function createSpotAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const db = await requireDb();
 
@@ -139,6 +209,8 @@ export async function createSpotAction(_prev: ActionState, formData: FormData): 
   if (seo.error) return { error: seo.error };
   const hero = readImageKey(formData, "heroImageKey");
   if (hero.error) return { error: hero.error };
+  const areas = await validateServiceAreas(db, typeId, readServiceAreaRows(formData), regionId);
+  if (areas.error) return { error: areas.error };
 
   const inserted = await db
     .insert(spots)
@@ -164,8 +236,11 @@ export async function createSpotAction(_prev: ActionState, formData: FormData): 
 
   const spotId = inserted[0]!.id;
   await replaceSpotLinks(db, spotId, links.rows);
+  await writeServiceAreas(db, spotId, areas.rows);
+  for (const p of await careRelatedPaths(spotId)) revalidatePath(p);
 
   revalidatePath("/admin/spots");
+  revalidatePath("/admin/care");
   redirect(`/admin/spots/${spotId}?created=1`);
 }
 
@@ -186,6 +261,9 @@ export async function saveSpotAction(_prev: ActionState, formData: FormData): Pr
   if (seo.error) return { error: seo.error };
   const hero = readImageKey(formData, "heroImageKey");
   if (hero.error) return { error: hero.error };
+  const areas = await validateServiceAreas(db, typeId, readServiceAreaRows(formData), existing.regionId, id);
+  if (areas.error) return { error: areas.error };
+  const pathsBefore = await careRelatedPaths(id);
 
   await db
     .update(spots)
@@ -206,9 +284,12 @@ export async function saveSpotAction(_prev: ActionState, formData: FormData): Pr
     .where(eq(spots.id, id));
 
   await replaceSpotLinks(db, id, links.rows);
+  await writeServiceAreas(db, id, areas.rows);
+  for (const p of new Set([...pathsBefore, ...(await careRelatedPaths(id))])) revalidatePath(p);
 
   revalidatePath(`/place/${id}-${existing.slug}`);
   revalidatePath("/admin/spots");
+  revalidatePath("/admin/care");
   return { saved: true };
 }
 

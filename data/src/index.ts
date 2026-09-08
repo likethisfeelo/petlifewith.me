@@ -18,3 +18,13 @@ export {
   type GuideCategoryDef,
 } from "./guides/categories.js";
 export { seniorSeedPosts, type SeedPost } from "./guides/seed-posts.js";
+export {
+  CARE_TYPE_SLUGS,
+  CARE_PROVIDER_LABEL,
+  CARE_PERSON_LABEL,
+  MAX_EXPOSED_PER_AREA,
+  carePersonLabel,
+  isCareType,
+  parseAreaListCell,
+  type CareTypeSlug,
+} from "./care/care.js";

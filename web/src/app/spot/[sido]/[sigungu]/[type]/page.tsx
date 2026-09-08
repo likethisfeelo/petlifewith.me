@@ -1,7 +1,11 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { carePersonLabel, isCareType } from "@app/data";
+import Link from "next/link";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { SpotCard } from "@/components/cards";
+import { CareAreaSlots } from "@/components/care/care-slots";
+import { countIndexableCareProviders, listCareProvidersInArea, listCareRegions } from "@/lib/queries/care";
 import { JsonLd } from "@/components/jsonld";
 import { RememberRegion } from "@/components/region-banner";
 import { B2BNote, PharmacyNote } from "@/components/notices";
@@ -31,6 +35,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     getSpotTypeBySlug(decodeURIComponent(type)),
   ]);
   if (!region || !spotType) return { robots: robotsMeta(false) };
+  if (isCareType(spotType.slug)) {
+    const person = carePersonLabel(spotType.slug);
+    return buildMeta({
+      title: `${region.sigunguName} ${person}`,
+      description: `${region.sidoName} ${region.sigunguName}에서 활동하는 ${person} 목록. 지역당 5자리, 예약 신청·카카오톡 상담.`,
+      path: `/spot/${region.sidoSlug}/${region.sigunguSlug}/${spotType.slug}`,
+      indexable: shouldIndexRegionPage(await countIndexableCareProviders(spotType.id, region.id)),
+      ads: spotType.monetizable,
+    });
+  }
   const indexableCount = await countIndexableSpotsInRegion(region.id, spotType.id);
   return buildMeta({
     title: `${region.sigunguName} ${spotType.name}`,
@@ -49,9 +63,38 @@ export default async function RegionTypePage({ params }: Props) {
     getSpotTypeBySlug(decodeURIComponent(type)),
   ]);
   if (!region || !spotType) notFound();
+  const basePath = `/spot/${region.sidoSlug}/${region.sigunguSlug}`;
+
+  // 돌봄 파트너: 주소가 아니라 서비스 지역 기준 — 이 지역의 5자리
+  if (isCareType(spotType.slug)) {
+    const person = carePersonLabel(spotType.slug);
+    const [providers, regions] = await Promise.all([listCareProvidersInArea(spotType.id, region.id), listCareRegions()]);
+    const regionNameById = Object.fromEntries(regions.map((r) => [r.id, r.sigunguName]));
+    return (
+      <div className="mx-auto max-w-3xl px-4 py-10">
+        <RememberRegion region={{ sidoSlug: region.sidoSlug, sigunguSlug: region.sigunguSlug, label: `${region.sidoName} ${region.sigunguName}` }} />
+        <Breadcrumbs
+          crumbs={[
+            { name: "홈", path: "/" },
+            { name: "스팟", path: "/spot" },
+            { name: region.sidoName, path: `/spot/${region.sidoSlug}` },
+            { name: region.sigunguName, path: basePath },
+            { name: spotType.name, path: `${basePath}/${spotType.slug}` },
+          ]}
+        />
+        <div className="mt-6">
+          <CareAreaSlots personLabel={person} region={region} providers={providers} regionNameById={regionNameById} />
+        </div>
+        <p className="mt-6 text-sm">
+          <Link href={`/spot/type/${spotType.slug}#${region.sidoSlug}/${region.sigunguSlug}`} className="font-medium text-sea hover:underline">
+            ← 지도에서 다른 지역 보기
+          </Link>
+        </p>
+      </div>
+    );
+  }
 
   const spots = await listSpotsInRegion(region.id, spotType.id);
-  const basePath = `/spot/${region.sidoSlug}/${region.sigunguSlug}`;
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-10">

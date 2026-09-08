@@ -1400,13 +1400,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "banner_categories": {
-          "name": "banner_categories",
-          "type": "text[]",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'{}'::text[]"
-        },
         "author_user_id": {
           "name": "author_user_id",
           "type": "uuid",
@@ -1490,6 +1483,13 @@
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
+        },
+        "banner_spot_types": {
+          "name": "banner_spot_types",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::text[]"
         }
       },
       "indexes": {

@@ -6,6 +6,9 @@
 //  - 필수: 외부키 / 이름 / 유형(spot_types.slug) / 지역("시도 시군구")
 //  - 선택: 주소 / 전화 / 영업상태 / 기준일 / 소개 / 영업시간 / 요금 / 주차 /
 //          홈페이지 / 카카오톡 / 예약 / 네이버 / 인스타그램 / 블로그 / 기타링크 / 비고(무시)
+//  - 돌봄 유형(pet-sitter / dog-walk)만: 서비스지역("시도 시군구"를 | 로 구분) → spot_service_areas.
+//    파일에 없는 지역·관리자가 끈 노출(exposed=false)은 건드리지 않는다. 비어 있으면 지역 셀의 시군구 하나.
+//  - 출처: 비우면 direct, "sample" 이면 가상 예시(색인·사이트맵 제외, 화면에 예시 배지).
 //  - "#" 은 미확인. 신규 행에서는 비우고, 재적재에서는 기존 값을 건드리지 않는다.
 //  - 외부키(spots.external_ref) 로 upsert — 몇 번을 실행해도 중복이 생기지 않는다.
 //  - 주소는 sanitizeRoadAddress 를 한 번 더 거친다 (동·호수 저장 금지, claude.md 5-6).
@@ -14,7 +17,8 @@ import { existsSync } from "node:fs";
 import { and, eq, sql } from "drizzle-orm";
 import { repoRoot } from "../../env.js";
 import { closeDb, getDb } from "../../db/client.js";
-import { regions, spotLinks, spots, spotTypes } from "../../db/schema.js";
+import { regions, spotLinks, spotServiceAreas, spots, spotTypes } from "../../db/schema.js";
+import { isCareType, parseAreaListCell } from "../../care/care.js";
 import { readCsvRows } from "../lib/csv.js";
 import { resolveRegionFromAddress, sanitizeRoadAddress } from "../lib/address.js";
 import { addSkip, countKey, newReport, printSummary, writeReport } from "../lib/report.js";
@@ -41,6 +45,8 @@ const DIRECT_HEADER_SPEC = {
   instagram: { candidates: ["인스타그램"], required: false },
   blog: { candidates: ["블로그"], required: false },
   etc: { candidates: ["기타링크", "기타"], required: false },
+  areas: { candidates: ["서비스지역", "활동지역"], required: false },
+  source: { candidates: ["출처"], required: false },
 } satisfies Record<string, { candidates: string[]; required: boolean }>;
 
 /** 링크 컬럼 → spot_links.kind (web/src/lib/links.ts 의 어휘와 같다) */
@@ -147,6 +153,26 @@ async function main() {
       links.push({ kind, ...parsed });
     }
 
+    const sourceRaw = (h.get(row, "source") ?? "").toLowerCase();
+    const source: "direct" | "sample" = sourceRaw === "sample" ? "sample" : "direct";
+    if (sourceRaw && sourceRaw !== "sample" && sourceRaw !== "direct") countKey(report.unmappedStatusValues, `출처:${sourceRaw}`);
+
+    // 돌봄 유형의 서비스 지역 — 시군구로 귀속되지 않는 조각은 리포트에 남기고 건너뛴다
+    const areaRegionIds: number[] = [];
+    if (isCareType(typeSlug)) {
+      for (const areaText of parseAreaListCell(h.get(row, "areas"))) {
+        const am = resolveRegionFromAddress(areaText);
+        const areaId = am ? regionByName.get(`${am.region.sidoName}|${am.region.sigunguName}`) : undefined;
+        if (!areaId) {
+          countKey(report.unmatchedRegions, areaText);
+          addSkip(report, "서비스지역 시군구 미귀속 — 그 지역만 건너뜀", `${name} / ${areaText}`);
+          continue;
+        }
+        if (!areaRegionIds.includes(areaId)) areaRegionIds.push(areaId);
+      }
+      if (areaRegionIds.length === 0) areaRegionIds.push(regionId);
+    }
+
     if (args.dryRun) {
       report.loaded += 1;
       continue;
@@ -164,7 +190,7 @@ async function main() {
         addressRoad: address,
         phone: h.get(row, "phone"),
         status: status ?? "unknown",
-        source: "direct",
+        source,
         externalRef,
         dataReferenceDate: referenceDate,
         descriptionMd: h.get(row, "description"),
@@ -181,6 +207,7 @@ async function main() {
           addressRoad: keep("address_road"),
           phone: keep("phone"),
           status: status ?? sql.raw("spots.status"),
+          source,
           dataReferenceDate: keep("data_reference_date"),
           descriptionMd: keep("description_md"),
           hoursText: keep("hours_text"),
@@ -198,6 +225,14 @@ async function main() {
     for (const [i, link] of links.entries()) {
       await db.delete(spotLinks).where(and(eq(spotLinks.spotId, r0.id), eq(spotLinks.kind, link.kind)));
       await db.insert(spotLinks).values({ spotId: r0.id, kind: link.kind, url: link.url, label: link.label, sortOrder: i + 1 });
+    }
+
+    // 서비스 지역은 추가만 한다 — 이미 있는 행(관리자가 노출을 끈 것 포함)은 그대로 둔다
+    for (const [i, areaId] of areaRegionIds.entries()) {
+      await db
+        .insert(spotServiceAreas)
+        .values({ spotId: r0.id, regionId: areaId, exposed: true, sortOrder: i + 1 })
+        .onConflictDoNothing({ target: [spotServiceAreas.spotId, spotServiceAreas.regionId] });
     }
   }
 

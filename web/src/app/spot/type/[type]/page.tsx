@@ -1,8 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { carePersonLabel, isCareType } from "@app/data";
 import { Breadcrumbs } from "@/components/breadcrumbs";
+import { CareDirectory } from "@/components/care/care-directory";
 import { B2BNote, PharmacyNote } from "@/components/notices";
+import { countIndexableCareProviders, listCareProviders, listCareRegions } from "@/lib/queries/care";
 import {
   countIndexableSpotsForType,
   getSpotTypeBySlug,
@@ -26,6 +29,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { type } = await params;
   const spotType = await getSpotTypeBySlug(decodeURIComponent(type));
   if (!spotType) return { robots: robotsMeta(false) };
+  if (isCareType(spotType.slug)) {
+    const person = carePersonLabel(spotType.slug);
+    return buildMeta({
+      title: `전국 ${person} 찾기 — 지역별 ${spotType.name}`,
+      description: `지역(시군구)별 ${person} 목록. 지역마다 5자리, 예약 신청과 카카오톡 상담으로 바로 연락합니다. 노령견 돌봄 경험을 확인하세요.`,
+      path: `/spot/type/${spotType.slug}`,
+      indexable: shouldIndexRegionPage(await countIndexableCareProviders(spotType.id)),
+      ads: spotType.monetizable,
+    });
+  }
   const indexableCount = await countIndexableSpotsForType(spotType.id);
   return buildMeta({
     title: `전국 ${spotType.name}`,
@@ -40,6 +53,8 @@ export default async function SpotTypeHubPage({ params }: Props) {
   const { type } = await params;
   const spotType = await getSpotTypeBySlug(decodeURIComponent(type));
   if (!spotType) notFound();
+
+  if (isCareType(spotType.slug)) return <CareTypeHub spotType={spotType} />;
 
   const rows = await listRegionCountsForType(spotType.id);
   const total = rows.reduce((a, r) => a + r.count, 0);
@@ -129,6 +144,47 @@ export default async function SpotTypeHubPage({ params }: Props) {
       <p className="mt-10 text-xs text-ink-faint">
         시설 정보는 행정안전부 지방행정 인허가데이터(공공데이터포털 data.go.kr)와 직접 확인을 바탕으로
         하며, 각 장소 페이지에 출처·기준일·관리번호를 표기합니다.
+      </p>
+    </div>
+  );
+}
+
+// 돌봄 파트너(펫시터·펫산책): 주소가 아니라 서비스 지역으로 노출 — 좌측 지도, 우측 지역별 5자리
+async function CareTypeHub({ spotType }: { spotType: NonNullable<Awaited<ReturnType<typeof getSpotTypeBySlug>>> }) {
+  const person = carePersonLabel(spotType.slug);
+  const [regions, providers] = await Promise.all([listCareRegions(), listCareProviders(spotType.id)]);
+  return (
+    <div className="mx-auto max-w-6xl px-4 py-10">
+      <Breadcrumbs
+        crumbs={[
+          { name: "홈", path: "/" },
+          { name: "스팟", path: "/spot" },
+          { name: spotType.name, path: `/spot/type/${spotType.slug}` },
+        ]}
+      />
+      <h1 className="mt-6 text-3xl font-extrabold tracking-tight text-ink">
+        전국 <span className="text-sea">{person}</span> 찾기
+      </h1>
+      <p className="mt-2 max-w-3xl text-sm leading-relaxed text-ink-soft">
+        {spotType.slug === "pet-sitter"
+          ? "집으로 오거나 시터 집에서 돌보는 펫시터를 지역별로 찾습니다. 서울·경기·광역시는 구 단위, 그 밖은 시·군 단위로 지역마다 5자리를 둡니다."
+          : "산책 대행·동행 도그워커를 지역별로 찾습니다. 서울·경기·광역시는 구 단위, 그 밖은 시·군 단위로 지역마다 5자리를 둡니다."}{" "}
+        예약 신청을 남기면 운영자가 확인해 연결하고, 카카오톡 채널이 있는 파트너는 바로 상담할 수 있습니다.
+      </p>
+      <p className="mt-3 rounded-lg border border-line bg-sand/60 px-4 py-2.5 text-sm text-ink-soft">
+        {person}로 활동하시나요? 지역별 자리는 무료이고 운영자 확인 후 노출됩니다 —{" "}
+        <Link href="/portal/spot" className="font-medium text-sea underline">
+          등록·관리 안내
+        </Link>
+      </p>
+
+      <div className="mt-8">
+        <CareDirectory typeSlug={spotType.slug} personLabel={person} regions={regions} providers={providers} />
+      </div>
+
+      <p className="mt-10 text-xs text-ink-faint">
+        파트너 정보는 직접 확인과 등록 신청을 바탕으로 하며, 순위·평점을 매기지 않습니다. 개인 사업자의 상세 주소는 싣지 않고 활동
+        지역(시군구)만 표기합니다.
       </p>
     </div>
   );

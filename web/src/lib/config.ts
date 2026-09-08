@@ -110,6 +110,17 @@ export function googleSiteVerification(): string | undefined {
   return publicId("NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION", "2dOK8nJPk2N36jJdyzozSaMrVtxQKm6cqwRqPxwBbTk");
 }
 
+// ---------- 알림 (슬랙) ----------
+
+/**
+ * 예약 신청 알림용 Slack Incoming Webhook URL — 시크릿. 비어 있으면 저장만 하고 알림은 건너뛴다.
+ * (.env.deploy.<stage> 에 넣으면 sst.config.ts 가 Lambda 환경변수로 주입한다)
+ */
+export function slackBookingWebhookUrl(): string | undefined {
+  const v = getOptionalEnv("SLACK_BOOKING_WEBHOOK_URL");
+  return v && /^https:\/\/hooks\.slack\.com\//.test(v) ? v : undefined;
+}
+
 // ---------- DB ----------
 // 연결 문자열은 여기서만 읽는다. 나중에 RDS Proxy 를 붙일 때도 이 한 곳만 바뀐다. (claude.md 10-2)
 

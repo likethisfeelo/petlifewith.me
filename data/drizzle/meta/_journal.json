@@ -57,6 +57,13 @@
       "when": 1788850004576,
       "tag": "0007_rename_banner_to_spot_types",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1788854680850,
+      "tag": "0008_care_service_areas_bookings",
+      "breakpoints": true
     }
   ]
 }

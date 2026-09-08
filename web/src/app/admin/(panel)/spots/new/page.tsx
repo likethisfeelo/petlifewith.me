@@ -1,3 +1,4 @@
+import { isCareType } from "@app/data";
 import { isDbConfigured, getDb, schema } from "@/lib/db";
 import { AdminPageHeader } from "../../../_components/fields";
 import { SpotEditor } from "../[id]/spot-editor";
@@ -9,7 +10,7 @@ export default async function AdminSpotNewPage() {
   const db = getDb();
 
   const [types, regionRows] = await Promise.all([
-    db.select({ id: spotTypes.id, name: spotTypes.name, listed: spotTypes.listed }).from(spotTypes).orderBy(spotTypes.sortOrder),
+    db.select({ id: spotTypes.id, slug: spotTypes.slug, name: spotTypes.name, listed: spotTypes.listed }).from(spotTypes).orderBy(spotTypes.sortOrder),
     db.select().from(regions).orderBy(regions.sidoName, regions.sigunguName),
   ]);
 
@@ -37,6 +38,8 @@ export default async function AdminSpotNewPage() {
           types={types.map((t) => ({ id: t.id, label: t.listed ? t.name : `${t.name} (B2B 참고)` }))}
           regions={regionRows.map((r) => ({ id: r.id, label: `${r.sidoName} ${r.sigunguName}` }))}
           links={[]}
+          careTypeIds={types.filter((t) => isCareType(t.slug)).map((t) => t.id)}
+          areaOptions={regionRows.map((r) => ({ id: r.id, sidoName: r.sidoName, sidoSlug: r.sidoSlug, sigunguName: r.sigunguName }))}
         />
       </div>
     </div>
