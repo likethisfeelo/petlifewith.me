@@ -6,7 +6,7 @@ import { getGuideEntityTags } from "@/lib/queries/guides";
 import { GuideEditor } from "./guide-editor";
 import { TagManager, type ExistingTag, type TagOption } from "./tag-manager";
 
-const { guides, items, spots, makers, regions } = schema;
+const { guides, topics, users, items, spots, makers, regions } = schema;
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -21,8 +21,18 @@ export default async function AdminGuideEditPage({ params, searchParams }: Props
   if (!Number.isSafeInteger(guideId)) notFound();
 
   const db = getDb();
-  const guide = (await db.select().from(guides).where(eq(guides.id, guideId)).limit(1))[0];
-  if (!guide) notFound();
+  const found = (
+    await db
+      .select({ guide: guides, topicSlug: topics.slug, authorName: users.displayName })
+      .from(guides)
+      .innerJoin(topics, eq(guides.topicId, topics.id))
+      .leftJoin(users, eq(guides.authorUserId, users.id))
+      .where(eq(guides.id, guideId))
+      .limit(1)
+  )[0];
+  if (!found) notFound();
+  const { guide, topicSlug } = found;
+  const authorName = guide.authorUserId ? (found.authorName ?? "회원") : null;
 
   const [tags, itemRows, spotRows, makerRows] = await Promise.all([
     getGuideEntityTags(guideId),
@@ -71,6 +81,8 @@ export default async function AdminGuideEditPage({ params, searchParams }: Props
       <div className="mt-5 grid gap-6 lg:grid-cols-[1fr_20rem]">
         <div className="rounded-xl border border-line bg-surface p-4">
           <GuideEditor
+            topicSlug={topicSlug}
+            authorName={authorName}
             guide={{
               id: guide.id,
               title: guide.title,
@@ -78,6 +90,8 @@ export default async function AdminGuideEditPage({ params, searchParams }: Props
               bodyMd: guide.bodyMd,
               role: guide.role,
               spokeGroup: guide.spokeGroup,
+              category: guide.category,
+              pinnedOrder: guide.pinnedOrder,
               status: guide.status,
               medicalAdjacent: guide.medicalAdjacent,
               vetReviewed: guide.vetReviewed,

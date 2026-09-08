@@ -298,7 +298,9 @@ users
 
 이렇게 두면 지금 인증 없이 개발하다가 나중에 Cognito를 붙일 때 컬럼 하나만 채우면 된다. `sub`를 PK로 쓰면 인증 공급자를 바꾸거나 풀을 재생성할 때 전체 FK가 무너진다.
 
-**런칭 시점에 인증이 필요한 범위**는 좁다. 대부분의 콘텐츠는 비로그인으로 읽힌다. 실제로 필요한 건 스팟·메이커 **클레임**과 관리자다. 소비자 회원가입은 나중에 켠다. 그래도 `users` 테이블은 지금 만든다.
+**런칭 시점에 인증이 필요한 범위**는 좁다. 대부분의 콘텐츠는 비로그인으로 읽힌다. 실제로 필요한 건 스팟·메이커 **클레임**과 관리자다. 그래도 `users` 테이블은 지금 만든다.
+
+**2026-09 갱신 — 회원 글·댓글을 켰다.** Cognito 앞에 자체 이메일·비밀번호 회원(`users.password_hash`, scrypt)과 서명 쿠키 세션을 넣었다. 원칙은 그대로다: PK 는 내부 `id`, `cognito_sub` 는 비어 있고, 인증 호출은 `lib/auth.ts`·`lib/member.ts`·`lib/password.ts` 에만 있다. Cognito 로 바꿀 때 회원 세션 발급부와 로그인 액션만 갈아 끼운다. 회원 글은 승인(pending → published) 후에만 공개된다 (`docs/운영.md` 5-7).
 
 **소셜 로그인 주의.** 국내 서비스라 카카오 로그인이 사실상 필수가 된다. Cognito는 Google·Facebook·Apple과 SAML/OIDC 공급자를 지원하므로, 카카오·네이버는 **범용 OIDC 공급자로 연결**하는 경로를 검토해야 한다. 다만 각 사의 OIDC 표준 준수 정도가 다르고 네이버는 제약이 있을 수 있으니, **User Pool 생성 전에 실제 연동 가능 여부를 확인한다.** 표준 OIDC로 안 되면 Lambda 트리거 기반 커스텀 플로우가 필요하고, 이건 설계가 달라진다.
 
@@ -335,6 +337,8 @@ VPC/RDS Proxy. 쓰지 않는 리소스를 미리 세우면 비용만 나간다.
 - **SEO**: noindex 게이트(스팟 3곳·정보 3항목·언급 0건) 코드 강제 + 사이트맵 분할 + JSON-LD + 로컬 전면 noindex 가드.
 - **ETL**: 인허가 CSV 헤더 기반 정규화(미매핑은 실패·리포트, 추측 없음), 관리번호 upsert, 상세주소 제거, 동물등록 통계 → 노령견 비율.
 - **실데이터 (2026-08-25)**: 행안부 인허가 5종 46,208건 적재 — 미용업·운송업·동물약국(공개, 약국은 광고 금지+수의사 안내) / 의약품 도매·의료용구 판매(`spot_types.listed=false` 비공개, 지역 인프라 집계·어드민 전용). 전 페이지에 출처(행안부)·기준일·관리번호 표기. 지역 페이지 목록 48곳 상한(전체는 유형 페이지). 어드민 스팟 검색·필터·페이지네이션. 2026 행정구역 개편 반영(전남광주 통합 귀속 + 인천 신설 4구, 지역 233).
+- **회원·커뮤니티 (2026-09)**: 자체 이메일·비밀번호 회원 + 서명 쿠키(0005: users 컬럼·comments·guides.author_user_id·status pending). `/signup /login /me /write`, 헤더 메뉴는 `/api/me`(ISR 유지). 회원 글은 승인 후 공개(외부 링크 nofollow ugc, 회원 글 안내문), 댓글은 즉시(평문·시간당 20건), 관리자 `/admin/members`(차단) `/admin/comments`(숨김·삭제).
+- **노견생활 신체 지도·정렬 (2026-09)**: `guides.category`(토픽별 정의 `data/src/guides/categories.ts`, 미지정 = 전체) + `pinned_order`(토픽당 1~3, 부분 유니크). 토픽 목록은 고정 → 최신순(`lib/guide-order.ts`). `/topic/senior-life` 상단 SVG 신체 지도(`components/senior-body-map.tsx`) — 부위 호버·클릭 → Q&A + 관련 글.
 - **AdSense (2026-09)**: `ca-pub-…` 기본값 + `NEXT_PUBLIC_ADSENSE_CLIENT`(off 가능), `web/public/ads.txt`. 운영 전용, 관리자·포털·클레임·`/rehab` 경로 제외, 장묘·약국·B2B·의료 인접 편은 `buildMeta({ ads:false })` 메타로 제외 (`docs/운영.md` 4-4).
 - **직접 발굴·의료 인접 (2026-09)**: 큐레이션 CSV 로더 2종(`etl:direct`/`etl:rehab`, `#`=미확인·외부키 upsert) + `spots.external_ref`·`rehab_sites`(0004). 숨고 정리본 48행 적재, 재활·한방·특수치료 123행 → `/rehab`·`/rehab/[치료법]`(치료법이 주어, 가나다순, 확인수준·개인명 미노출, MedicalNotice) + `/admin/rehab`. 주소 정규화가 동·호수·층·건물명까지 제거.
 - **배포 도구**: `sst.config.ts`(SST v4/OpenNext — prod 별칭 4개·dev 스테이지·미디어 버킷·Lambda 역할 스토리지) + `scripts/aws-profile.ps1`(프로필 확인·전환), `aws-db.ps1`(RDS+env+마이그레이션·시드), `deploy.ps1`(프리플라이트→검사→배포), `aws-destroy.ps1`. 전부 무프롬프트. 런북 `docs/배포.md`.

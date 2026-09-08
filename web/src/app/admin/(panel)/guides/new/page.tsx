@@ -1,3 +1,4 @@
+import { GUIDE_CATEGORIES_BY_TOPIC } from "@app/data";
 import { getDb, isDbConfigured, schema } from "@/lib/db";
 import { AdminPageHeader } from "../../../_components/fields";
 import { NewPostForm } from "./new-post-form";
@@ -20,7 +21,10 @@ export default async function AdminGuideNewPage() {
         </p>
       ) : (
         <div className="mt-5">
-          <NewPostForm topics={topicRows.map((t) => ({ id: t.id, name: t.name }))} />
+          <NewPostForm
+            topics={topicRows.map((t) => ({ id: t.id, slug: t.slug, name: t.name }))}
+            categoriesByTopic={GUIDE_CATEGORIES_BY_TOPIC}
+          />
         </div>
       )}
     </div>

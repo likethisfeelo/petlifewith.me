@@ -48,6 +48,7 @@ export const guideStatus = pgEnum("guide_status", [
   "review_pending", // 감수 대기 (의료 인접 편)
   "published",
   "archived",
+  "pending", // 회원 글 승인 대기 — 관리자가 published 로 바꿔야 노출된다
 ]);
 export const spotStatus = pgEnum("spot_status", ["operating", "suspended", "closed", "unknown"]);
 export const spotSource = pgEnum("spot_source", [
@@ -82,11 +83,19 @@ export const users = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     cognitoSub: text("cognito_sub").unique(),
     email: text("email").unique(),
-    displayName: text("display_name"),
+    displayName: text("display_name"), // 공개 닉네임 — 회원은 필수, 대소문자 무시 유일
     role: userRole("role").notNull().default("member"),
+    // 자체 이메일·비밀번호 회원 (2026-09). Cognito 로 옮길 때는 password_hash 를 비우고
+    // cognito_sub 를 채운다 — 세션·FK 는 id 기준이라 그대로다 (claude.md 10-5).
+    passwordHash: text("password_hash"),
+    // 세션 무효화 카운터 — 비밀번호 변경·차단 시 올리면 기존 쿠키가 즉시 죽는다
+    sessionVersion: integer("session_version").notNull().default(1),
+    blockedAt: timestamp("blocked_at", { withTimezone: true }),
+    lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
+  (t) => [uniqueIndex("users_display_name_lower_uq").on(sql`lower(${t.displayName})`)],
 );
 
 // ---------- 미디어 자산 (직접 촬영·제작한 것만 — 재호스팅 금지는 3-1) ----------
@@ -137,6 +146,12 @@ export const guides = pgTable(
       .references(() => topics.id),
     role: guideRole("role").notNull().default("spoke"), // 허브 1 + 스포크 구조
     spokeGroup: text("spoke_group"), // 노견: body(신체 영역) / support(지지 서비스)
+    // "위치" 카테고리 — 토픽별 정의(data/src/guides/categories.ts). null 은 "전체"에만 노출.
+    category: text("category"),
+    // 최상단 고정(1~3). 토픽 페이지에서 고정 글이 먼저, 나머지는 최신순 (관리자만 지정)
+    pinnedOrder: integer("pinned_order"),
+    // 회원이 쓴 글이면 글쓴이. 관리자 글은 null. 회원 글은 pending 으로 시작해 승인 후 published.
+    authorUserId: uuid("author_user_id").references(() => users.id, { onDelete: "set null" }),
     status: guideStatus("status").notNull().default("draft"),
     // 의료 인접 취급 규칙 (기획서 SECTION 02)
     medicalAdjacent: boolean("medical_adjacent").notNull().default(false),
@@ -155,6 +170,9 @@ export const guides = pgTable(
   (t) => [
     index("guides_topic_idx").on(t.topicId, t.status),
     index("guides_status_idx").on(t.status),
+    index("guides_author_idx").on(t.authorUserId),
+    // 토픽 안에서 같은 고정 순번은 하나뿐 (최대 3 은 앱 레이어에서 1~3 으로 제한)
+    uniqueIndex("guides_topic_pinned_uq").on(t.topicId, t.pinnedOrder).where(sql`${t.pinnedOrder} is not null`),
     // 감수 없는 의료 인접 편은 published 로 전환할 수 없다.
     check(
       "guides_medical_review_gate",
@@ -537,6 +555,27 @@ export const curationEntries = pgTable(
       sql`${t.embedSource} = 'none' OR ${t.embedRef} IS NOT NULL`,
     ),
   ],
+);
+
+// ---------- 댓글 (회원만 작성, 관리자가 숨김·삭제) ----------
+// 본문은 평문으로 저장·이스케이프 렌더. 링크를 활성화하지 않는다 (스팸 방지).
+
+export const comments = pgTable(
+  "comments",
+  {
+    id: bigint("id", { mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
+    guideId: bigint("guide_id", { mode: "number" })
+      .notNull()
+      .references(() => guides.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    body: text("body").notNull(),
+    hiddenAt: timestamp("hidden_at", { withTimezone: true }), // 관리자 숨김 — 작성자에게만 보인다
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index("comments_guide_idx").on(t.guideId, t.createdAt), index("comments_user_idx").on(t.userId, t.createdAt)],
 );
 
 // ---------- 치료·진단 기기 (주어는 병원이 아니라 기기) ----------

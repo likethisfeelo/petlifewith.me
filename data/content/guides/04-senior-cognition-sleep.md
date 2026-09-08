@@ -5,6 +5,7 @@ summary: 밤 배회, 방향 감각 변화, 낮밤이 바뀐 수면. 관찰 체�
 topic: senior-life
 role: spoke
 spokeGroup: body
+category: mind
 status: draft
 medicalAdjacent: true
 ---

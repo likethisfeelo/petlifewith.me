@@ -6,17 +6,38 @@ import { topicStyle } from "@/lib/topic-style";
 import { MAKER_CATEGORY_LABEL, SPOT_STATUS_LABEL, formatDate, idSlugPath } from "@/lib/format";
 import { AdLabel, FactBadge } from "./notices";
 
-export function GuideCard({ guide, topic, showTopic = true }: { guide: GuideRow; topic?: TopicRow; showTopic?: boolean }) {
+export function GuideCard({
+  guide,
+  topic,
+  showTopic = true,
+  categoryName,
+  authorName,
+  pinned,
+}: {
+  guide: GuideRow;
+  topic?: TopicRow;
+  showTopic?: boolean;
+  /** 카테고리(위치) 표시명 — 토픽 페이지가 넘긴다 */
+  categoryName?: string | null;
+  /** 회원 글이면 닉네임 */
+  authorName?: string | null;
+  /** 최상단 고정 표시 */
+  pinned?: boolean;
+}) {
   const style = topic ? topicStyle(topic.slug) : null;
   return (
     <Link
       href={`/guide/${guide.slug}`}
-      className="group flex h-full flex-col rounded-xl border border-line bg-surface p-5 transition-shadow hover:shadow-md"
+      className={`group flex h-full flex-col rounded-xl border bg-surface p-5 transition-shadow hover:shadow-md ${
+        pinned ? "border-honey/40" : "border-line"
+      }`}
     >
-      <div className="flex items-center gap-2 text-xs">
+      <div className="flex flex-wrap items-center gap-2 text-xs">
+        {pinned && <span className="rounded-full bg-honey-soft px-2 py-0.5 font-medium text-honey">고정</span>}
         {showTopic && topic && style && (
           <span className={`rounded-full px-2 py-0.5 font-medium ${style.chip}`}>{topic.name}</span>
         )}
+        {categoryName && <span className="rounded-full bg-sand px-2 py-0.5 font-medium text-ink-soft">{categoryName}</span>}
         {guide.role === "hub" && <span className="rounded-full bg-sand px-2 py-0.5 font-medium text-ink-soft">전체 지도</span>}
         {guide.vetReviewed && guide.vetReviewerName && (
           <span className="text-sage-deep">수의사 감수</span>
@@ -24,7 +45,10 @@ export function GuideCard({ guide, topic, showTopic = true }: { guide: GuideRow;
       </div>
       <h3 className="mt-2 text-base font-bold leading-snug text-ink group-hover:underline">{guide.title}</h3>
       {guide.summary && <p className="mt-1.5 line-clamp-2 text-sm text-ink-soft">{guide.summary}</p>}
-      <p className="mt-auto pt-3 text-xs text-ink-faint">{formatDate(guide.publishedAt)}</p>
+      <p className="mt-auto pt-3 text-xs text-ink-faint">
+        {authorName ? `${authorName} · ` : ""}
+        {formatDate(guide.publishedAt)}
+      </p>
     </Link>
   );
 }

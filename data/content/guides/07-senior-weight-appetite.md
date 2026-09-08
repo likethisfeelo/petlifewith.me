@@ -5,6 +5,7 @@ summary: 체중 기록법과 몸 상태 훑어보기, 식욕 변화의 관찰 �
 topic: senior-life
 role: spoke
 spokeGroup: body
+category: weight
 status: draft
 medicalAdjacent: true
 ---

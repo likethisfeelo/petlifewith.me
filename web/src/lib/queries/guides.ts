@@ -1,11 +1,18 @@
 import { and, desc, eq, inArray, ne, sql } from "drizzle-orm";
 import { getDb, isDbConfigured, schema } from "../db";
+import { orderForTopic } from "../guide-order";
 
-const { guides, topics, guideItemTags, guideSpotTags, guideMakerTags, guideDeviceTags } = schema;
+const { guides, topics, users, guideItemTags, guideSpotTags, guideMakerTags, guideDeviceTags } = schema;
 const { items, itemOffers, makers, spots, spotTypes, regions, deviceModels, deviceSites } = schema;
 
 export type GuideRow = typeof guides.$inferSelect;
 export type TopicRow = typeof topics.$inferSelect;
+
+/** 목록 항목 — 회원 글이면 닉네임이 붙는다 (이메일 등 다른 정보는 절대 싣지 않는다) */
+export interface GuideListItem {
+  guide: GuideRow;
+  authorName: string | null;
+}
 
 export async function listTopics(): Promise<TopicRow[]> {
   if (!isDbConfigured()) return [];
@@ -20,41 +27,57 @@ export async function getTopicBySlug(slug: string): Promise<TopicRow | null> {
   return rows[0] ?? null;
 }
 
-export async function getPublishedGuide(slug: string): Promise<{ guide: GuideRow; topic: TopicRow } | null> {
+export async function getPublishedGuide(
+  slug: string,
+): Promise<{ guide: GuideRow; topic: TopicRow; authorName: string | null } | null> {
   if (!isDbConfigured()) return null;
   const db = getDb();
   const rows = await db
-    .select({ guide: guides, topic: topics })
+    .select({ guide: guides, topic: topics, authorName: users.displayName })
     .from(guides)
     .innerJoin(topics, eq(guides.topicId, topics.id))
+    .leftJoin(users, eq(guides.authorUserId, users.id))
     .where(and(eq(guides.slug, slug), eq(guides.status, "published")))
     .limit(1);
-  return rows[0] ?? null;
+  const row = rows[0];
+  if (!row) return null;
+  return { guide: row.guide, topic: row.topic, authorName: row.guide.authorUserId ? row.authorName : null };
 }
 
-/** 토픽 허브: 허브 1 + 스포크 그룹별 목록 (발행분만) */
+/**
+ * 토픽 허브 목록 (발행분만).
+ *  - hub: 클러스터 전체 지도 (별도 카드)
+ *  - items: 허브를 뺀 글을 "최상단 고정(1~3) → 최신순" 으로 정렬 (lib/guide-order.ts)
+ *  - byCategory: 카테고리별 목록 (신체 지도 패널용). 카테고리 없는 글은 "전체"에만 있다.
+ */
 export async function listGuidesForTopic(topicId: number): Promise<{
   hub: GuideRow | null;
-  spokesByGroup: Map<string, GuideRow[]>;
+  items: GuideListItem[];
+  byCategory: Map<string, GuideListItem[]>;
   all: GuideRow[];
 }> {
-  if (!isDbConfigured()) return { hub: null, spokesByGroup: new Map(), all: [] };
+  if (!isDbConfigured()) return { hub: null, items: [], byCategory: new Map(), all: [] };
   const db = getDb();
   const rows = await db
-    .select()
+    .select({ guide: guides, authorName: users.displayName })
     .from(guides)
+    .leftJoin(users, eq(guides.authorUserId, users.id))
     .where(and(eq(guides.topicId, topicId), eq(guides.status, "published")))
     .orderBy(desc(guides.publishedAt));
-  const hub = rows.find((g) => g.role === "hub") ?? null;
-  const spokesByGroup = new Map<string, GuideRow[]>();
-  for (const g of rows) {
-    if (g.role === "hub") continue;
-    const key = g.spokeGroup ?? "";
-    const list = spokesByGroup.get(key) ?? [];
-    list.push(g);
-    spokesByGroup.set(key, list);
+  const hub = rows.find((r) => r.guide.role === "hub")?.guide ?? null;
+  const spokes = rows
+    .filter((r) => r.guide.role !== "hub")
+    .map((r) => ({ guide: r.guide, authorName: r.guide.authorUserId ? r.authorName : null }));
+  const ordered = orderForTopic(spokes.map((r) => ({ ...r, id: r.guide.id, pinnedOrder: r.guide.pinnedOrder, publishedAt: r.guide.publishedAt })));
+  const items: GuideListItem[] = ordered.map(({ guide, authorName }) => ({ guide, authorName }));
+  const byCategory = new Map<string, GuideListItem[]>();
+  for (const item of items) {
+    if (!item.guide.category) continue;
+    const list = byCategory.get(item.guide.category) ?? [];
+    list.push(item);
+    byCategory.set(item.guide.category, list);
   }
-  return { hub, spokesByGroup, all: rows };
+  return { hub, items, byCategory, all: rows.map((r) => r.guide) };
 }
 
 export async function latestPublishedGuides(limit: number): Promise<Array<{ guide: GuideRow; topic: TopicRow }>> {

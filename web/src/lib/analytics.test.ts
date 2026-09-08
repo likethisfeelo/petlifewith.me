@@ -40,6 +40,13 @@ describe("isAdsExcluded (AdSense 로드 범위)", () => {
     expect(isAdsExcluded("/rehab", "petlifewith.me", APEX)).toBe(true);
     expect(isAdsExcluded("/rehab/acupuncture", "petlifewith.me", APEX)).toBe(true);
   });
+  it("회원 화면(로그인·가입·내정보·글쓰기)은 제외", () => {
+    expect(isAdsExcluded("/login", "petlifewith.me", APEX)).toBe(true);
+    expect(isAdsExcluded("/signup", "petlifewith.me", APEX)).toBe(true);
+    expect(isAdsExcluded("/me", "petlifewith.me", APEX)).toBe(true);
+    expect(isAdsExcluded("/write/12", "petlifewith.me", APEX)).toBe(true);
+    expect(isAdsExcluded("/measure", "petlifewith.me", APEX)).toBe(false);
+  });
   it("관리자·포털 서브도메인은 경로가 / 여도 제외 (통계와 달리 포털도 광고 없음)", () => {
     expect(isAdsExcluded("/", "admin.petlifewith.me", APEX)).toBe(true);
     expect(isAdsExcluded("/", "service.petlifewith.me", APEX)).toBe(true);

@@ -5,6 +5,7 @@ summary: 계단을 피하고, 일어날 때 뜸을 들이고, 산책이 짧아�
 topic: senior-life
 role: spoke
 spokeGroup: body
+category: joint
 status: review_pending
 medicalAdjacent: true
 ---

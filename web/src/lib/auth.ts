@@ -2,9 +2,13 @@
 // 인증 진입점 — 컴포넌트·라우트에서 이 파일 밖의 인증 API 를 직접 부르지 않는다.
 // (claude.md 10-5: Cognito 전환 시 이 파일만 교체한다)
 //
-// 현재 구현: ADMIN_TOKEN 비교 로그인 + HMAC 서명 쿠키.
+// 현재 구현:
+//  - 관리자: ADMIN_TOKEN 비교 로그인 + HMAC 서명 쿠키 (admin_session)
+//  - 회원: 이메일·비밀번호(lib/password.ts) + HMAC 서명 쿠키 (member_session).
+//    쿠키에는 사용자 id 와 session_version 만 담는다. 비밀번호 변경·차단으로 버전이 오르면
+//    기존 쿠키가 즉시 죽는다. Cognito 로 옮길 때 바꾸는 것은 startMemberSession 을
+//    호출하는 로그인 액션과 이 파일뿐이다 (claude.md 10-5).
 // 세션은 무상태 JWT 전략과 동일 — Lambda 에서 세션 조회 DB 왕복이 없다.
-// 런칭 시점에 인증이 필요한 범위는 관리자와 클레임 처리뿐이다.
 // ============================================================
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
@@ -120,4 +124,74 @@ export async function getSession(): Promise<Session | null> {
 
 export async function isAdmin(): Promise<boolean> {
   return (await getSession()) !== null;
+}
+
+// ---------- 회원 세션 ----------
+
+const MEMBER_COOKIE_NAME = "member_session";
+const MEMBER_SESSION_TTL_SEC = 60 * 60 * 24 * 30; // 30일
+
+export interface MemberSession {
+  role: "member";
+  /** users.id */
+  uid: string;
+  /** users.session_version — DB 값과 다르면 무효 (lib/member.ts 가 대조) */
+  v: number;
+  exp: number;
+}
+
+function decodeMemberSession(value: string, secret: string): MemberSession | null {
+  const dot = value.lastIndexOf(".");
+  if (dot < 0) return null;
+  const payload = value.slice(0, dot);
+  const sig = value.slice(dot + 1);
+  const a = Buffer.from(sig);
+  const b = Buffer.from(sign(payload, secret));
+  if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
+  try {
+    const parsed = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as MemberSession;
+    if (parsed.role !== "member") return null;
+    if (typeof parsed.uid !== "string" || !parsed.uid) return null;
+    if (typeof parsed.v !== "number") return null;
+    if (parsed.exp * 1000 < Date.now()) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+/** 로그인·가입 성공 후 호출 — 회원 쿠키를 굽는다 */
+export async function startMemberSession(userId: string, sessionVersion: number): Promise<void> {
+  const secret = authSecret();
+  if (!secret) throw new Error("AUTH_SECRET 미설정");
+  const session: MemberSession = {
+    role: "member",
+    uid: userId,
+    v: sessionVersion,
+    exp: Math.floor(Date.now() / 1000) + MEMBER_SESSION_TTL_SEC,
+  };
+  const payload = b64url(Buffer.from(JSON.stringify(session), "utf8"));
+  const store = await cookies();
+  store.set(MEMBER_COOKIE_NAME, `${payload}.${sign(payload, secret)}`, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: isHttpsSite(),
+    path: "/",
+    maxAge: MEMBER_SESSION_TTL_SEC,
+  });
+}
+
+export async function endMemberSession(): Promise<void> {
+  const store = await cookies();
+  store.delete(MEMBER_COOKIE_NAME);
+}
+
+/** 쿠키만 본다 (DB 조회 없음). 실제 사용자 상태(차단·버전)는 lib/member.ts getCurrentMember 가 대조한다. */
+export async function getMemberSession(): Promise<MemberSession | null> {
+  const secret = authSecret();
+  if (!secret) return null;
+  const store = await cookies();
+  const value = store.get(MEMBER_COOKIE_NAME)?.value;
+  if (!value) return null;
+  return decodeMemberSession(value, secret);
 }

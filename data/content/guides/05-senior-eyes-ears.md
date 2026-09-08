@@ -5,6 +5,7 @@ summary: 시력·청력이 흐려질 때 나타나는 행동 변화, 집 구조�
 topic: senior-life
 role: spoke
 spokeGroup: body
+category: eye
 status: draft
 medicalAdjacent: true
 ---

@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { categoriesForTopic } from "@app/data";
 import { saveGuideAction, type ActionState } from "../../../actions";
 import { SeoFields } from "../../../_components/seo-fields";
 import { UploadField } from "../../../_components/upload-field";
@@ -12,6 +13,8 @@ interface GuideValues {
   bodyMd: string;
   role: "hub" | "spoke";
   spokeGroup: string | null;
+  category: string | null;
+  pinnedOrder: number | null;
   status: string;
   medicalAdjacent: boolean;
   vetReviewed: boolean;
@@ -25,12 +28,29 @@ interface GuideValues {
 
 const input = "mt-1 w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm outline-none focus:border-ink";
 
-export function GuideEditor({ guide }: { guide: GuideValues }) {
+export function GuideEditor({
+  guide,
+  topicSlug,
+  authorName,
+}: {
+  guide: GuideValues;
+  topicSlug: string;
+  /** 회원 글이면 닉네임 — 승인 흐름 안내에 쓴다 */
+  authorName?: string | null;
+}) {
   const [state, formAction, pending] = useActionState<ActionState, FormData>(saveGuideAction, {});
+  const categories = categoriesForTopic(topicSlug);
 
   return (
     <form action={formAction} className="space-y-4">
       <input type="hidden" name="id" value={guide.id} />
+
+      {authorName && (
+        <p className="rounded-lg border border-honey/30 bg-honey-soft px-3 py-2 text-xs leading-relaxed text-honey">
+          <strong>회원 글</strong> — {authorName} 님이 썼습니다. 상태를 <strong>발행</strong>으로 바꾸면 공개됩니다. 진단·처방 단정, 병원·업체 홍보, 개인정보가 있으면
+          발행하지 말고 &apos;보관&apos;으로 두세요. 회원이 발행된 글을 고치면 다시 &apos;승인 대기&apos;로 돌아옵니다.
+        </p>
+      )}
 
       <div>
         <label className="block text-sm font-medium text-ink" htmlFor="title">제목</label>
@@ -63,6 +83,7 @@ export function GuideEditor({ guide }: { guide: GuideValues }) {
           <select id="status" name="status" defaultValue={guide.status} className={input}>
             <option value="draft">작성 중</option>
             <option value="review_pending">감수 대기</option>
+            <option value="pending">승인 대기 (회원 글)</option>
             <option value="published">발행</option>
             <option value="archived">보관</option>
           </select>
@@ -76,6 +97,31 @@ export function GuideEditor({ guide }: { guide: GuideValues }) {
             <input type="checkbox" name="vetReviewed" defaultChecked={guide.vetReviewed} />
             감수 완료
           </label>
+        </div>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div>
+          <label className="block text-sm font-medium text-ink" htmlFor="category">카테고리 (위치)</label>
+          <select id="category" name="category" defaultValue={guide.category ?? ""} className={input}>
+            <option value="">전체 (지정 안 함)</option>
+            {categories.map((c) => (
+              <option key={c.slug} value={c.slug}>{c.name}</option>
+            ))}
+          </select>
+          <p className="mt-1 text-xs text-ink-faint">
+            {categories.length > 0 ? "신체 지도의 해당 부위 패널에 관련 글로 뜹니다. 지정하지 않으면 '전체'에만 보입니다." : "이 토픽에는 카테고리가 없어 '전체'에만 보입니다."}
+          </p>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-ink" htmlFor="pinnedOrder">최상단 고정</label>
+          <select id="pinnedOrder" name="pinnedOrder" defaultValue={guide.pinnedOrder ?? ""} className={input}>
+            <option value="">고정 안 함</option>
+            <option value="1">1번 (맨 위)</option>
+            <option value="2">2번</option>
+            <option value="3">3번</option>
+          </select>
+          <p className="mt-1 text-xs text-ink-faint">토픽 페이지에서 고정 글이 먼저, 나머지는 최신순. 토픽당 최대 3편, 발행 글만.</p>
         </div>
       </div>
 

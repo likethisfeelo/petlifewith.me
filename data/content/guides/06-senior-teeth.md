@@ -5,6 +5,7 @@ summary: 씹는 습관의 변화로 드러나는 구강 문제, 집에서의 관
 topic: senior-life
 role: spoke
 spokeGroup: body
+category: teeth
 status: draft
 medicalAdjacent: true
 ---
