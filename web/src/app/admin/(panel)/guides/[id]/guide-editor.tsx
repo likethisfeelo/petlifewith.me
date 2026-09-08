@@ -15,6 +15,7 @@ interface GuideValues {
   spokeGroup: string | null;
   category: string | null;
   pinnedOrder: number | null;
+  bannerCategories: string[];
   status: string;
   medicalAdjacent: boolean;
   vetReviewed: boolean;
@@ -124,6 +125,22 @@ export function GuideEditor({
           <p className="mt-1 text-xs text-ink-faint">토픽 페이지에서 고정 글이 먼저, 나머지는 최신순. 토픽당 최대 3편, 발행 글만.</p>
         </div>
       </div>
+
+      {categories.length > 0 && (
+        <div className="rounded-lg border border-line bg-surface p-3">
+          <p className="text-sm font-medium text-ink">상단 카테고리 배너</p>
+          <p className="mt-0.5 text-xs text-ink-faint">체크한 카테고리가 글 제목 아래에 배너로 뜨고, 누르면 그 카테고리 게시판으로 갑니다. 3개 정도가 보기 좋습니다.</p>
+          <div className="mt-2 grid gap-1.5 sm:grid-cols-3">
+            {categories.map((c) => (
+              <label key={c.slug} className="flex items-center gap-2 text-sm text-ink">
+                <input type="checkbox" name={`banner:${c.slug}`} defaultChecked={guide.bannerCategories.includes(c.slug)} />
+                {c.name}
+                <span className="text-xs text-ink-faint">{c.kind === "service" ? "서비스" : "부위"}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div>

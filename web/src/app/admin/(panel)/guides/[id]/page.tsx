@@ -92,6 +92,7 @@ export default async function AdminGuideEditPage({ params, searchParams }: Props
               spokeGroup: guide.spokeGroup,
               category: guide.category,
               pinnedOrder: guide.pinnedOrder,
+              bannerCategories: guide.bannerCategories,
               status: guide.status,
               medicalAdjacent: guide.medicalAdjacent,
               vetReviewed: guide.vetReviewed,

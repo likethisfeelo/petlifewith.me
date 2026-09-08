@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { categoriesForTopic } from "@app/data";
+import { bodyAreasForTopic, categoriesForTopic, serviceCategoriesForTopic } from "@app/data";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { GuideCard } from "@/components/cards";
 import { JsonLd } from "@/components/jsonld";
@@ -44,6 +44,8 @@ export default async function TopicPage({ params }: Props) {
   const { hub, items, byCategory, all } = await listGuidesForTopic(topic.id);
   const style = topicStyle(topic.slug);
   const categories = categoriesForTopic(topic.slug);
+  const bodyAreas = bodyAreasForTopic(topic.slug);
+  const serviceCats = serviceCategoriesForTopic(topic.slug);
   const categoryName = (slug: string | null) => categories.find((c) => c.slug === slug)?.name ?? null;
   // 정렬은 쿼리가 끝냈다: 최상단 고정(1~3) → 최신순. 여기서는 두 묶음으로 나눠 그린다.
   const pinned = items.filter((i) => isPinned(i.guide));
@@ -73,12 +75,24 @@ export default async function TopicPage({ params }: Props) {
       </header>
 
       {/* 신체 지도 — 노견생활 전용. 카테고리 정의는 data/src/guides/categories.ts */}
-      {isSenior && categories.length > 0 && <SeniorBodyMap areas={categories} postsByCategory={postsByCategory} topicSlug={topic.slug} />}
+      {isSenior && bodyAreas.length > 0 && <SeniorBodyMap areas={bodyAreas} postsByCategory={postsByCategory} topicSlug={topic.slug} />}
 
-      {isSenior && categories.length > 0 && (
-        <nav aria-label="부위별 게시판" className="mt-5 flex flex-wrap items-center gap-1.5 text-xs">
+      {serviceCats.length > 0 && (
+        <nav aria-label="서비스별 게시판" className="mt-6 flex flex-wrap items-center gap-1.5 text-xs">
+          <span className="mr-1 text-ink-faint">지지 서비스 게시판:</span>
+          {serviceCats.map((c) => (
+            <Link key={c.slug} href={`/topic/${topic.slug}/${c.slug}`} className="rounded-full border border-line px-2.5 py-1 text-ink-soft hover:bg-sand hover:text-ink">
+              {c.name}
+              {byCategory.get(c.slug)?.length ? <span className="ml-1 text-ink-faint">{byCategory.get(c.slug)!.length}</span> : null}
+            </Link>
+          ))}
+        </nav>
+      )}
+
+      {isSenior && bodyAreas.length > 0 && (
+        <nav aria-label="부위별 게시판" className="mt-3 flex flex-wrap items-center gap-1.5 text-xs">
           <span className="mr-1 text-ink-faint">부위별 게시판:</span>
-          {categories.map((c) => (
+          {bodyAreas.map((c) => (
             <Link key={c.slug} href={`/topic/${topic.slug}/${c.slug}`} className="rounded-full border border-line px-2.5 py-1 text-ink-soft hover:bg-sand hover:text-ink">
               {c.name}
               {byCategory.get(c.slug)?.length ? <span className="ml-1 text-ink-faint">{byCategory.get(c.slug)!.length}</span> : null}

@@ -11,9 +11,12 @@ export {
 export {
   GUIDE_CATEGORIES_BY_TOPIC,
   SENIOR_BODY_AREAS,
+  SENIOR_SERVICE_CATEGORIES,
   UNCATEGORIZED_LABEL,
+  bodyAreasForTopic,
   categoriesForTopic,
   getGuideCategory,
+  serviceCategoriesForTopic,
   type CategoryQuestion,
   type GuideCategoryDef,
 } from "./guides/categories.js";

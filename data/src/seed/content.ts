@@ -5,6 +5,7 @@
 //   slug, title, topic(토픽 슬러그) — 필수
 //   summary, role(hub|spoke), spokeGroup(body|support|...), status,
 //   category(토픽별 카테고리 슬러그 — data/src/guides/categories.ts, 없으면 "전체"),
+//   banners(글 상단 카테고리 배너 — 카테고리 슬러그 배열, 클릭하면 그 게시판으로),
 //   medicalAdjacent, vetReviewed, vetReviewerName, vetReviewedAt — 선택
 import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
@@ -48,6 +49,11 @@ async function main() {
       throw new Error(`${file}: 토픽 "${topicSlug}" 에 없는 category "${category}"`);
     }
 
+    const banners: string[] = Array.isArray(data.banners) ? data.banners.map((b: unknown) => String(b).trim()) : [];
+    for (const b of banners) {
+      if (!categoriesForTopic(topicSlug).some((c) => c.slug === b)) throw new Error(`${file}: 토픽 "${topicSlug}" 에 없는 banner "${b}"`);
+    }
+
     const medicalAdjacent = Boolean(data.medicalAdjacent ?? false);
     const vetReviewed = Boolean(data.vetReviewed ?? false);
     let status = (data.status ?? "draft") as GuideStatus;
@@ -71,6 +77,7 @@ async function main() {
       role: (data.role === "hub" ? "hub" : "spoke") as "hub" | "spoke",
       spokeGroup: data.spokeGroup ? String(data.spokeGroup) : null,
       category,
+      bannerCategories: banners,
       status,
       medicalAdjacent,
       vetReviewed,

@@ -43,6 +43,13 @@
       "when": 1788836638157,
       "tag": "0005_community_pins_categories",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1788849432913,
+      "tag": "0006_guide_banner_categories",
+      "breakpoints": true
     }
   ]
 }
