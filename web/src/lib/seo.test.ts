@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { shouldIndexBoard, shouldIndexGuide } from "./seo";
 import { placeInfoItemCount, shouldIndexPlace, shouldIndexRegionPage } from "./seo";
 
 const emptyPlace = {
@@ -51,5 +52,21 @@ describe("얇은 콘텐츠 방지 게이트 (claude.md 5-3)", () => {
     expect(shouldIndexPlace({ ...rich, status: "closed", source: "public_data" })).toBe(false);
     expect(shouldIndexPlace({ ...rich, status: "operating", source: "sample" }, 5)).toBe(false);
     expect(shouldIndexPlace({ ...rich, status: "operating", source: "direct" })).toBe(true);
+  });
+});
+
+describe("게시글·게시판 얇은 콘텐츠 게이트", () => {
+  it("본문 400자 미만 게시글은 noindex", () => {
+    expect(shouldIndexGuide("짧은 글")).toBe(false);
+    expect(shouldIndexGuide(null)).toBe(false);
+    expect(shouldIndexGuide("가".repeat(399))).toBe(false);
+    expect(shouldIndexGuide("가".repeat(400))).toBe(true);
+  });
+  it("공백만 길게 늘려도 통과하지 않는다", () => {
+    expect(shouldIndexGuide("가 ".repeat(300))).toBe(false);
+  });
+  it("카테고리 게시판은 글 3편부터 색인", () => {
+    expect(shouldIndexBoard(2)).toBe(false);
+    expect(shouldIndexBoard(3)).toBe(true);
   });
 });

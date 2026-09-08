@@ -2,6 +2,7 @@
 import { notFound } from "next/navigation";
 import { siteUrl } from "@/lib/config";
 import {
+  sitemapCategoryBoards,
   sitemapCurations,
   sitemapGuides,
   sitemapItems,
@@ -22,8 +23,8 @@ export function generateStaticParams() {
 async function entriesFor(section: string): Promise<SitemapEntry[] | null> {
   switch (section) {
     case "core": {
-      const topics = await sitemapTopics();
-      return [{ path: "/" }, { path: "/maker" }, { path: "/curation" }, ...topics];
+      const [topics, boards] = await Promise.all([sitemapTopics(), sitemapCategoryBoards()]);
+      return [{ path: "/" }, { path: "/maker" }, { path: "/curation" }, ...topics, ...boards];
     }
     case "guides":
       return sitemapGuides();

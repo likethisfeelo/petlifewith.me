@@ -18,7 +18,7 @@ import {
   listGuidesForTopic,
   relatedGuides,
 } from "@/lib/queries/guides";
-import { articleLd, buildMeta, robotsMeta } from "@/lib/seo";
+import { articleLd, buildMeta, robotsMeta, shouldIndexGuide } from "@/lib/seo";
 import { assetUrl } from "@/lib/assets";
 import { topicStyle } from "@/lib/topic-style";
 
@@ -42,7 +42,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title: guide.seoTitle ?? guide.title,
     description: guide.seoDescription ?? guide.summary,
     path: `/guide/${guide.slug}`,
-    indexable: true,
+    // 본문이 짧은 글(지도 Q&A 시드 등)은 늘리기 전까지 noindex (claude.md 5-3)
+    indexable: shouldIndexGuide(guide.bodyMd),
     ogImageUrl: assetUrl(guide.ogImageKey ?? guide.heroImageKey),
     type: "article",
     publishedAt: guide.publishedAt,
@@ -140,7 +141,8 @@ export default async function GuidePage({ params }: Props) {
         dangerouslySetInnerHTML={{ __html: rendered.html }}
       />
 
-      {guide.medicalAdjacent && (
+      {/* 노견 클러스터는 필연적으로 의료에 근접한다 — 플래그와 무관하게 결론을 고정 (claude.md 6-2) */}
+      {(guide.medicalAdjacent || topic.slug === "senior-life") && (
         <div className="mt-10">
           <MedicalNotice />
         </div>

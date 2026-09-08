@@ -14,6 +14,7 @@ import { repoRoot } from "../env.js";
 import { closeDb, getDb } from "../db/client.js";
 import { guides, topics } from "../db/schema.js";
 import { categoriesForTopic } from "../guides/categories.js";
+import { seniorSeedPosts } from "../guides/seed-posts.js";
 
 const GUIDES_DIR = path.join(repoRoot, "data", "content", "guides");
 
@@ -88,6 +89,32 @@ async function main() {
   }
 
   console.log(`guides: ${count}건 upsert (${GUIDES_DIR})`);
+
+  // 노견생활 신체 영역 Q&A → 게시글 (data/src/guides/seed-posts.ts). 마크다운 글과 같은 upsert 규칙.
+  const seniorTopicId = topicBySlug.get("senior-life");
+  if (seniorTopicId) {
+    let qCount = 0;
+    for (const post of seniorSeedPosts()) {
+      const existing = await db.select({ id: guides.id }).from(guides).where(eq(guides.slug, post.slug));
+      const values = {
+        slug: post.slug,
+        title: post.title,
+        summary: post.summary,
+        bodyMd: post.bodyMd,
+        topicId: seniorTopicId,
+        role: "spoke" as const,
+        spokeGroup: "body",
+        category: post.category,
+        status: "published" as const,
+        medicalAdjacent: false,
+        publishedAt: post.publishedAt,
+      };
+      if (existing[0]) await db.update(guides).set({ ...values, updatedAt: new Date() }).where(eq(guides.id, existing[0].id));
+      else await db.insert(guides).values(values);
+      qCount += 1;
+    }
+    console.log(`guides(신체 영역 Q&A): ${qCount}건 upsert`);
+  }
   await closeDb();
 }
 

@@ -21,6 +21,7 @@ import {
   POST_TITLE_MAX,
 } from "@/lib/member-limits";
 import { hashPassword, passwordPolicyError, verifyPassword } from "@/lib/password";
+import { guideRelatedPaths } from "@/lib/revalidate-paths";
 
 const { users, guides, topics, comments } = schema;
 
@@ -282,9 +283,8 @@ export async function updateMemberPostAction(_prev: MemberActionState, formData:
     })
     .where(eq(guides.id, id));
   if (wasPublished) {
-    revalidatePath(`/guide/${existing.slug}`);
-    revalidatePath(`/topic/${input.topicSlug}`);
-    revalidatePath("/");
+    if (existing.category) revalidatePath(`/topic/${input.topicSlug}/${existing.category}`);
+    for (const p of await guideRelatedPaths(id)) revalidatePath(p);
   }
   return { saved: true, notice: wasPublished ? "수정한 글은 다시 승인 대기로 바뀌었습니다. 승인되면 다시 공개됩니다." : undefined };
 }
@@ -326,7 +326,7 @@ export async function addCommentAction(_prev: MemberActionState, formData: FormD
   if ((recent ?? 0) >= MAX_COMMENTS_PER_HOUR) return { error: "댓글을 너무 자주 쓰고 있습니다. 잠시 후 다시 시도해 주세요.", values };
 
   await db.insert(comments).values({ guideId, userId: member.id, body });
-  revalidatePath(`/guide/${guide.slug}`);
+  for (const p of await guideRelatedPaths(guideId)) revalidatePath(p);
   return { saved: true };
 }
 
@@ -336,15 +336,8 @@ export async function deleteOwnCommentAction(formData: FormData): Promise<void> 
   const id = Number(str(formData, "id"));
   if (!Number.isSafeInteger(id)) return;
   const db = getDb();
-  const row = (
-    await db
-      .select({ id: comments.id, userId: comments.userId, slug: guides.slug })
-      .from(comments)
-      .innerJoin(guides, eq(comments.guideId, guides.id))
-      .where(eq(comments.id, id))
-      .limit(1)
-  )[0];
+  const row = (await db.select({ id: comments.id, userId: comments.userId, guideId: comments.guideId }).from(comments).where(eq(comments.id, id)).limit(1))[0];
   if (!row || row.userId !== member.id) return;
   await db.delete(comments).where(eq(comments.id, id));
-  revalidatePath(`/guide/${row.slug}`);
+  for (const p of await guideRelatedPaths(row.guideId)) revalidatePath(p);
 }
