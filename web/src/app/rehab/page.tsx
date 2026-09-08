@@ -18,6 +18,7 @@ export async function generateMetadata(): Promise<Metadata> {
       "침치료(CVA)·한방재활·수중런닝머신·체외충격파·고압산소·도수치료를 시행한다고 공개된 동물병원을 치료법 기준, 지역별 가나다순으로 정리했습니다. 광고·순위·평점 없음.",
     path: "/rehab",
     indexable: shouldIndexRegionPage(sites.length),
+    ads: false, // 무료 노출 전용 (claude.md 6-2)
   });
 }
 

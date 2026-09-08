@@ -32,6 +32,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     description: `${spotType.name} 시설의 전국 시군구별 현황. 행정안전부 지방행정 인허가데이터 기반으로 기준일과 함께 제공합니다.`,
     path: `/spot/type/${spotType.slug}`,
     indexable: shouldIndexRegionPage(indexableCount),
+    ads: spotType.monetizable,
   });
 }
 

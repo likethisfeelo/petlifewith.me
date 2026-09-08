@@ -29,6 +29,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     description: `${def.description} 시행한다고 공개된 곳을 지역별 가나다순으로 정리했습니다. 광고·순위·평점 없음.`,
     path: `/rehab/${def.slug}`,
     indexable: shouldIndexRegionPage(sites.length),
+    ads: false,
   });
 }
 

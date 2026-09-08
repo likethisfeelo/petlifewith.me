@@ -8,7 +8,7 @@
 import Script from "next/script";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { isAnalyticsExcluded } from "@/lib/analytics";
+import { ADS_OPT_OUT_META, isAdsExcluded, isAnalyticsExcluded } from "@/lib/analytics";
 
 interface Props {
   gtmId?: string;
@@ -63,5 +63,35 @@ export function GtmNoScript({ gtmId }: { gtmId: string }) {
         style={{ display: "none", visibility: "hidden" }}
       />
     </noscript>
+  );
+}
+
+/**
+ * Google AdSense 로더 (자동 광고).
+ * - production 에서만 마운트 (layout.tsx). 클라이언트 ID 는 config.adsenseClientId.
+ * - 경로·호스트 제외는 lib/analytics.ts isAdsExcluded, 페이지 단위 제외는
+ *   <meta name="petlife-ads" content="off"> (장묘·동물약국·B2B·의료 인접 게시글).
+ * - 한 번 로드된 스크립트는 클라이언트 내비게이션으로 내려가지 않는다. 자동 광고는 전체 로드
+ *   시점에 페이지를 스캔하므로 검색 유입(전체 로드)에서는 제외 규칙이 그대로 지켜진다.
+ */
+export function AdSense({ clientId, apexDomain }: { clientId: string; apexDomain: string }) {
+  const pathname = usePathname();
+  const [host, setHost] = useState<string | null>(null);
+  const [optedOut, setOptedOut] = useState(true);
+  useEffect(() => {
+    setHost(window.location.host);
+    setOptedOut(Boolean(document.querySelector(`meta[name="${ADS_OPT_OUT_META}"][content="off"]`)));
+  }, [pathname]);
+
+  if (!host || optedOut || isAdsExcluded(pathname, host, apexDomain)) return null;
+
+  return (
+    <Script
+      id="adsense-loader"
+      async
+      src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${clientId}`}
+      crossOrigin="anonymous"
+      strategy="afterInteractive"
+    />
   );
 }

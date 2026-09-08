@@ -100,6 +100,11 @@ export function gaMeasurementId(): string | undefined {
   return publicId("NEXT_PUBLIC_GA_ID", "G-54XBW1L9KE");
 }
 
+/** Google AdSense 게시자 ID (ca-pub-…). "off" 로 끈다. 로드 범위는 lib/analytics.ts isAdsExcluded */
+export function adsenseClientId(): string | undefined {
+  return publicId("NEXT_PUBLIC_ADSENSE_CLIENT", "ca-pub-6456190559289312");
+}
+
 /** Google Search Console 소유 확인 메타 태그 값 */
 export function googleSiteVerification(): string | undefined {
   return publicId("NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION", "2dOK8nJPk2N36jJdyzozSaMrVtxQKm6cqwRqPxwBbTk");

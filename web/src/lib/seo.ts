@@ -2,6 +2,7 @@
 // SEO — noindex 게이트(코드로 강제, claude.md 5-3), canonical, JSON-LD
 // ============================================================
 import type { Metadata } from "next";
+import { ADS_OPT_OUT_META } from "./analytics";
 import { defaultOgImageUrl, isProductionSite, siteName, siteUrl } from "./config";
 
 // ---------- 얇은 콘텐츠 방지 게이트 ----------
@@ -85,6 +86,11 @@ export interface PageMetaInput {
   type?: "website" | "article";
   publishedAt?: Date | null;
   modifiedAt?: Date | null;
+  /**
+   * 광고(AdSense) 허용 여부. 기본 true. 장묘·동물약국·B2B 유형과 의료 인접 게시글은 false —
+   * head 에 <meta name="petlife-ads" content="off"> 가 들어가고 로더가 건너뛴다 (claude.md 6-2, 기획서 4-1)
+   */
+  ads?: boolean;
 }
 
 export function buildMeta(input: PageMetaInput): Metadata {
@@ -123,6 +129,7 @@ export function buildMeta(input: PageMetaInput): Metadata {
       ...(description ? { description } : {}),
       ...(imageUrl ? { images: [imageUrl] } : {}),
     },
+    ...(input.ads === false ? { other: { [ADS_OPT_OUT_META]: "off" } } : {}),
   };
 }
 
