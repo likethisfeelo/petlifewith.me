@@ -8,3 +8,12 @@ export {
   normalizeModalitySlugs,
   type RehabModalityDef,
 } from "./rehab/modalities.js";
+export {
+  GUIDE_CATEGORIES_BY_TOPIC,
+  SENIOR_BODY_AREAS,
+  UNCATEGORIZED_LABEL,
+  categoriesForTopic,
+  getGuideCategory,
+  type CategoryQuestion,
+  type GuideCategoryDef,
+} from "./guides/categories.js";

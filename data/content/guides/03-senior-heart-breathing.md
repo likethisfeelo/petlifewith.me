@@ -5,6 +5,7 @@ summary: 안정 시 호흡수 세는 법, 기침·쉽게 지침 같은 신호의
 topic: senior-life
 role: spoke
 spokeGroup: body
+category: heart
 status: draft
 medicalAdjacent: true
 ---

@@ -104,7 +104,12 @@ function invalidEmbedHtml(reason: string): string {
 
 const EMBED_RE = /^\{\{(youtube|instagram|image|video):([^|{}]+)(?:\|([^|{}]*))?(?:\|([^|{}]*))?\}\}\s*$/gm;
 
-export function renderMarkdown(md: string): RenderedMarkdown {
+export interface RenderOptions {
+  /** 회원(UGC) 본문 — 외부 링크에 nofollow ugc 를 붙인다 (스팸 링크로 검색 권위를 넘기지 않는다) */
+  ugc?: boolean;
+}
+
+export function renderMarkdown(md: string, opts: RenderOptions = {}): RenderedMarkdown {
   let hasInstagramEmbed = false;
   let hasYoutubeEmbed = false;
 
@@ -163,7 +168,11 @@ export function renderMarkdown(md: string): RenderedMarkdown {
         }
         const affiliate = isAffiliateUrl(href);
         if (affiliate) hasAffiliateLinks = true;
-        const rel = affiliate ? "sponsored noopener noreferrer" : "noopener noreferrer";
+        const rel = affiliate
+          ? "sponsored noopener noreferrer"
+          : opts.ugc
+            ? "nofollow ugc noopener noreferrer"
+            : "noopener noreferrer";
         return `<a href="${escapeHtml(href)}"${title} target="_blank" rel="${rel}">${text}</a>`;
       },
     },

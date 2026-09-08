@@ -33,6 +33,7 @@ export const GUIDE_STATUS_LABEL: Record<string, string> = {
   review_pending: "감수 대기",
   published: "발행됨",
   archived: "보관",
+  pending: "승인 대기 (회원 글)",
 };
 
 export const CLAIM_STATUS_LABEL: Record<string, string> = {

@@ -19,6 +19,8 @@ const NAV = [
   { href: "/admin/curations", label: "큐레이션" },
   { href: "/admin/media", label: "미디어" },
   { href: "/admin/claims", label: "클레임" },
+  { href: "/admin/members", label: "회원" },
+  { href: "/admin/comments", label: "댓글" },
 ];
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {

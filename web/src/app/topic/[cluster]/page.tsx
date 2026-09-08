@@ -1,10 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { categoriesForTopic } from "@app/data";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { GuideCard } from "@/components/cards";
 import { JsonLd } from "@/components/jsonld";
+import { MedicalNotice } from "@/components/notices";
+import { SeniorBodyMap, type MapPost } from "@/components/senior-body-map";
 import { TOPIC_PHASE_LABEL } from "@/lib/format";
+import { isPinned } from "@/lib/guide-order";
 import { getTopicBySlug, listGuidesForTopic } from "@/lib/queries/guides";
 import { buildMeta, itemListLd, robotsMeta } from "@/lib/seo";
 import { topicStyle } from "@/lib/topic-style";
@@ -18,12 +22,6 @@ export function generateStaticParams() {
 interface Props {
   params: Promise<{ cluster: string }>;
 }
-
-const SPOKE_GROUP_LABEL: Record<string, string> = {
-  body: "신체 영역별로 살펴보기",
-  support: "일상을 받쳐주는 서비스",
-  "": "이야기",
-};
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { cluster } = await params;
@@ -43,9 +41,18 @@ export default async function TopicPage({ params }: Props) {
   const topic = await getTopicBySlug(decodeURIComponent(cluster));
   if (!topic) notFound();
 
-  const { hub, spokesByGroup, all } = await listGuidesForTopic(topic.id);
+  const { hub, items, byCategory, all } = await listGuidesForTopic(topic.id);
   const style = topicStyle(topic.slug);
-  const groups = [...spokesByGroup.entries()].sort(([a], [b]) => a.localeCompare(b));
+  const categories = categoriesForTopic(topic.slug);
+  const categoryName = (slug: string | null) => categories.find((c) => c.slug === slug)?.name ?? null;
+  // 정렬은 쿼리가 끝냈다: 최상단 고정(1~3) → 최신순. 여기서는 두 묶음으로 나눠 그린다.
+  const pinned = items.filter((i) => isPinned(i.guide));
+  const latest = items.filter((i) => !isPinned(i.guide));
+  const isSenior = topic.slug === "senior-life";
+  const postsByCategory: Record<string, MapPost[]> = {};
+  for (const [slug, list] of byCategory) {
+    postsByCategory[slug] = list.map((i) => ({ slug: i.guide.slug, title: i.guide.title, summary: i.guide.summary, authorName: i.authorName }));
+  }
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-10">
@@ -55,35 +62,67 @@ export default async function TopicPage({ params }: Props) {
         <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${style.chip}`}>
           {TOPIC_PHASE_LABEL[topic.phase] ?? topic.phase}
         </span>
-        <h1 className={`mt-3 text-3xl font-extrabold tracking-tight ${style.heading}`}>{topic.name}</h1>
-        {topic.description && <p className="mt-3 text-ink-soft">{topic.description}</p>}
+        <h1 className={`mt-3 text-3xl font-extrabold tracking-tight ${style.heading}`}>
+          {isSenior ? "신체 영역별로 살펴보기" : topic.name}
+        </h1>
+        <p className="mt-3 text-ink-soft">
+          {isSenior
+            ? "몸의 변화는 영역별로 신호가 다릅니다. 강아지 그림에서 지금 눈에 밟히는 부위를 올려 보고, 눌러 관찰 포인트와 관련 글을 여세요."
+            : topic.description}
+        </p>
       </header>
+
+      {/* 신체 지도 — 노견생활 전용. 카테고리 정의는 data/src/guides/categories.ts */}
+      {isSenior && categories.length > 0 && <SeniorBodyMap areas={categories} postsByCategory={postsByCategory} />}
 
       {hub && (
         <Link
           href={`/guide/${hub.slug}`}
-          className={`mt-8 block rounded-2xl border p-6 transition-shadow hover:shadow-md ${style.card}`}
+          className={`mt-8 block rounded-2xl border p-5 transition-shadow hover:shadow-md ${style.card}`}
         >
           <p className="text-xs font-semibold text-ink-soft">여기서 시작 — 클러스터 전체 지도</p>
-          <h2 className="mt-2 text-xl font-extrabold text-ink">{hub.title}</h2>
-          {hub.summary && <p className="mt-2 text-sm text-ink-soft">{hub.summary}</p>}
+          <h2 className="mt-1.5 text-lg font-extrabold text-ink">{hub.title}</h2>
+          {hub.summary && <p className="mt-1.5 text-sm text-ink-soft">{hub.summary}</p>}
         </Link>
       )}
 
-      {groups.map(([group, guides]) => (
-        <section key={group || "etc"} className="mt-10">
-          <h2 className="text-lg font-bold text-ink">{SPOKE_GROUP_LABEL[group] ?? group}</h2>
+      {pinned.length > 0 && (
+        <section className="mt-10">
+          <h2 className="text-lg font-bold text-ink">지금 읽을 글</h2>
+          <p className="mt-1 text-xs text-ink-faint">운영진이 맨 위에 고정한 글입니다.</p>
           <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {guides.map((g) => (
-              <GuideCard key={g.id} guide={g} showTopic={false} />
+            {pinned.map((i) => (
+              <GuideCard key={i.guide.id} guide={i.guide} showTopic={false} categoryName={categoryName(i.guide.category)} authorName={i.authorName} pinned />
             ))}
           </div>
         </section>
-      ))}
+      )}
 
-      {all.length === 0 && (
-        <div className="mt-10 rounded-xl border border-dashed border-line p-8 text-center text-sm text-ink-faint">
-          이 클러스터의 콘텐츠는 준비 중입니다. 발행 전 감수·검수 절차를 거칩니다.
+      <section className="mt-10">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 className="text-lg font-bold text-ink">
+            최신 글 <span className="text-sm font-medium text-ink-faint">새 글이 맨 위로 옵니다</span>
+          </h2>
+          <Link href="/write" className="text-sm font-medium text-sea hover:underline">
+            회원 글쓰기 →
+          </Link>
+        </div>
+        {latest.length === 0 ? (
+          <p className="mt-4 rounded-xl border border-dashed border-line p-8 text-center text-sm text-ink-faint">
+            아직 글이 없습니다. 발행 전 감수·검수 절차를 거칩니다.
+          </p>
+        ) : (
+          <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {latest.map((i) => (
+              <GuideCard key={i.guide.id} guide={i.guide} showTopic={false} categoryName={categoryName(i.guide.category)} authorName={i.authorName} />
+            ))}
+          </div>
+        )}
+      </section>
+
+      {isSenior && (
+        <div className="mt-10">
+          <MedicalNotice />
         </div>
       )}
 

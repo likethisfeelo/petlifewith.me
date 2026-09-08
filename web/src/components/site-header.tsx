@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { siteName, siteTagline } from "@/lib/config";
+import { MemberMenu } from "./member-menu";
 
 const NAV = [
   { href: "/topic/senior-life", label: "노견생활" },
@@ -17,17 +18,22 @@ export function SiteHeader() {
           {siteName()}
           <span className="ml-2 hidden text-xs font-medium text-ink-faint sm:inline">{siteTagline()}</span>
         </Link>
-        <nav className="-mx-1 flex items-center gap-1 overflow-x-auto text-sm font-medium text-ink-soft">
-          {NAV.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="whitespace-nowrap rounded-full px-3 py-1.5 transition-colors hover:bg-sand hover:text-ink"
-            >
-              {item.label}
-            </Link>
-          ))}
-        </nav>
+        <div className="flex min-w-0 items-center gap-2">
+          <nav className="-mx-1 flex items-center gap-1 overflow-x-auto text-sm font-medium text-ink-soft">
+            {NAV.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="whitespace-nowrap rounded-full px-3 py-1.5 transition-colors hover:bg-sand hover:text-ink"
+              >
+                {item.label}
+              </Link>
+            ))}
+          </nav>
+          <div className="ml-1 shrink-0 border-l border-line pl-2">
+            <MemberMenu />
+          </div>
+        </div>
       </div>
     </header>
   );

@@ -4,6 +4,7 @@
 // frontmatter:
 //   slug, title, topic(토픽 슬러그) — 필수
 //   summary, role(hub|spoke), spokeGroup(body|support|...), status,
+//   category(토픽별 카테고리 슬러그 — data/src/guides/categories.ts, 없으면 "전체"),
 //   medicalAdjacent, vetReviewed, vetReviewerName, vetReviewedAt — 선택
 import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
@@ -12,6 +13,7 @@ import { eq } from "drizzle-orm";
 import { repoRoot } from "../env.js";
 import { closeDb, getDb } from "../db/client.js";
 import { guides, topics } from "../db/schema.js";
+import { categoriesForTopic } from "../guides/categories.js";
 
 const GUIDES_DIR = path.join(repoRoot, "data", "content", "guides");
 
@@ -39,6 +41,12 @@ async function main() {
     const topicId = topicBySlug.get(topicSlug);
     if (!topicId) throw new Error(`${file}: 알 수 없는 topic "${topicSlug}"`);
 
+    // 카테고리는 토픽 정의에 있는 슬러그만 — 오타를 조용히 "전체"로 넘기지 않는다
+    const category = data.category ? String(data.category).trim() : null;
+    if (category && !categoriesForTopic(topicSlug).some((c) => c.slug === category)) {
+      throw new Error(`${file}: 토픽 "${topicSlug}" 에 없는 category "${category}"`);
+    }
+
     const medicalAdjacent = Boolean(data.medicalAdjacent ?? false);
     const vetReviewed = Boolean(data.vetReviewed ?? false);
     let status = (data.status ?? "draft") as GuideStatus;
@@ -61,6 +69,7 @@ async function main() {
       topicId,
       role: (data.role === "hub" ? "hub" : "spoke") as "hub" | "spoke",
       spokeGroup: data.spokeGroup ? String(data.spokeGroup) : null,
+      category,
       status,
       medicalAdjacent,
       vetReviewed,

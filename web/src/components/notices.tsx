@@ -120,3 +120,13 @@ export function RehabListNote() {
     </p>
   );
 }
+
+/** 회원 글 안내 — 관리자 확인은 거쳤지만 감수는 아니다. 진료 대체 아님을 명시한다 (claude.md 6-2) */
+export function MemberPostNote({ authorName }: { authorName: string }) {
+  return (
+    <p className="mt-4 rounded-lg border border-line bg-sand px-4 py-3 text-sm text-ink-soft">
+      <strong className="text-ink">{authorName}</strong> 님이 쓴 회원 글입니다. 개인의 경험과 관찰을 나눈 글이며 수의사 감수를
+      거친 정보가 아닙니다. 우리 개의 상황에 맞는 판단은 동물병원과 상의하세요.
+    </p>
+  );
+}

@@ -5,6 +5,7 @@ summary: 푸석해진 털과 잦은 긁기의 관찰 포인트, 그리고 노견
 topic: senior-life
 role: spoke
 spokeGroup: body
+category: skin
 status: review_pending
 medicalAdjacent: true
 ---

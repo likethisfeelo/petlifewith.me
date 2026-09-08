@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import type { GuideCategoryDef } from "@app/data";
 import {
   CheckboxField,
   FormMessage,
@@ -41,9 +42,18 @@ const TEMPLATE = `## 이런 순간이 있었나요
 
 `;
 
-export function NewPostForm({ topics }: { topics: Array<{ id: number; name: string }> }) {
+export function NewPostForm({
+  topics,
+  categoriesByTopic,
+}: {
+  topics: Array<{ id: number; slug: string; name: string }>;
+  categoriesByTopic: Record<string, GuideCategoryDef[]>;
+}) {
   const [state, formAction, pending] = useActionState<ActionState, FormData>(createGuideAction, {});
   const [body, setBody] = useState("");
+  const [topicId, setTopicId] = useState<string>("");
+  const topicSlug = topics.find((t) => String(t.id) === topicId)?.slug ?? "";
+  const categories = categoriesByTopic[topicSlug] ?? [];
 
   return (
     <form action={formAction} className="space-y-5">
@@ -56,14 +66,39 @@ export function NewPostForm({ topics }: { topics: Array<{ id: number; name: stri
         />
         <TextField name="summary" label="한 줄 요약" hint="카드와 검색결과에 노출됩니다." />
 
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label className="block text-sm font-medium text-ink" htmlFor="topicId">
+              토픽 (클러스터) <span className="text-accent">*</span>
+            </label>
+            <select
+              id="topicId"
+              name="topicId"
+              required
+              value={topicId}
+              onChange={(e) => setTopicId(e.target.value)}
+              className="mt-1 w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm outline-none focus:border-ink"
+            >
+              <option value="" disabled>
+                선택하세요
+              </option>
+              {topics.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+          </div>
           <SelectField
-            name="topicId"
-            label="토픽 (클러스터)"
-            required
-            placeholder="선택하세요"
-            options={topics.map((t) => ({ value: t.id, label: t.name }))}
+            key={topicSlug}
+            name="category"
+            label="카테고리 (위치)"
+            defaultValue=""
+            options={[{ value: "", label: "전체 (지정 안 함)" }, ...categories.map((c) => ({ value: c.slug, label: c.name }))]}
+            hint={categories.length > 0 ? "신체 지도의 해당 부위에 관련 글로 뜹니다." : "이 토픽은 카테고리 없이 '전체'에 보입니다."}
           />
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
           <SelectField name="role" label="구조" defaultValue="spoke" options={ROLE_OPTIONS} />
           <SelectField name="spokeGroup" label="스포크 그룹" defaultValue="" options={SPOKE_GROUP_OPTIONS} />
         </div>

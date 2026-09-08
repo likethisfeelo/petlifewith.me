@@ -3,7 +3,7 @@
 // ============================================================
 import type { Metadata } from "next";
 import { ADS_OPT_OUT_META } from "./analytics";
-import { defaultOgImageUrl, isProductionSite, siteName, siteUrl } from "./config";
+import { adsenseClientId, defaultOgImageUrl, isProductionSite, siteName, siteUrl } from "./config";
 
 // ---------- 얇은 콘텐츠 방지 게이트 ----------
 
@@ -129,7 +129,11 @@ export function buildMeta(input: PageMetaInput): Metadata {
       ...(description ? { description } : {}),
       ...(imageUrl ? { images: [imageUrl] } : {}),
     },
-    ...(input.ads === false ? { other: { [ADS_OPT_OUT_META]: "off" } } : {}),
+    other: {
+      // 레이아웃의 AdSense 소유 확인 메타 — 페이지 other 가 부모를 대체해도 사라지지 않게 여기서도 넣는다
+      ...(adsenseClientId() ? { "google-adsense-account": adsenseClientId()! } : {}),
+      ...(input.ads === false ? { [ADS_OPT_OUT_META]: "off" } : {}),
+    },
   };
 }
 

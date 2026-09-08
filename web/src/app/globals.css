@@ -135,3 +135,17 @@ body {
   padding: 0.875rem 1rem;
   font-size: 0.875rem;
 }
+
+/* 신체 지도 핫스팟 맥동 (components/senior-body-map.tsx) */
+@keyframes pl-pulse {
+  0% { transform: scale(1); opacity: 0.55; }
+  100% { transform: scale(3); opacity: 0; }
+}
+.pl-pulse {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: pl-pulse 2.2s ease-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .pl-pulse { animation: none; opacity: 0; }
+}

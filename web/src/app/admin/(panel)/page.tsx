@@ -2,7 +2,7 @@ import Link from "next/link";
 import { sql, eq } from "drizzle-orm";
 import { getDb, isDbConfigured, schema } from "@/lib/db";
 
-const { guides, claims, spots, makers, items, deviceModels, curations, rehabSites } = schema;
+const { guides, claims, spots, makers, items, deviceModels, curations, rehabSites, users, comments } = schema;
 
 export default async function AdminDashboardPage() {
   if (!isDbConfigured()) {
@@ -10,7 +10,7 @@ export default async function AdminDashboardPage() {
   }
   const db = getDb();
 
-  const [guideCounts, pendingClaims, spotCount, makerCount, itemCount, deviceCount, curationCount, rehabCount] = await Promise.all([
+  const [guideCounts, pendingClaims, spotCount, makerCount, itemCount, deviceCount, curationCount, rehabCount, memberCount, commentCount] = await Promise.all([
     db
       .select({ status: guides.status, count: sql<number>`count(*)`.mapWith(Number) })
       .from(guides)
@@ -22,13 +22,16 @@ export default async function AdminDashboardPage() {
     db.select({ count: sql<number>`count(*)`.mapWith(Number) }).from(deviceModels),
     db.select({ count: sql<number>`count(*)`.mapWith(Number) }).from(curations),
     db.select({ count: sql<number>`count(*)`.mapWith(Number) }).from(rehabSites),
+    db.select({ count: sql<number>`count(*)`.mapWith(Number) }).from(users).where(eq(users.role, "member")),
+    db.select({ count: sql<number>`count(*)`.mapWith(Number) }).from(comments),
   ]);
 
   const byStatus = Object.fromEntries(guideCounts.map((g) => [g.status, g.count]));
 
   const cards: Array<{ label: string; value: number; href: string; alert?: boolean }> = [
     { label: "발행된 게시글", value: byStatus.published ?? 0, href: "/admin/guides" },
-    { label: "감수 대기", value: byStatus.review_pending ?? 0, href: "/admin/guides", alert: (byStatus.review_pending ?? 0) > 0 },
+    { label: "감수 대기", value: byStatus.review_pending ?? 0, href: "/admin/guides?status=review_pending", alert: (byStatus.review_pending ?? 0) > 0 },
+    { label: "회원 글 승인 대기", value: byStatus.pending ?? 0, href: "/admin/guides?status=pending", alert: (byStatus.pending ?? 0) > 0 },
     { label: "작성 중", value: byStatus.draft ?? 0, href: "/admin/guides" },
     { label: "대기 중 클레임", value: pendingClaims[0]?.count ?? 0, href: "/admin/claims", alert: (pendingClaims[0]?.count ?? 0) > 0 },
     { label: "스팟", value: spotCount[0]?.count ?? 0, href: "/admin/spots" },
@@ -37,6 +40,8 @@ export default async function AdminDashboardPage() {
     { label: "기기", value: deviceCount[0]?.count ?? 0, href: "/admin/devices" },
     { label: "큐레이션", value: curationCount[0]?.count ?? 0, href: "/admin/curations" },
     { label: "재활·한방 시행처", value: rehabCount[0]?.count ?? 0, href: "/admin/rehab" },
+    { label: "회원", value: memberCount[0]?.count ?? 0, href: "/admin/members" },
+    { label: "댓글", value: commentCount[0]?.count ?? 0, href: "/admin/comments" },
   ];
 
   return (

@@ -6,7 +6,10 @@ import { GuideCard } from "@/components/cards";
 import { EntityTagPanels } from "@/components/entity-panels";
 import { InstagramEmbedScript } from "@/components/instagram-script";
 import { JsonLd } from "@/components/jsonld";
-import { AffiliateDisclosure, MedicalNotice, VetReviewBadge } from "@/components/notices";
+import { CommentSection } from "@/components/comments";
+import { AffiliateDisclosure, MedicalNotice, MemberPostNote, VetReviewBadge } from "@/components/notices";
+import { getGuideCategory } from "@app/data";
+import { listVisibleComments } from "@/lib/queries/comments";
 import { formatDate } from "@/lib/format";
 import { renderMarkdown } from "@/lib/markdown";
 import {
@@ -53,15 +56,19 @@ export default async function GuidePage({ params }: Props) {
   const { slug } = await params;
   const found = await getPublishedGuide(decodeURIComponent(slug));
   if (!found) notFound();
-  const { guide, topic } = found;
+  const { guide, topic, authorName } = found;
 
-  const [tags, related, topicGuides] = await Promise.all([
+  const [tags, related, topicGuides, comments] = await Promise.all([
     getGuideEntityTags(guide.id),
     relatedGuides(guide.id, guide.topicId, 3),
     listGuidesForTopic(guide.topicId),
+    listVisibleComments(guide.id),
   ]);
 
-  const rendered = renderMarkdown(guide.bodyMd);
+  const isMemberPost = Boolean(guide.authorUserId);
+  const category = getGuideCategory(topic.slug, guide.category);
+  // 회원 글의 외부 링크에는 nofollow ugc — 승인은 했지만 검색 권위를 넘기지 않는다
+  const rendered = renderMarkdown(guide.bodyMd, { ugc: isMemberPost });
   const showDisclosure = rendered.hasAffiliateLinks || tags.hasAffiliateOffers;
   const style = topicStyle(topic.slug);
   const hub = topicGuides.hub && topicGuides.hub.id !== guide.id ? topicGuides.hub : null;
@@ -81,8 +88,16 @@ export default async function GuidePage({ params }: Props) {
           <Link href={`/topic/${topic.slug}`} className={`rounded-full px-2.5 py-1 text-xs font-medium ${style.chip}`}>
             {topic.name}
           </Link>
+          {category && (
+            <Link href={`/topic/${topic.slug}#${category.slug}`} className="rounded-full bg-sand px-2.5 py-1 text-xs font-medium text-ink-soft hover:bg-ink hover:text-cream">
+              {category.name}
+            </Link>
+          )}
           {guide.role === "hub" && (
             <span className="rounded-full bg-sand px-2.5 py-1 text-xs font-medium text-ink-soft">클러스터 전체 지도</span>
+          )}
+          {isMemberPost && authorName && (
+            <span className="rounded-full bg-honey-soft px-2.5 py-1 text-xs font-medium text-honey">회원 글 · {authorName}</span>
           )}
           {guide.vetReviewed && guide.vetReviewerName && (
             <VetReviewBadge reviewerName={guide.vetReviewerName} reviewedAt={guide.vetReviewedAt} />
@@ -111,6 +126,8 @@ export default async function GuidePage({ params }: Props) {
           decoding="async"
         />
       )}
+
+      {isMemberPost && authorName && <MemberPostNote authorName={authorName} />}
 
       {showDisclosure && (
         <div className="mt-6">
@@ -159,6 +176,8 @@ export default async function GuidePage({ params }: Props) {
           )}
         </div>
       )}
+
+      <CommentSection guideId={guide.id} slug={guide.slug} comments={comments} />
 
       <JsonLd
         data={articleLd({
