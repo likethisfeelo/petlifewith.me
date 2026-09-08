@@ -3,8 +3,9 @@ import "./globals.css";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { JsonLd } from "@/components/jsonld";
-import { Analytics, GtmNoScript } from "@/components/analytics";
+import { AdSense, Analytics, GtmNoScript } from "@/components/analytics";
 import {
+  adsenseClientId,
   apexDomain,
   defaultOgImageUrl,
   gaMeasurementId,
@@ -45,6 +46,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const analytics = isProductionSite();
   const gtmId = analytics ? gtmContainerId() : undefined;
   const gaId = analytics ? gaMeasurementId() : undefined;
+  // 광고도 운영에서만 — 승인되지 않은 dev 도메인에서 요청을 보내지 않는다
+  const adsId = analytics ? adsenseClientId() : undefined;
 
   return (
     <html lang="ko">
@@ -55,6 +58,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <SiteFooter />
         <JsonLd data={websiteLd()} />
         {analytics && <Analytics gtmId={gtmId} gaId={gaId} apexDomain={apexDomain()} />}
+        {adsId && <AdSense clientId={adsId} apexDomain={apexDomain()} />}
       </body>
     </html>
   );

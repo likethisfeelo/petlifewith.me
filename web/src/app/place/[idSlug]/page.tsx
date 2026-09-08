@@ -38,6 +38,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     path: idSlugPath("place", spot.id, spot.slug),
     // 얇은 콘텐츠 방지: 정보 3항목 미만 개별 장소 → noindex (claude.md 5-3)
     indexable: shouldIndexPlace(spot, linkCount),
+    // 장묘·동물약국·B2B 유형 페이지에는 광고를 붙이지 않는다 (기획서 4-1·6-2)
+    ads: found.typeMonetizable,
     ogImageUrl: assetUrl(spot.ogImageKey ?? spot.heroImageKey),
   });
 }

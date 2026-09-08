@@ -38,6 +38,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     path: `/spot/${region.sidoSlug}/${region.sigunguSlug}/${spotType.slug}`,
     // 지역 x 유형 페이지도 동일 게이트: 3곳 미만이면 noindex
     indexable: shouldIndexRegionPage(indexableCount),
+    ads: spotType.monetizable,
   });
 }
 

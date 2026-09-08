@@ -44,6 +44,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     type: "article",
     publishedAt: guide.publishedAt,
     modifiedAt: guide.updatedAt,
+    // 의료 인접 편은 광고 지면으로 쓰지 않는다 — 수익은 비의료 쪽에서 (기획서 SECTION 02)
+    ads: !guide.medicalAdjacent,
   });
 }
 
