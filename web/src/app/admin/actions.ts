@@ -103,10 +103,9 @@ export async function saveGuideAction(_prev: ActionState, formData: FormData): P
   if (cat.error) return { error: cat.error };
   const pin = await readPinnedOrder(db, formData, existing.topicId, existing.id);
   if (pin.error) return { error: pin.error };
-  // 상단 배너 — 토픽 정의에 있는 카테고리만, 정의 순서대로
-  const bannerCategories = categoriesForTopic(cat.topicSlug)
-    .map((c) => c.slug)
-    .filter((slug) => formData.get(`banner:${slug}`) === "on");
+  // 상단 디렉토리 배너 — 공개 스팟 유형만, 정렬 순서대로
+  const listedTypes = await db.select({ slug: spotTypes.slug }).from(spotTypes).where(eq(spotTypes.listed, true)).orderBy(spotTypes.sortOrder);
+  const bannerSpotTypes = listedTypes.map((t) => t.slug).filter((slug) => formData.get(`banner:${slug}`) === "on");
   // 고정은 발행된 글만 의미가 있다
   if (pin.pinnedOrder && status !== "published") return { error: "최상단 고정은 발행 상태의 글에만 걸 수 있습니다." };
 
@@ -131,7 +130,7 @@ export async function saveGuideAction(_prev: ActionState, formData: FormData): P
       role: formData.get("role") === "hub" ? "hub" : "spoke",
       category: cat.category,
       pinnedOrder: pin.pinnedOrder,
-      bannerCategories,
+      bannerSpotTypes,
       status,
       medicalAdjacent,
       vetReviewed,

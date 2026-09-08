@@ -52,9 +52,7 @@ export default async function CategoryBoardPage({ params }: Props) {
   const { topic, def, posts } = found;
   const style = topicStyle(topic.slug);
   const commentCounts = await countCommentsByGuides(posts.map((p) => p.guide.id));
-  const others = categoriesForTopic(topic.slug)
-    .filter((c) => c.slug !== def.slug)
-    .sort((a, b) => Number(b.kind === def.kind) - Number(a.kind === def.kind));
+  const others = categoriesForTopic(topic.slug).filter((c) => c.slug !== def.slug);
   const writeHref = `/write?topic=${encodeURIComponent(topic.slug)}&category=${encodeURIComponent(def.slug)}`;
 
   return (
@@ -69,18 +67,13 @@ export default async function CategoryBoardPage({ params }: Props) {
 
       <header className="mt-6 flex flex-wrap items-end justify-between gap-4">
         <div className="max-w-3xl">
-          <Link href={def.kind === "body" ? `/topic/${topic.slug}#${def.slug}` : `/topic/${topic.slug}`} className={`rounded-full px-2.5 py-1 text-xs font-medium ${style.chip}`}>
-            {topic.name} · {def.kind === "body" ? "신체 지도로 돌아가기" : "지지 서비스"}
+          <Link href={`/topic/${topic.slug}#${def.slug}`} className={`rounded-full px-2.5 py-1 text-xs font-medium ${style.chip}`}>
+            {topic.name} · 신체 지도로 돌아가기
           </Link>
           <h1 className={`mt-3 text-3xl font-extrabold tracking-tight ${style.heading}`}>
             {def.name} <span className="text-lg font-bold text-ink-soft">영역별 정보</span>
           </h1>
           <p className="mt-3 text-ink-soft">{def.blurb}</p>
-          {def.directoryType && (
-            <Link href={`/spot/type/${def.directoryType}`} className="mt-3 inline-flex items-center rounded-full bg-sea-soft px-3 py-1.5 text-sm font-medium text-sea hover:bg-sea hover:text-white">
-              실제 시설 찾기 — 전국 {def.name} 디렉토리 →
-            </Link>
-          )}
         </div>
         <Link href={writeHref} className="rounded-full bg-ink px-5 py-2.5 text-sm font-medium text-cream hover:opacity-90">
           + 이 부위에 글쓰기
@@ -126,7 +119,7 @@ export default async function CategoryBoardPage({ params }: Props) {
 
       {others.length > 0 && (
         <section className="mt-8">
-          <h2 className="text-sm font-bold text-ink">{def.kind === "body" ? "다른 부위" : "다른 카테고리"}</h2>
+          <h2 className="text-sm font-bold text-ink">다른 부위</h2>
           <div className="mt-2 flex flex-wrap gap-2">
             {others.map((c) => (
               <Link key={c.slug} href={`/topic/${topic.slug}/${c.slug}`} className="rounded-full border border-line px-3 py-1 text-sm text-ink-soft hover:bg-sand hover:text-ink">

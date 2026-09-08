@@ -72,6 +72,14 @@ export default async function SpotTypeHubPage({ params }: Props) {
         영업 중 {formatNumber(total)}곳 · 지역을 고르면 목록이 나옵니다.
         {spotType.description ? ` ${spotType.description}` : ""}
       </p>
+      {spotType.listed && spotType.monetizable && (
+        <p className="mt-3 rounded-lg border border-line bg-sand/60 px-4 py-2.5 text-sm text-ink-soft">
+          이 유형의 업체를 운영하시나요? 기본 등록은 무료입니다 —{" "}
+          <Link href="/portal/spot" className="font-medium text-sea underline">
+            업체 정보 등록·관리 안내
+          </Link>
+        </p>
+      )}
 
       {/* 장묘·동물약국: 광고를 붙이지 않는 영역 — 담담한 실무 정보만 (기획서 4-1·6-2) */}
       {!spotType.monetizable && (

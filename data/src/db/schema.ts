@@ -150,8 +150,9 @@ export const guides = pgTable(
     category: text("category"),
     // 최상단 고정(1~3). 토픽 페이지에서 고정 글이 먼저, 나머지는 최신순 (관리자만 지정)
     pinnedOrder: integer("pinned_order"),
-    // 글 상단에 띄우는 카테고리 배너(카테고리 슬러그 배열) — 클릭하면 그 카테고리 게시판으로 (관리자만 지정)
-    bannerCategories: text("banner_categories").array().notNull().default(sql`'{}'::text[]`),
+    // 글 상단 디렉토리 배너 — 스팟 유형 슬러그 배열(spot_types.slug). 클릭하면 그 유형의 디렉토리(/spot/type/…)로.
+    // 커뮤니티 게시판이 아니라 업체 검색·등록 입구다 (관리자만 지정)
+    bannerSpotTypes: text("banner_spot_types").array().notNull().default(sql`'{}'::text[]`),
     // 회원이 쓴 글이면 글쓴이. 관리자 글은 null. 회원 글은 pending 으로 시작해 승인 후 published.
     authorUserId: uuid("author_user_id").references(() => users.id, { onDelete: "set null" }),
     status: guideStatus("status").notNull().default("draft"),

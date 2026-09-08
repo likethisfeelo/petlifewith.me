@@ -50,6 +50,13 @@
       "when": 1788849432913,
       "tag": "0006_guide_banner_categories",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1788850004576,
+      "tag": "0007_rename_banner_to_spot_types",
+      "breakpoints": true
     }
   ]
 }

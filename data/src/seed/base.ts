@@ -49,17 +49,20 @@ const SPOT_TYPES = [
   { slug: "pool", name: "수영장", description: "직접 발굴·재분류로 채운다", monetizable: true, listed: true, sortOrder: 3 },
   { slug: "playground", name: "놀이터", description: "직접 발굴·재분류로 채운다", monetizable: true, listed: true, sortOrder: 4 },
   { slug: "boarding", name: "유치원·위탁", description: "동물위탁관리업 인허가 기반 시딩", monetizable: true, listed: true, sortOrder: 5 },
-  { slug: "visiting-bath", name: "방문목욕", description: "등록 형태가 제각각 — 부분 시딩 + 직접 발굴", monetizable: true, listed: true, sortOrder: 6 },
-  { slug: "visiting-groom", name: "방문미용", description: "직접 발굴", monetizable: true, listed: true, sortOrder: 7 },
-  { slug: "rehab", name: "재활·수중런닝", description: "보유 여부는 공공데이터에 없다 — 직접 발굴", monetizable: true, listed: true, sortOrder: 8 },
-  { slug: "transport", name: "이동·운송", description: "동물운송업 인허가 기반 시딩", monetizable: true, listed: true, sortOrder: 9 },
-  { slug: "memorial", name: "장묘", description: "광고 없음. 인허가 기반 사실 정보만 담담하게 정리한다", monetizable: false, listed: true, sortOrder: 10 },
+  // 돌봄 서비스 (2026-09) — 공공데이터에 없다. 직접 발굴 + 사장님 포털 등록. 주소는 지역까지만 싣는 경우가 많다 (5-6)
+  { slug: "pet-sitter", name: "펫시터", description: "방문·위탁 돌봄 — 직접 발굴·업체 등록", monetizable: true, listed: true, sortOrder: 6 },
+  { slug: "dog-walk", name: "펫산책", description: "산책 대행·동행 — 직접 발굴·업체 등록", monetizable: true, listed: true, sortOrder: 7 },
+  { slug: "visiting-bath", name: "방문목욕", description: "등록 형태가 제각각 — 부분 시딩 + 직접 발굴", monetizable: true, listed: true, sortOrder: 8 },
+  { slug: "visiting-groom", name: "방문미용", description: "직접 발굴", monetizable: true, listed: true, sortOrder: 9 },
+  { slug: "rehab", name: "재활·수중런닝", description: "보유 여부는 공공데이터에 없다 — 직접 발굴", monetizable: true, listed: true, sortOrder: 10 },
+  { slug: "transport", name: "이동·운송", description: "동물운송업 인허가 기반 시딩", monetizable: true, listed: true, sortOrder: 11 },
+  { slug: "memorial", name: "장묘", description: "광고 없음. 인허가 기반 사실 정보만 담담하게 정리한다", monetizable: false, listed: true, sortOrder: 12 },
   // 의료 인접 (기획서 6-2): 광고·순위·추천 없이 사실 정보만. 프로모션 생성 불가.
-  { slug: "pharmacy", name: "동물약국", description: "동물약국 인허가(행정안전부) 기반. 광고 없음 — 사실 정보만", monetizable: false, listed: true, sortOrder: 11 },
+  { slug: "pharmacy", name: "동물약국", description: "동물약국 인허가(행정안전부) 기반. 광고 없음 — 사실 정보만", monetizable: false, listed: true, sortOrder: 13 },
   // B2B 인허가 — 소비자 디렉토리(listed)와 분리된 '참고 디렉토리'로 게시한다.
   // 광고·추천 없음, 지역 혼합 목록·소비자 집계에는 섞이지 않고 유형 허브·지역x유형·개별 페이지만 제공.
-  { slug: "drug-wholesale", name: "동물용의약품 도매", description: "B2B 참고 — 광고 없음, 소비자 목록과 분리해 인허가 사실 정보만 게시", monetizable: false, listed: false, sortOrder: 12 },
-  { slug: "medical-device-shop", name: "동물용 의료용구 판매", description: "B2B 참고 — 광고 없음, 소비자 목록과 분리해 인허가 사실 정보만 게시", monetizable: false, listed: false, sortOrder: 13 },
+  { slug: "drug-wholesale", name: "동물용의약품 도매", description: "B2B 참고 — 광고 없음, 소비자 목록과 분리해 인허가 사실 정보만 게시", monetizable: false, listed: false, sortOrder: 14 },
+  { slug: "medical-device-shop", name: "동물용 의료용구 판매", description: "B2B 참고 — 광고 없음, 소비자 목록과 분리해 인허가 사실 정보만 게시", monetizable: false, listed: false, sortOrder: 15 },
 ] as const;
 
 async function main() {

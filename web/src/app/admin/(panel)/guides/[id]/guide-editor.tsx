@@ -15,7 +15,7 @@ interface GuideValues {
   spokeGroup: string | null;
   category: string | null;
   pinnedOrder: number | null;
-  bannerCategories: string[];
+  bannerSpotTypes: string[];
   status: string;
   medicalAdjacent: boolean;
   vetReviewed: boolean;
@@ -33,11 +33,14 @@ export function GuideEditor({
   guide,
   topicSlug,
   authorName,
+  spotTypes,
 }: {
   guide: GuideValues;
   topicSlug: string;
   /** 회원 글이면 닉네임 — 승인 흐름 안내에 쓴다 */
   authorName?: string | null;
+  /** 상단 디렉토리 배너로 고를 수 있는 공개 스팟 유형 */
+  spotTypes: Array<{ slug: string; name: string }>;
 }) {
   const [state, formAction, pending] = useActionState<ActionState, FormData>(saveGuideAction, {});
   const categories = categoriesForTopic(topicSlug);
@@ -126,16 +129,18 @@ export function GuideEditor({
         </div>
       </div>
 
-      {categories.length > 0 && (
+      {spotTypes.length > 0 && (
         <div className="rounded-lg border border-line bg-surface p-3">
-          <p className="text-sm font-medium text-ink">상단 카테고리 배너</p>
-          <p className="mt-0.5 text-xs text-ink-faint">체크한 카테고리가 글 제목 아래에 배너로 뜨고, 누르면 그 카테고리 게시판으로 갑니다. 3개 정도가 보기 좋습니다.</p>
+          <p className="text-sm font-medium text-ink">상단 디렉토리 배너</p>
+          <p className="mt-0.5 text-xs text-ink-faint">
+            체크한 스팟 유형이 글 제목 아래 배너로 뜨고, 누르면 그 유형의 디렉토리(업체 찾기·등록)로 갑니다. 3개가 보기 좋습니다.
+            게시판이 아니라 업체 정보 입구입니다.
+          </p>
           <div className="mt-2 grid gap-1.5 sm:grid-cols-3">
-            {categories.map((c) => (
-              <label key={c.slug} className="flex items-center gap-2 text-sm text-ink">
-                <input type="checkbox" name={`banner:${c.slug}`} defaultChecked={guide.bannerCategories.includes(c.slug)} />
-                {c.name}
-                <span className="text-xs text-ink-faint">{c.kind === "service" ? "서비스" : "부위"}</span>
+            {spotTypes.map((t) => (
+              <label key={t.slug} className="flex items-center gap-2 text-sm text-ink">
+                <input type="checkbox" name={`banner:${t.slug}`} defaultChecked={guide.bannerSpotTypes.includes(t.slug)} />
+                {t.name}
               </label>
             ))}
           </div>

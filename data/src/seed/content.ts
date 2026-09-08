@@ -5,7 +5,7 @@
 //   slug, title, topic(토픽 슬러그) — 필수
 //   summary, role(hub|spoke), spokeGroup(body|support|...), status,
 //   category(토픽별 카테고리 슬러그 — data/src/guides/categories.ts, 없으면 "전체"),
-//   banners(글 상단 카테고리 배너 — 카테고리 슬러그 배열, 클릭하면 그 게시판으로),
+//   banners(글 상단 디렉토리 배너 — spot_types.slug 배열, 클릭하면 그 유형의 디렉토리로),
 //   medicalAdjacent, vetReviewed, vetReviewerName, vetReviewedAt — 선택
 import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
@@ -13,7 +13,7 @@ import matter from "gray-matter";
 import { eq } from "drizzle-orm";
 import { repoRoot } from "../env.js";
 import { closeDb, getDb } from "../db/client.js";
-import { guides, topics } from "../db/schema.js";
+import { guides, spotTypes, topics } from "../db/schema.js";
 import { categoriesForTopic } from "../guides/categories.js";
 import { seniorSeedPosts } from "../guides/seed-posts.js";
 
@@ -26,6 +26,7 @@ async function main() {
   const topicRows = await db.select().from(topics);
   if (topicRows.length === 0) throw new Error("topics 가 비어 있습니다. seed:base 를 먼저 실행하세요.");
   const topicBySlug = new Map(topicRows.map((t) => [t.slug, t.id]));
+  const spotTypeSlugs = new Set((await db.select({ slug: spotTypes.slug }).from(spotTypes)).map((t) => t.slug));
 
   const files = readdirSync(GUIDES_DIR).filter((f) => f.endsWith(".md")).sort();
   let count = 0;
@@ -51,7 +52,7 @@ async function main() {
 
     const banners: string[] = Array.isArray(data.banners) ? data.banners.map((b: unknown) => String(b).trim()) : [];
     for (const b of banners) {
-      if (!categoriesForTopic(topicSlug).some((c) => c.slug === b)) throw new Error(`${file}: 토픽 "${topicSlug}" 에 없는 banner "${b}"`);
+      if (!spotTypeSlugs.has(b)) throw new Error(`${file}: spot_types 에 없는 banner "${b}" (seed:base 를 먼저 실행했는지 확인)`);
     }
 
     const medicalAdjacent = Boolean(data.medicalAdjacent ?? false);
@@ -77,7 +78,7 @@ async function main() {
       role: (data.role === "hub" ? "hub" : "spoke") as "hub" | "spoke",
       spokeGroup: data.spokeGroup ? String(data.spokeGroup) : null,
       category,
-      bannerCategories: banners,
+      bannerSpotTypes: banners,
       status,
       medicalAdjacent,
       vetReviewed,

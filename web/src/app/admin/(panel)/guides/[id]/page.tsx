@@ -6,7 +6,7 @@ import { getGuideEntityTags } from "@/lib/queries/guides";
 import { GuideEditor } from "./guide-editor";
 import { TagManager, type ExistingTag, type TagOption } from "./tag-manager";
 
-const { guides, topics, users, items, spots, makers, regions } = schema;
+const { guides, topics, users, items, spots, spotTypes, makers, regions } = schema;
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -34,7 +34,7 @@ export default async function AdminGuideEditPage({ params, searchParams }: Props
   const { guide, topicSlug } = found;
   const authorName = guide.authorUserId ? (found.authorName ?? "회원") : null;
 
-  const [tags, itemRows, spotRows, makerRows] = await Promise.all([
+  const [tags, itemRows, spotRows, makerRows, typeRows] = await Promise.all([
     getGuideEntityTags(guideId),
     db.select({ id: items.id, name: items.name }).from(items).orderBy(items.name),
     db
@@ -44,6 +44,7 @@ export default async function AdminGuideEditPage({ params, searchParams }: Props
       .orderBy(spots.name)
       .limit(500),
     db.select({ id: makers.id, name: makers.name }).from(makers).orderBy(makers.name),
+    db.select({ slug: spotTypes.slug, name: spotTypes.name }).from(spotTypes).where(eq(spotTypes.listed, true)).orderBy(spotTypes.sortOrder),
   ]);
 
   const existing: ExistingTag[] = [
@@ -83,6 +84,7 @@ export default async function AdminGuideEditPage({ params, searchParams }: Props
           <GuideEditor
             topicSlug={topicSlug}
             authorName={authorName}
+            spotTypes={typeRows}
             guide={{
               id: guide.id,
               title: guide.title,
@@ -92,7 +94,7 @@ export default async function AdminGuideEditPage({ params, searchParams }: Props
               spokeGroup: guide.spokeGroup,
               category: guide.category,
               pinnedOrder: guide.pinnedOrder,
-              bannerCategories: guide.bannerCategories,
+              bannerSpotTypes: guide.bannerSpotTypes,
               status: guide.status,
               medicalAdjacent: guide.medicalAdjacent,
               vetReviewed: guide.vetReviewed,

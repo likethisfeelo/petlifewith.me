@@ -5,7 +5,7 @@ summary: 노견에게 유치원·데이케어·펫시터 중 무엇이 맞나. �
 topic: senior-life
 role: spoke
 spokeGroup: support
-banners: [daycare, sitter, walk]
+banners: [boarding, pet-sitter, dog-walk]
 status: published
 medicalAdjacent: false
 ---

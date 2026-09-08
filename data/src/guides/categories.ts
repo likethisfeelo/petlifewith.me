@@ -20,16 +20,11 @@ export interface GuideCategoryDef {
   /** 지도 툴팁·패널 첫 줄 */
   blurb: string;
   questions: CategoryQuestion[];
-  /** body: 신체 지도의 부위 / service: 지지 서비스(유치원·펫시터·산책 등) */
-  kind: "body" | "service";
-  /** 서비스 카테고리가 연결되는 스팟 디렉토리 유형(spot_types.slug) — 있으면 게시판에 "시설 찾기" 링크 */
-  directoryType?: string;
 }
 
 export const SENIOR_BODY_AREAS: GuideCategoryDef[] = [
   {
     slug: "joint",
-    kind: "body",
     name: "관절·보행",
     blurb: "움직임이 줄어든 자리부터 신호가 납니다. 아프다고 말하기 전에 걷는 방식이 바뀝니다.",
     questions: [
@@ -40,7 +35,6 @@ export const SENIOR_BODY_AREAS: GuideCategoryDef[] = [
   },
   {
     slug: "heart",
-    kind: "body",
     name: "심장·호흡",
     blurb: "쉬는 순간의 호흡이 기준입니다. 운동 직후가 아니라 누워 있을 때를 봅니다.",
     questions: [
@@ -51,7 +45,6 @@ export const SENIOR_BODY_AREAS: GuideCategoryDef[] = [
   },
   {
     slug: "mind",
-    kind: "body",
     name: "인지·수면",
     blurb: "낮과 밤이 바뀌는 것은 성격 변화가 아니라 뇌와 감각의 노화 신호일 수 있습니다.",
     questions: [
@@ -62,7 +55,6 @@ export const SENIOR_BODY_AREAS: GuideCategoryDef[] = [
   },
   {
     slug: "eye",
-    kind: "body",
     name: "눈·귀",
     blurb: "어두운 곳과 부르는 소리에 대한 반응이 가장 먼저 무뎌집니다.",
     questions: [
@@ -72,7 +64,6 @@ export const SENIOR_BODY_AREAS: GuideCategoryDef[] = [
   },
   {
     slug: "teeth",
-    kind: "body",
     name: "치아",
     blurb: "입 냄새와 씹는 방향은 통증의 가장 솔직한 표시입니다.",
     questions: [
@@ -83,7 +74,6 @@ export const SENIOR_BODY_AREAS: GuideCategoryDef[] = [
   },
   {
     slug: "weight",
-    kind: "body",
     name: "체중·식욕",
     blurb: "살이 빠지는 속도와 물의 양이 같이 변하면 대사·신장 쪽을 엽니다.",
     questions: [
@@ -94,7 +84,6 @@ export const SENIOR_BODY_AREAS: GuideCategoryDef[] = [
   },
   {
     slug: "skin",
-    kind: "body",
     name: "털·체취",
     blurb: "등 쪽 털의 결, 냄새, 긁는 자리가 피부와 몸의 컨디션을 먼저 알려줍니다. 목욕이 힘들어진 것도 신호입니다.",
     questions: [
@@ -106,7 +95,6 @@ export const SENIOR_BODY_AREAS: GuideCategoryDef[] = [
   },
   {
     slug: "rear",
-    kind: "body",
     name: "엉덩이·배변",
     blurb: "항문낭과 변의 모양은 장·관절·인지가 한꺼번에 드러나는 자리입니다. 냄새와 자세부터 봅니다.",
     questions: [
@@ -118,51 +106,13 @@ export const SENIOR_BODY_AREAS: GuideCategoryDef[] = [
   },
 ];
 
-/**
- * 노견생활 지지 서비스 카테고리 — 보호자가 자리를 비우는 시간을 받쳐주는 서비스.
- * 게시글 상단 배너(guides.banner_categories)와 카테고리 게시판으로 쓴다. 질문 시드는 두지 않는다.
- */
-export const SENIOR_SERVICE_CATEGORIES: GuideCategoryDef[] = [
-  {
-    slug: "daycare",
-    kind: "service",
-    name: "유치원·데이케어",
-    blurb: "낮 시간을 맡기는 곳. 유치원·데이케어·호텔을 고르는 기준과 이용해 본 이야기.",
-    questions: [],
-    directoryType: "boarding",
-  },
-  {
-    slug: "sitter",
-    kind: "service",
-    name: "펫시터",
-    blurb: "집으로 오거나 시터 집에서 돌보는 방식. 계약 전 확인할 것과 겪은 이야기.",
-    questions: [],
-  },
-  {
-    slug: "walk",
-    kind: "service",
-    name: "펫산책",
-    blurb: "산책 대행·동행 서비스. 노견에게 맞는 산책 조건과 경험.",
-    questions: [],
-  },
-];
-
-/** 토픽 슬러그 → 카테고리 목록(신체 부위 + 서비스). 없는 토픽은 "전체"만 있다. */
+/** 토픽 슬러그 → 카테고리 목록. 없는 토픽은 "전체"만 있다. */
 export const GUIDE_CATEGORIES_BY_TOPIC: Record<string, GuideCategoryDef[]> = {
-  "senior-life": [...SENIOR_BODY_AREAS, ...SENIOR_SERVICE_CATEGORIES],
+  "senior-life": SENIOR_BODY_AREAS,
 };
 
 export function categoriesForTopic(topicSlug: string): GuideCategoryDef[] {
   return GUIDE_CATEGORIES_BY_TOPIC[topicSlug] ?? [];
-}
-
-/** 신체 지도에 올릴 부위만 */
-export function bodyAreasForTopic(topicSlug: string): GuideCategoryDef[] {
-  return categoriesForTopic(topicSlug).filter((c) => c.kind === "body");
-}
-
-export function serviceCategoriesForTopic(topicSlug: string): GuideCategoryDef[] {
-  return categoriesForTopic(topicSlug).filter((c) => c.kind === "service");
 }
 
 export function getGuideCategory(topicSlug: string, slug: string | null | undefined): GuideCategoryDef | undefined {
