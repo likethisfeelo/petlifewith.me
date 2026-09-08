@@ -1,0 +1,1 @@
+ALTER TABLE "guides" ADD COLUMN "banner_categories" text[] DEFAULT '{}'::text[] NOT NULL;

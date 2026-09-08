@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { getDb, isDbConfigured, schema } from "@/lib/db";
 import { SPOT_SOURCE_LABEL, idSlugPath } from "@/lib/format";
+import { isCareType } from "@app/data";
+import { listServiceAreasForSpot } from "@/lib/queries/care";
 import { getSpotLinks } from "@/lib/queries/spots";
 import { AdminPageHeader } from "../../../_components/fields";
 import { SpotEditor } from "./spot-editor";
@@ -32,12 +34,17 @@ export default async function AdminSpotEditPage({ params, searchParams }: Props)
   )[0];
   if (!row) notFound();
 
-  const [types, links] = await Promise.all([
+  const [types, links, serviceAreas, regionRows] = await Promise.all([
     db
-      .select({ id: spotTypes.id, name: spotTypes.name, listed: spotTypes.listed })
+      .select({ id: spotTypes.id, slug: spotTypes.slug, name: spotTypes.name, listed: spotTypes.listed })
       .from(spotTypes)
       .orderBy(spotTypes.sortOrder),
     getSpotLinks(spotId),
+    listServiceAreasForSpot(spotId),
+    db
+      .select({ id: regions.id, sidoName: regions.sidoName, sidoSlug: regions.sidoSlug, sigunguName: regions.sigunguName })
+      .from(regions)
+      .orderBy(regions.id),
   ]);
 
   const { spot } = row;
@@ -118,6 +125,9 @@ export default async function AdminSpotEditPage({ params, searchParams }: Props)
           }}
           types={types.map((t) => ({ id: t.id, label: t.listed ? t.name : `${t.name} (B2B 참고)` }))}
           links={links.map((l) => ({ kind: l.kind, url: l.url, label: l.label ?? "" }))}
+          careTypeIds={types.filter((t) => isCareType(t.slug)).map((t) => t.id)}
+          areaOptions={regionRows}
+          serviceAreas={serviceAreas.map((a) => ({ regionId: a.regionId, exposed: a.exposed }))}
         />
       </div>
     </div>

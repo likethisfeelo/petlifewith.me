@@ -1,8 +1,8 @@
 import Link from "next/link";
-import { sql, eq } from "drizzle-orm";
+import { sql, eq, isNull } from "drizzle-orm";
 import { getDb, isDbConfigured, schema } from "@/lib/db";
 
-const { guides, claims, spots, makers, items, deviceModels, curations, rehabSites, users, comments } = schema;
+const { guides, claims, spots, makers, items, deviceModels, curations, rehabSites, users, comments, spotServiceAreas, bookingRequests } = schema;
 
 export default async function AdminDashboardPage() {
   if (!isDbConfigured()) {
@@ -10,7 +10,7 @@ export default async function AdminDashboardPage() {
   }
   const db = getDb();
 
-  const [guideCounts, pendingClaims, spotCount, makerCount, itemCount, deviceCount, curationCount, rehabCount, memberCount, commentCount] = await Promise.all([
+  const [guideCounts, pendingClaims, spotCount, makerCount, itemCount, deviceCount, curationCount, rehabCount, memberCount, commentCount, careCount, openBookings] = await Promise.all([
     db
       .select({ status: guides.status, count: sql<number>`count(*)`.mapWith(Number) })
       .from(guides)
@@ -24,6 +24,8 @@ export default async function AdminDashboardPage() {
     db.select({ count: sql<number>`count(*)`.mapWith(Number) }).from(rehabSites),
     db.select({ count: sql<number>`count(*)`.mapWith(Number) }).from(users).where(eq(users.role, "member")),
     db.select({ count: sql<number>`count(*)`.mapWith(Number) }).from(comments),
+    db.select({ count: sql<number>`count(distinct ${spotServiceAreas.spotId})`.mapWith(Number) }).from(spotServiceAreas).where(eq(spotServiceAreas.exposed, true)),
+    db.select({ count: sql<number>`count(*)`.mapWith(Number) }).from(bookingRequests).where(isNull(bookingRequests.handledAt)),
   ]);
 
   const byStatus = Object.fromEntries(guideCounts.map((g) => [g.status, g.count]));
@@ -42,6 +44,8 @@ export default async function AdminDashboardPage() {
     { label: "재활·한방 시행처", value: rehabCount[0]?.count ?? 0, href: "/admin/rehab" },
     { label: "회원", value: memberCount[0]?.count ?? 0, href: "/admin/members" },
     { label: "댓글", value: commentCount[0]?.count ?? 0, href: "/admin/comments" },
+    { label: "돌봄 파트너 (노출 중)", value: careCount[0]?.count ?? 0, href: "/admin/care" },
+    { label: "미처리 예약 신청", value: openBookings[0]?.count ?? 0, href: "/admin/bookings", alert: (openBookings[0]?.count ?? 0) > 0 },
   ];
 
   return (
@@ -65,6 +69,7 @@ export default async function AdminDashboardPage() {
           {[
             { href: "/admin/guides/new", label: "게시글 작성" },
             { href: "/admin/spots/new", label: "스팟 등록" },
+            { href: "/admin/care", label: "돌봄 파트너 지역 노출" },
             { href: "/admin/makers/new", label: "메이커 등록" },
             { href: "/admin/items/new", label: "상품 등록" },
             { href: "/admin/devices/new", label: "기기 등록" },

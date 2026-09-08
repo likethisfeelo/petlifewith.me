@@ -26,6 +26,14 @@ export async function listSpotTypes(opts?: { includeUnlisted?: boolean }): Promi
   return db.select().from(spotTypes).where(eq(spotTypes.listed, true)).orderBy(spotTypes.sortOrder);
 }
 
+/** 슬러그 목록 순서를 유지해 유형을 돌려준다 (글 상단 배너용, 공개 유형만) */
+export async function listSpotTypesBySlugs(slugs: string[]): Promise<SpotTypeRow[]> {
+  if (!isDbConfigured() || slugs.length === 0) return [];
+  const rows = await getDb().select().from(spotTypes).where(and(inArray(spotTypes.slug, slugs), eq(spotTypes.listed, true)));
+  const bySlug = new Map(rows.map((r) => [r.slug, r]));
+  return slugs.map((s) => bySlug.get(s)).filter((r): r is SpotTypeRow => Boolean(r));
+}
+
 export async function getSpotTypeBySlug(slug: string): Promise<SpotTypeRow | null> {
   if (!isDbConfigured()) return null;
   const rows = await getDb().select().from(spotTypes).where(eq(spotTypes.slug, slug)).limit(1);

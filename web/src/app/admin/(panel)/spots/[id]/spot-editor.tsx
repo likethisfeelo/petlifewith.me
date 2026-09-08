@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import {
   FormMessage,
   SelectField,
@@ -13,6 +13,7 @@ import { SeoFields, type SeoDefaults } from "../../../_components/seo-fields";
 import { UploadField } from "../../../_components/upload-field";
 import { SPOT_LINK_KINDS } from "@/lib/links";
 import { createSpotAction, saveSpotAction, type ActionState } from "../../../directory-actions";
+import { ServiceAreasEditor, type AreaOption, type ServiceAreaRow } from "./service-areas-editor";
 
 export interface SpotFormValues {
   id?: number;
@@ -61,15 +62,24 @@ export function SpotEditor({
   types,
   regions,
   links,
+  careTypeIds = [],
+  areaOptions = [],
+  serviceAreas = [],
 }: {
   mode: "create" | "edit";
   spot: SpotFormValues;
   types: SpotOption[];
   regions?: SpotOption[];
   links: RowValue[];
+  /** 돌봄 파트너 유형(펫시터·펫산책)의 id — 고르면 서비스 지역 편집기가 나타난다 */
+  careTypeIds?: number[];
+  areaOptions?: AreaOption[];
+  serviceAreas?: ServiceAreaRow[];
 }) {
   const action = mode === "create" ? createSpotAction : saveSpotAction;
   const [state, formAction, pending] = useActionState<ActionState, FormData>(action, {});
+  const [typeId, setTypeId] = useState<number | "">(spot.typeId);
+  const isCare = typeId !== "" && careTypeIds.includes(typeId);
 
   return (
     <form action={formAction} className="space-y-5">
@@ -93,7 +103,8 @@ export function SpotEditor({
             name="typeId"
             label="유형"
             required
-            defaultValue={spot.typeId}
+            value={typeId}
+            onChange={(v) => setTypeId(v ? Number(v) : "")}
             placeholder="선택하세요"
             options={types.map((t) => ({ value: t.id, label: t.label }))}
           />
@@ -125,7 +136,11 @@ export function SpotEditor({
           name="addressRoad"
           label="주소 (도로명 + 건물번호까지)"
           defaultValue={spot.addressRoad}
-          hint="층·호수 등 상세주소는 넣지 않습니다. 1인 사업장은 주거지와 같은 경우가 많습니다."
+          hint={
+            isCare
+              ? "돌봄 파트너는 주소를 비워 두세요 — 개인 사업자의 주거지가 공개됩니다. 아래 서비스 지역(시군구)으로만 노출됩니다."
+              : "층·호수 등 상세주소는 넣지 않습니다. 1인 사업장은 주거지와 같은 경우가 많습니다."
+          }
         />
 
         <div className="grid gap-4 sm:grid-cols-3">
@@ -150,6 +165,10 @@ export function SpotEditor({
           hint="직접 촬영한 사진만. 페이지 상단과 공유 미리보기에 쓰입니다."
         />
       </section>
+
+      {isCare && (
+        <ServiceAreasEditor name="serviceAreasJson" options={areaOptions} initialRows={serviceAreas} homeRegionId={spot.regionId} />
+      )}
 
       <SeoFields defaults={spot.seo ?? {}} />
 

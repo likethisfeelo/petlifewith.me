@@ -6,12 +6,13 @@ import { redirect } from "next/navigation";
 import { and, eq, ne } from "drizzle-orm";
 import { getDb, isDbConfigured, schema } from "@/lib/db";
 import { getSession, loginWithToken, logout } from "@/lib/auth";
-import { categoriesForTopic, slugify } from "@app/data";
+import { MAX_EXPOSED_PER_AREA, categoriesForTopic, slugify } from "@app/data";
 import { isValidObjectKey } from "@/lib/assets";
 import { parsePinnedOrder } from "@/lib/guide-order";
-import { guideRelatedPaths } from "@/lib/revalidate-paths";
+import { careRelatedPaths, guideRelatedPaths } from "@/lib/revalidate-paths";
+import { countExposedInArea } from "@/lib/queries/care";
 
-const { guides, topics, users, comments, claims, spots, spotTypes, guideItemTags, guideSpotTags, guideMakerTags, promotions } = schema;
+const { guides, topics, users, comments, claims, spots, spotTypes, guideItemTags, guideSpotTags, guideMakerTags, promotions, spotServiceAreas, bookingRequests } = schema;
 
 type GuideStatus = "draft" | "review_pending" | "published" | "archived" | "pending";
 const GUIDE_STATUSES: readonly GuideStatus[] = ["draft", "review_pending", "published", "archived", "pending"];
@@ -103,6 +104,9 @@ export async function saveGuideAction(_prev: ActionState, formData: FormData): P
   if (cat.error) return { error: cat.error };
   const pin = await readPinnedOrder(db, formData, existing.topicId, existing.id);
   if (pin.error) return { error: pin.error };
+  // 상단 디렉토리 배너 — 공개 스팟 유형만, 정렬 순서대로
+  const listedTypes = await db.select({ slug: spotTypes.slug }).from(spotTypes).where(eq(spotTypes.listed, true)).orderBy(spotTypes.sortOrder);
+  const bannerSpotTypes = listedTypes.map((t) => t.slug).filter((slug) => formData.get(`banner:${slug}`) === "on");
   // 고정은 발행된 글만 의미가 있다
   if (pin.pinnedOrder && status !== "published") return { error: "최상단 고정은 발행 상태의 글에만 걸 수 있습니다." };
 
@@ -127,6 +131,7 @@ export async function saveGuideAction(_prev: ActionState, formData: FormData): P
       role: formData.get("role") === "hub" ? "hub" : "spoke",
       category: cat.category,
       pinnedOrder: pin.pinnedOrder,
+      bannerSpotTypes,
       status,
       medicalAdjacent,
       vetReviewed,
@@ -355,4 +360,48 @@ export async function deleteCommentAction(formData: FormData): Promise<void> {
   await db.delete(comments).where(eq(comments.id, id));
   if (guideId) for (const p of await guideRelatedPaths(guideId)) revalidatePath(p);
   revalidatePath("/admin/comments");
+}
+
+// ---------- 돌봄 파트너: 지역별 노출 ON/OFF · 예약 신청 처리 ----------
+
+/** 관리자 > 돌봄 파트너 화면의 토글. 켤 때는 지역 x 유형 자리 상한을 검사하고, 차 있으면 안내로 돌아간다. */
+export async function toggleServiceAreaExposureAction(formData: FormData): Promise<void> {
+  const db = await requireAdminSession();
+  const spotId = Number(formData.get("spotId"));
+  const regionId = Number(formData.get("regionId"));
+  const back = typeof formData.get("back") === "string" ? String(formData.get("back")) : "/admin/care";
+  if (!Number.isSafeInteger(spotId) || !Number.isSafeInteger(regionId)) return;
+  const row = (
+    await db
+      .select({ exposed: spotServiceAreas.exposed, typeId: spots.typeId })
+      .from(spotServiceAreas)
+      .innerJoin(spots, eq(spotServiceAreas.spotId, spots.id))
+      .where(and(eq(spotServiceAreas.spotId, spotId), eq(spotServiceAreas.regionId, regionId)))
+      .limit(1)
+  )[0];
+  if (!row) return;
+  if (!row.exposed) {
+    const taken = await countExposedInArea(row.typeId, regionId, spotId);
+    if (taken >= MAX_EXPOSED_PER_AREA) {
+      const sep = back.includes("?") ? "&" : "?";
+      redirect(`${back}${sep}notice=full&region=${regionId}`);
+    }
+  }
+  await db
+    .update(spotServiceAreas)
+    .set({ exposed: !row.exposed, updatedAt: new Date() })
+    .where(and(eq(spotServiceAreas.spotId, spotId), eq(spotServiceAreas.regionId, regionId)));
+  for (const p of await careRelatedPaths(spotId)) revalidatePath(p);
+  revalidatePath("/admin/care");
+}
+
+export async function toggleBookingHandledAction(formData: FormData): Promise<void> {
+  const db = await requireAdminSession();
+  const id = Number(formData.get("id"));
+  if (!Number.isSafeInteger(id)) return;
+  const row = (await db.select({ handledAt: bookingRequests.handledAt }).from(bookingRequests).where(eq(bookingRequests.id, id)).limit(1))[0];
+  if (!row) return;
+  await db.update(bookingRequests).set({ handledAt: row.handledAt ? null : new Date() }).where(eq(bookingRequests.id, id));
+  revalidatePath("/admin/bookings");
+  revalidatePath("/admin");
 }

@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { carePersonLabel, isCareType } from "@app/data";
 import { Breadcrumbs } from "@/components/breadcrumbs";
+import { CareActions } from "@/components/care/booking-form";
 import { JsonLd } from "@/components/jsonld";
 import { B2BNote, DataReferenceNote, PharmacyNote } from "@/components/notices";
 import { RememberRegion } from "@/components/region-banner";
@@ -9,6 +11,7 @@ import { contactEmail } from "@/lib/config";
 import { SPOT_STATUS_LABEL, formatDate, idSlugPath, parseIdSlug } from "@/lib/format";
 import { renderMarkdown } from "@/lib/markdown";
 import { guidesMentioningSpot } from "@/lib/queries/guides";
+import { listServiceAreasForSpot } from "@/lib/queries/care";
 import { getPlace, getSpotLinks } from "@/lib/queries/spots";
 import { spotLinkLabel } from "@/lib/links";
 import { buildMeta, localBusinessLd, placeInfoItemCount, robotsMeta, shouldIndexPlace } from "@/lib/seo";
@@ -52,12 +55,31 @@ export default async function PlacePage({ params }: Props) {
   if (!found) notFound();
 
   const { spot, typeName, typeMonetizable, region } = found;
-  const [mentions, links] = await Promise.all([guidesMentioningSpot(spot.id), getSpotLinks(spot.id)]);
+  const isCare = isCareType(found.typeSlug);
+  const [mentions, links, careAreas] = await Promise.all([
+    guidesMentioningSpot(spot.id),
+    getSpotLinks(spot.id),
+    isCare ? listServiceAreasForSpot(spot.id) : Promise.resolve([]),
+  ]);
+  const exposedAreas = careAreas.filter((a) => a.exposed);
   const description = spot.descriptionMd ? renderMarkdown(spot.descriptionMd) : null;
   const email = contactEmail();
   const infoCount = placeInfoItemCount(spot, links.length);
 
   const infoRows: Array<[string, React.ReactNode]> = [];
+  // 돌봄 파트너는 주소 대신 활동 지역(시군구) — 개인 사업자의 주거지를 싣지 않는다 (claude.md 5-6)
+  if (exposedAreas.length > 0) {
+    infoRows.push([
+      "활동 지역",
+      <span key="areas" className="flex flex-wrap gap-1.5">
+        {exposedAreas.map((a) => (
+          <Link key={a.id} href={`/spot/${a.sidoSlug}/${a.sigunguSlug}/${found.typeSlug}`} className="rounded-full bg-sea-soft px-2 py-0.5 text-xs font-medium text-sea hover:bg-sea hover:text-white">
+            {a.sidoName} {a.sigunguName}
+          </Link>
+        ))}
+      </span>,
+    ]);
+  }
   if (spot.addressRoad) infoRows.push(["주소", spot.addressRoad]);
   if (spot.phone) infoRows.push(["전화", <a key="tel" className="hover:underline" href={`tel:${spot.phone}`}>{spot.phone}</a>]);
   if (spot.hoursText) infoRows.push(["운영시간", spot.hoursText]);
@@ -112,7 +134,9 @@ export default async function PlacePage({ params }: Props) {
             <span className="rounded-full bg-honey-soft px-2.5 py-1 font-medium text-honey">직접 발굴</span>
           )}
           {spot.source === "sample" && (
-            <span className="rounded-full bg-accent-soft px-2.5 py-1 font-medium text-accent-deep">개발용 샘플</span>
+            <span className="rounded-full bg-honey-soft px-2.5 py-1 font-medium text-honey" title="화면 구성을 보여 주기 위한 가상의 예시 — 실제 업체가 아닙니다">
+              예시 (가상 데이터)
+            </span>
           )}
         </div>
         <h1 className="mt-3 text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">{spot.name}</h1>
@@ -144,6 +168,20 @@ export default async function PlacePage({ params }: Props) {
               </div>
             ))}
           </dl>
+        </section>
+      )}
+
+      {isCare && spot.status === "operating" && (
+        <section className="mt-4 rounded-xl border border-line bg-cream px-4 py-3">
+          <p className="text-sm font-semibold text-ink">예약·상담</p>
+          <p className="mt-0.5 text-xs text-ink-soft">예약 신청은 운영자가 받아 {carePersonLabel(found.typeSlug)}에게 연결합니다.</p>
+          <CareActions
+            spotId={spot.id}
+            spotName={spot.name}
+            regionId={exposedAreas[0]?.regionId ?? null}
+            personLabel={carePersonLabel(found.typeSlug)}
+            kakaoUrl={links.find((l) => l.kind === "kakao")?.url ?? null}
+          />
         </section>
       )}
 

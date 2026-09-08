@@ -16,6 +16,8 @@ const NAV = [
   { href: "/admin/items", label: "상품" },
   { href: "/admin/devices", label: "기기" },
   { href: "/admin/rehab", label: "재활·한방" },
+  { href: "/admin/care", label: "돌봄 파트너" },
+  { href: "/admin/bookings", label: "예약 신청" },
   { href: "/admin/curations", label: "큐레이션" },
   { href: "/admin/media", label: "미디어" },
   { href: "/admin/claims", label: "클레임" },

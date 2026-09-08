@@ -9,6 +9,8 @@ import { JsonLd } from "@/components/jsonld";
 import { CommentSection } from "@/components/comments";
 import { AffiliateDisclosure, MedicalNotice, MemberPostNote, VetReviewBadge } from "@/components/notices";
 import { getGuideCategory } from "@app/data";
+import { SpotTypeBanners } from "@/components/spot-type-banners";
+import { countIndexableSpotsForType, listSpotTypesBySlugs } from "@/lib/queries/spots";
 import { listVisibleComments } from "@/lib/queries/comments";
 import { formatDate } from "@/lib/format";
 import { renderMarkdown } from "@/lib/markdown";
@@ -68,6 +70,9 @@ export default async function GuidePage({ params }: Props) {
 
   const isMemberPost = Boolean(guide.authorUserId);
   const category = getGuideCategory(topic.slug, guide.category);
+  // 상단 디렉토리 배너 — 관리자가 지정한 스팟 유형(공개 유형만) + 전국 영업 중 수
+  const bannerTypes = await listSpotTypesBySlugs(guide.bannerSpotTypes);
+  const bannerCounts = new Map(await Promise.all(bannerTypes.map(async (t) => [t.id, await countIndexableSpotsForType(t.id)] as const)));
   // 회원 글의 외부 링크에는 nofollow ugc — 승인은 했지만 검색 권위를 넘기지 않는다
   const rendered = renderMarkdown(guide.bodyMd, { ugc: isMemberPost });
   const showDisclosure = rendered.hasAffiliateLinks || tags.hasAffiliateOffers;
@@ -115,6 +120,8 @@ export default async function GuidePage({ params }: Props) {
             : ""}
         </p>
       </header>
+
+      {bannerTypes.length > 0 && <SpotTypeBanners types={bannerTypes} counts={bannerCounts} />}
 
       {assetUrl(guide.heroImageKey) && (
         // 대표 이미지 — 직접 촬영·제작분만 업로드한다 (재호스팅 금지, 운영 규칙 3-1)

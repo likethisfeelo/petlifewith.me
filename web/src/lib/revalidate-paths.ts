@@ -19,3 +19,29 @@ export async function guideRelatedPaths(guideId: number): Promise<string[]> {
   if (row.category) paths.push(`/topic/${row.topicSlug}/${row.category}`);
   return paths;
 }
+
+// 돌봄 파트너 하나가 바뀌면(노출 ON/OFF·지역 변경) 유형 허브·지역 페이지·개별 페이지를 다시 만든다.
+const { spots, spotTypes, regions, spotServiceAreas } = schema;
+
+export async function careRelatedPaths(spotId: number): Promise<string[]> {
+  const db = getDb();
+  const row = (
+    await db
+      .select({ id: spots.id, slug: spots.slug, typeSlug: spotTypes.slug })
+      .from(spots)
+      .innerJoin(spotTypes, eq(spots.typeId, spotTypes.id))
+      .where(eq(spots.id, spotId))
+      .limit(1)
+  )[0];
+  if (!row) return [];
+  const areas = await db
+    .select({ sidoSlug: regions.sidoSlug, sigunguSlug: regions.sigunguSlug })
+    .from(spotServiceAreas)
+    .innerJoin(regions, eq(spotServiceAreas.regionId, regions.id))
+    .where(eq(spotServiceAreas.spotId, spotId));
+  return [
+    `/spot/type/${row.typeSlug}`,
+    `/place/${row.id}-${row.slug}`,
+    ...areas.map((a) => `/spot/${a.sidoSlug}/${a.sigunguSlug}/${row.typeSlug}`),
+  ];
+}
