@@ -9,6 +9,7 @@ import { getSession, loginWithToken, logout } from "@/lib/auth";
 import { categoriesForTopic, slugify } from "@app/data";
 import { isValidObjectKey } from "@/lib/assets";
 import { parsePinnedOrder } from "@/lib/guide-order";
+import { guideRelatedPaths } from "@/lib/revalidate-paths";
 
 const { guides, topics, users, comments, claims, spots, spotTypes, guideItemTags, guideSpotTags, guideMakerTags, promotions } = schema;
 
@@ -140,9 +141,9 @@ export async function saveGuideAction(_prev: ActionState, formData: FormData): P
     })
     .where(eq(guides.id, id));
 
-  revalidatePath(`/guide/${existing.slug}`);
-  revalidatePath(`/topic/${cat.topicSlug}`);
-  revalidatePath("/");
+  // 카테고리가 바뀐 경우 이전 게시판도 함께
+  if (existing.category) revalidatePath(`/topic/${cat.topicSlug}/${existing.category}`);
+  for (const p of await guideRelatedPaths(id)) revalidatePath(p);
   return { saved: true };
 }
 
@@ -165,9 +166,7 @@ export async function publishGuideAction(formData: FormData): Promise<void> {
     .update(guides)
     .set({ status: "published", publishedAt: row.guide.publishedAt ?? new Date(), updatedAt: new Date() })
     .where(eq(guides.id, id));
-  revalidatePath(`/guide/${row.guide.slug}`);
-  revalidatePath(`/topic/${row.topicSlug}`);
-  revalidatePath("/");
+  for (const p of await guideRelatedPaths(id)) revalidatePath(p);
   revalidatePath("/admin/guides");
 }
 
@@ -332,27 +331,19 @@ export async function toggleUserBlockAction(formData: FormData): Promise<void> {
   revalidatePath("/admin/members");
 }
 
-async function commentGuideSlug(db: ReturnType<typeof getDb>, commentId: number): Promise<string | null> {
-  const row = (
-    await db
-      .select({ slug: guides.slug })
-      .from(comments)
-      .innerJoin(guides, eq(comments.guideId, guides.id))
-      .where(eq(comments.id, commentId))
-      .limit(1)
-  )[0];
-  return row?.slug ?? null;
+async function commentGuideId(db: ReturnType<typeof getDb>, commentId: number): Promise<number | null> {
+  const row = (await db.select({ guideId: comments.guideId }).from(comments).where(eq(comments.id, commentId)).limit(1))[0];
+  return row?.guideId ?? null;
 }
 
 export async function toggleCommentHiddenAction(formData: FormData): Promise<void> {
   const db = await requireAdminSession();
   const id = Number(formData.get("id"));
   if (!Number.isSafeInteger(id)) return;
-  const row = (await db.select({ hiddenAt: comments.hiddenAt }).from(comments).where(eq(comments.id, id)).limit(1))[0];
+  const row = (await db.select({ hiddenAt: comments.hiddenAt, guideId: comments.guideId }).from(comments).where(eq(comments.id, id)).limit(1))[0];
   if (!row) return;
-  const slug = await commentGuideSlug(db, id);
   await db.update(comments).set({ hiddenAt: row.hiddenAt ? null : new Date(), updatedAt: new Date() }).where(eq(comments.id, id));
-  if (slug) revalidatePath(`/guide/${slug}`);
+  for (const p of await guideRelatedPaths(row.guideId)) revalidatePath(p);
   revalidatePath("/admin/comments");
 }
 
@@ -360,8 +351,8 @@ export async function deleteCommentAction(formData: FormData): Promise<void> {
   const db = await requireAdminSession();
   const id = Number(formData.get("id"));
   if (!Number.isSafeInteger(id)) return;
-  const slug = await commentGuideSlug(db, id);
+  const guideId = await commentGuideId(db, id);
   await db.delete(comments).where(eq(comments.id, id));
-  if (slug) revalidatePath(`/guide/${slug}`);
+  if (guideId) for (const p of await guideRelatedPaths(guideId)) revalidatePath(p);
   revalidatePath("/admin/comments");
 }

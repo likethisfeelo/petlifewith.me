@@ -73,7 +73,19 @@ export default async function TopicPage({ params }: Props) {
       </header>
 
       {/* 신체 지도 — 노견생활 전용. 카테고리 정의는 data/src/guides/categories.ts */}
-      {isSenior && categories.length > 0 && <SeniorBodyMap areas={categories} postsByCategory={postsByCategory} />}
+      {isSenior && categories.length > 0 && <SeniorBodyMap areas={categories} postsByCategory={postsByCategory} topicSlug={topic.slug} />}
+
+      {isSenior && categories.length > 0 && (
+        <nav aria-label="부위별 게시판" className="mt-5 flex flex-wrap items-center gap-1.5 text-xs">
+          <span className="mr-1 text-ink-faint">부위별 게시판:</span>
+          {categories.map((c) => (
+            <Link key={c.slug} href={`/topic/${topic.slug}/${c.slug}`} className="rounded-full border border-line px-2.5 py-1 text-ink-soft hover:bg-sand hover:text-ink">
+              {c.name}
+              {byCategory.get(c.slug)?.length ? <span className="ml-1 text-ink-faint">{byCategory.get(c.slug)!.length}</span> : null}
+            </Link>
+          ))}
+        </nav>
+      )}
 
       {hub && (
         <Link

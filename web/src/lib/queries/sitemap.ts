@@ -3,7 +3,8 @@
 // 사이트맵에도 넣지 않는다.
 import { and, eq, gte, ne, sql } from "drizzle-orm";
 import { getDb, isDbConfigured, schema } from "../db";
-import { MIN_PLACE_INFO_ITEMS, MIN_SPOTS_FOR_INDEX, placeInfoItemCount } from "../seo";
+import { MIN_PLACE_INFO_ITEMS, MIN_SPOTS_FOR_INDEX, placeInfoItemCount, shouldIndexBoard, shouldIndexGuide } from "../seo";
+import { categoriesForTopic } from "@app/data";
 import { countRehabSites, countRehabSitesByModality } from "./rehab";
 
 const { guides, topics, spots, spotTypes, regions, makers, items, guideItemTags, curations, curationEntries, spotLinks } =
@@ -18,10 +19,26 @@ export async function sitemapGuides(): Promise<SitemapEntry[]> {
   if (!isDbConfigured()) return [];
   const db = getDb();
   const rows = await db
-    .select({ slug: guides.slug, updatedAt: guides.updatedAt })
+    .select({ slug: guides.slug, updatedAt: guides.updatedAt, bodyMd: guides.bodyMd })
     .from(guides)
     .where(eq(guides.status, "published"));
-  return rows.map((r) => ({ path: `/guide/${r.slug}`, lastModified: r.updatedAt }));
+  // 본문이 짧은 글은 페이지도 noindex 라 사이트맵에서도 뺀다 (같은 게이트)
+  return rows.filter((r) => shouldIndexGuide(r.bodyMd)).map((r) => ({ path: `/guide/${r.slug}`, lastModified: r.updatedAt }));
+}
+
+/** 카테고리 게시판 (/topic/[토픽]/[카테고리]) — 발행 글 3편 이상인 조합만 */
+export async function sitemapCategoryBoards(): Promise<SitemapEntry[]> {
+  if (!isDbConfigured()) return [];
+  const db = getDb();
+  const rows = await db
+    .select({ topicSlug: topics.slug, category: guides.category, count: sql<number>`count(*)`.mapWith(Number) })
+    .from(guides)
+    .innerJoin(topics, eq(guides.topicId, topics.id))
+    .where(eq(guides.status, "published"))
+    .groupBy(topics.slug, guides.category);
+  return rows
+    .filter((r) => r.category && shouldIndexBoard(r.count) && categoriesForTopic(r.topicSlug).some((c) => c.slug === r.category))
+    .map((r) => ({ path: `/topic/${r.topicSlug}/${r.category}` }));
 }
 
 export async function sitemapTopics(): Promise<SitemapEntry[]> {

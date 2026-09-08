@@ -1,5 +1,5 @@
 // 댓글 — 회원만 쓴다. 공개 목록은 숨김 처리되지 않은 것만, 닉네임만 노출 (이메일 없음).
-import { and, asc, eq, isNull, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { getDb, isDbConfigured, schema } from "../db";
 
 const { comments, users } = schema;
@@ -36,4 +36,15 @@ export async function countVisibleComments(guideId: number): Promise<number> {
     .from(comments)
     .where(and(eq(comments.guideId, guideId), isNull(comments.hiddenAt)));
   return rows[0]?.count ?? 0;
+}
+
+/** 여러 글의 댓글 수 — 게시판 목록용 */
+export async function countCommentsByGuides(guideIds: number[]): Promise<Map<number, number>> {
+  if (!isDbConfigured() || guideIds.length === 0) return new Map();
+  const rows = await getDb()
+    .select({ guideId: comments.guideId, count: sql<number>`count(*)`.mapWith(Number) })
+    .from(comments)
+    .where(and(inArray(comments.guideId, guideIds), isNull(comments.hiddenAt)))
+    .groupBy(comments.guideId);
+  return new Map(rows.map((r) => [r.guideId, r.count]));
 }

@@ -17,3 +17,4 @@ export {
   type CategoryQuestion,
   type GuideCategoryDef,
 } from "./guides/categories.js";
+export { seniorSeedPosts, type SeedPost } from "./guides/seed-posts.js";

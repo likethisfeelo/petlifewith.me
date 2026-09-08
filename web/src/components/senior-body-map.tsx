@@ -69,7 +69,18 @@ function Dog() {
   );
 }
 
-export function SeniorBodyMap({ areas, postsByCategory }: { areas: GuideCategoryDef[]; postsByCategory: Record<string, MapPost[]> }) {
+/** 패널에 보여줄 글 수 — 그림 카드와 높이를 맞추기 위한 상한. 나머지는 게시판에서 */
+const PANEL_POSTS = 3;
+
+export function SeniorBodyMap({
+  areas,
+  postsByCategory,
+  topicSlug,
+}: {
+  areas: GuideCategoryDef[];
+  postsByCategory: Record<string, MapPost[]>;
+  topicSlug: string;
+}) {
   const [selected, setSelected] = useState<string | null>(null);
   const [hovered, setHovered] = useState<string | null>(null);
 
@@ -104,10 +115,15 @@ export function SeniorBodyMap({ areas, postsByCategory }: { areas: GuideCategory
   const active = areas.find((a) => a.slug === selected) ?? null;
   const tip = areas.find((a) => a.slug === hovered) ?? null;
   const tipSpot = tip ? HOTSPOTS[tip.slug] : null;
+  const activePosts = active ? (postsByCategory[active.slug] ?? []) : [];
+  const boardHref = active ? `/topic/${topicSlug}/${active.slug}` : null;
+  // 툴팁 첫 줄: 그 부위의 첫 글 제목(= 질문). 글이 없으면 정의의 첫 질문
+  const tipLine = tip ? ((postsByCategory[tip.slug] ?? [])[0]?.title ?? tip.questions[0]?.q ?? "") : "";
 
   return (
     <section id="body-map" className="mt-8">
-      <div className="grid gap-5 lg:grid-cols-[1.15fr_0.85fr] lg:items-start">
+      {/* 두 카드는 같은 높이 — 패널은 flex-col 로 채우고 글 수를 PANEL_POSTS 로 제한한다 */}
+      <div className="grid gap-5 lg:grid-cols-[1.15fr_0.85fr] lg:items-stretch">
         <div className="rounded-2xl border border-line bg-surface p-4 shadow-sm sm:p-5">
           <div className="flex justify-between text-xs text-ink-faint">
             <span>부위에 올리면 이름이, 누르면 관찰 포인트와 글이 뜹니다</span>
@@ -156,14 +172,14 @@ export function SeniorBodyMap({ areas, postsByCategory }: { areas: GuideCategory
                   {tip.name}
                 </text>
                 <text x="0" y="-8" textAnchor="middle" fontSize="9.5" fill="#fff" opacity="0.75">
-                  {tip.questions[0]?.q}
+                  {tipLine.length > 22 ? `${tipLine.slice(0, 21)}…` : tipLine}
                 </text>
               </g>
             )}
           </svg>
         </div>
 
-        <aside className="min-h-[18rem] rounded-2xl border border-line bg-surface p-5 shadow-sm" aria-live="polite">
+        <aside className="flex min-h-[18rem] flex-col rounded-2xl border border-line bg-surface p-5 shadow-sm lg:h-full" aria-live="polite">
           {!active ? (
             <div className="text-sm leading-relaxed text-ink-soft">
               <p className="font-semibold text-ink">그림의 점을 누르세요.</p>
@@ -172,36 +188,40 @@ export function SeniorBodyMap({ areas, postsByCategory }: { areas: GuideCategory
               </p>
             </div>
           ) : (
-            <div>
+            <>
               <h3 className="text-xl font-extrabold text-ink">{active.name}</h3>
-              <p className="mt-1.5 text-sm leading-relaxed text-ink-soft">{active.blurb}</p>
-              <ul className="mt-4 divide-y divide-line border-y border-line">
-                {active.questions.map((item) => (
-                  <li key={item.q} className="py-3">
-                    <p className="text-sm font-semibold text-ink">Q. {item.q}</p>
-                    <p className="mt-1 text-[13px] leading-relaxed text-ink-soft">{item.a}</p>
-                  </li>
-                ))}
-              </ul>
-              <div className="mt-4">
-                <p className="text-xs font-semibold text-ink">관련 글</p>
-                {(postsByCategory[active.slug] ?? []).length === 0 ? (
-                  <p className="mt-1 text-xs text-ink-faint">이 부위의 글은 준비 중입니다.</p>
+              <p className="mt-1.5 line-clamp-2 text-sm leading-relaxed text-ink-soft">{active.blurb}</p>
+
+              {/* 관련 글 — 제목이 곧 질문. 클릭하면 그 글(댓글 포함)로 간다 */}
+              <ul className="mt-3 min-h-0 flex-1 divide-y divide-line overflow-hidden border-y border-line">
+                {activePosts.length === 0 ? (
+                  <li className="py-3 text-sm text-ink-faint">이 부위의 글이 아직 없습니다. 게시판에서 첫 글을 남겨 주세요.</li>
                 ) : (
-                  <ul className="mt-1.5 space-y-1.5">
-                    {postsByCategory[active.slug]!.map((p) => (
-                      <li key={p.slug}>
-                        <Link href={`/guide/${p.slug}`} className="text-sm font-medium text-accent-deep hover:underline">
-                          {p.title} →
-                        </Link>
-                        {p.authorName && <span className="ml-1 text-xs text-ink-faint">회원 글 · {p.authorName}</span>}
-                      </li>
-                    ))}
-                  </ul>
+                  activePosts.slice(0, PANEL_POSTS).map((p) => (
+                    <li key={p.slug} className="py-2.5">
+                      <Link href={`/guide/${p.slug}`} className="group block">
+                        <p className="line-clamp-1 text-sm font-semibold text-ink group-hover:underline">Q. {p.title}</p>
+                        {p.summary && <p className="mt-0.5 line-clamp-2 text-[13px] leading-relaxed text-ink-soft">{p.summary}</p>}
+                        {p.authorName && <p className="mt-0.5 text-[11px] text-ink-faint">회원 글 · {p.authorName}</p>}
+                      </Link>
+                    </li>
+                  ))
                 )}
+              </ul>
+
+              <div className="mt-3 flex flex-col gap-2">
+                <Link
+                  href={boardHref!}
+                  className="inline-flex items-center justify-center rounded-full bg-ink px-4 py-2 text-sm font-medium text-cream hover:opacity-90"
+                >
+                  {active.name} 영역별 정보 더 보기
+                  {activePosts.length > PANEL_POSTS ? ` (${activePosts.length}편)` : ""} →
+                </Link>
+                <p className="text-[11px] leading-relaxed text-ink-faint">
+                  관찰 포인트는 참고용입니다. 신호가 이어지면 동물병원에서 확인하세요. 게시판에서 글을 쓰고 댓글을 남길 수 있습니다.
+                </p>
               </div>
-              <p className="mt-4 text-xs text-ink-faint">여기 적힌 것은 집에서 살펴보는 관찰 포인트입니다. 신호가 이어지면 동물병원에서 확인하세요.</p>
-            </div>
+            </>
           )}
         </aside>
       </div>
@@ -226,7 +246,9 @@ export function SeniorBodyMap({ areas, postsByCategory }: { areas: GuideCategory
                   {a.name}
                   {count > 0 && <span className="ml-1.5 text-xs font-medium text-ink-faint">{count}편</span>}
                 </span>
-                <span className="mt-0.5 line-clamp-2 block text-xs leading-relaxed text-ink-soft">{a.questions.map((q) => q.q).join(" · ")}</span>
+                <span className="mt-0.5 line-clamp-2 block text-xs leading-relaxed text-ink-soft">
+                  {(count > 0 ? (postsByCategory[a.slug] ?? []).map((p) => p.title) : a.questions.map((q) => q.q)).join(" · ")}
+                </span>
               </button>
             );
           })}

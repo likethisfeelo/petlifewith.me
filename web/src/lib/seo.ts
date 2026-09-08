@@ -16,6 +16,19 @@ export function shouldIndexRegionPage(spotCount: number): boolean {
   return spotCount >= MIN_SPOTS_FOR_INDEX;
 }
 
+/** 본문 400자 미만 게시글 → noindex (지도 Q&A 시드 글처럼 짧은 글은 늘린 뒤에 색인된다) */
+export const MIN_GUIDE_BODY_CHARS = 400;
+
+export function shouldIndexGuide(bodyMd: string | null | undefined): boolean {
+  // 공백은 세지 않는다 — 띄어쓰기로 늘린 글이 통과하지 않게
+  return (bodyMd ?? "").replace(/\s+/g, "").length >= MIN_GUIDE_BODY_CHARS;
+}
+
+/** 카테고리 게시판 — 지역 페이지와 같은 3편 게이트 */
+export function shouldIndexBoard(postCount: number): boolean {
+  return postCount >= MIN_SPOTS_FOR_INDEX;
+}
+
 export interface PlaceInfoFields {
   addressRoad: string | null;
   phone: string | null;
