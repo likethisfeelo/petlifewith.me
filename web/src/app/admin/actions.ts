@@ -8,7 +8,7 @@ import { getDb, isDbConfigured, schema } from "@/lib/db";
 import { getSession, loginWithToken, logout } from "@/lib/auth";
 import { MAX_EXPOSED_PER_AREA, categoriesForTopic, slugify } from "@app/data";
 import { isValidObjectKey } from "@/lib/assets";
-import { parsePinnedOrder } from "@/lib/guide-order";
+import { parseAreaOrder, parseCuratedOrder } from "@/lib/guide-order";
 import { careRelatedPaths, guideRelatedPaths } from "@/lib/revalidate-paths";
 import { countExposedInArea } from "@/lib/queries/care";
 
@@ -34,21 +34,42 @@ async function readCategory(db: ReturnType<typeof getDb>, formData: FormData, to
 }
 
 /** 최상단 고정 — 토픽 안에서 같은 순번은 하나뿐 (1~3) */
-async function readPinnedOrder(
+/** 큐레이션 노출 순서(1~9) — 토픽 안에서 순번은 하나에 글 하나 */
+async function readCuratedOrder(
   db: ReturnType<typeof getDb>,
   formData: FormData,
   topicId: number,
   selfId: number | null,
-): Promise<{ error?: string; pinnedOrder: number | null }> {
-  const raw = String(formData.get("pinnedOrder") ?? "").trim();
-  if (!raw) return { pinnedOrder: null };
-  const pinnedOrder = parsePinnedOrder(raw);
-  if (!pinnedOrder) return { error: "최상단 순번은 1~3 중 하나입니다.", pinnedOrder: null };
-  const conds = [eq(guides.topicId, topicId), eq(guides.pinnedOrder, pinnedOrder)];
+): Promise<{ error?: string; curatedOrder: number | null }> {
+  const raw = String(formData.get("curatedOrder") ?? "").trim();
+  if (!raw) return { curatedOrder: null };
+  const curatedOrder = parseCuratedOrder(raw);
+  if (!curatedOrder) return { error: "큐레이션 순번은 1~9 중 하나입니다.", curatedOrder: null };
+  const conds = [eq(guides.topicId, topicId), eq(guides.curatedOrder, curatedOrder)];
   if (selfId) conds.push(ne(guides.id, selfId));
   const taken = (await db.select({ id: guides.id, title: guides.title }).from(guides).where(and(...conds)).limit(1))[0];
-  if (taken) return { error: `최상단 ${pinnedOrder}번에는 이미 "${taken.title}" 이 고정돼 있습니다. 그 글의 고정을 먼저 풀거나 다른 순번을 고르세요.`, pinnedOrder: null };
-  return { pinnedOrder };
+  if (taken) return { error: `큐레이션 ${curatedOrder}번에는 이미 "${taken.title}" 이 있습니다. 그 글의 순번을 먼저 풀거나 다른 순번을 고르세요.`, curatedOrder: null };
+  return { curatedOrder };
+}
+
+/** 부위 대표 순번(1~3) — 같은 토픽·카테고리 안에서 순번은 하나에 글 하나 */
+async function readAreaOrder(
+  db: ReturnType<typeof getDb>,
+  formData: FormData,
+  topicId: number,
+  category: string | null,
+  selfId: number | null,
+): Promise<{ error?: string; areaOrder: number | null }> {
+  const raw = String(formData.get("areaOrder") ?? "").trim();
+  if (!raw) return { areaOrder: null };
+  const areaOrder = parseAreaOrder(raw);
+  if (!areaOrder) return { error: "부위 대표 순번은 1~3 중 하나입니다.", areaOrder: null };
+  if (!category) return { error: "부위 대표로 올리려면 먼저 카테고리(위치)를 지정하세요.", areaOrder: null };
+  const conds = [eq(guides.topicId, topicId), eq(guides.category, category), eq(guides.areaOrder, areaOrder)];
+  if (selfId) conds.push(ne(guides.id, selfId));
+  const taken = (await db.select({ id: guides.id, title: guides.title }).from(guides).where(and(...conds)).limit(1))[0];
+  if (taken) return { error: `이 부위의 대표 ${areaOrder}번에는 이미 "${taken.title}" 이 있습니다. 그 글의 대표를 먼저 풀거나 다른 순번을 고르세요.`, areaOrder: null };
+  return { areaOrder };
 }
 
 async function requireAdminSession() {
@@ -102,13 +123,17 @@ export async function saveGuideAction(_prev: ActionState, formData: FormData): P
 
   const cat = await readCategory(db, formData, existing.topicId);
   if (cat.error) return { error: cat.error };
-  const pin = await readPinnedOrder(db, formData, existing.topicId, existing.id);
-  if (pin.error) return { error: pin.error };
+  const cur = await readCuratedOrder(db, formData, existing.topicId, existing.id);
+  if (cur.error) return { error: cur.error };
+  const area = await readAreaOrder(db, formData, existing.topicId, cat.category, existing.id);
+  if (area.error) return { error: area.error };
+  // 순서를 줬으면 큐레이션 노출은 자동으로 켠다 (체크를 빼먹어도 의도는 분명하다)
+  const curated = formData.get("curated") === "on" || cur.curatedOrder !== null;
   // 상단 디렉토리 배너 — 공개 스팟 유형만, 정렬 순서대로
   const listedTypes = await db.select({ slug: spotTypes.slug }).from(spotTypes).where(eq(spotTypes.listed, true)).orderBy(spotTypes.sortOrder);
   const bannerSpotTypes = listedTypes.map((t) => t.slug).filter((slug) => formData.get(`banner:${slug}`) === "on");
-  // 고정은 발행된 글만 의미가 있다
-  if (pin.pinnedOrder && status !== "published") return { error: "최상단 고정은 발행 상태의 글에만 걸 수 있습니다." };
+  // 순번은 발행된 글만 의미가 있다
+  if ((cur.curatedOrder || area.areaOrder) && status !== "published") return { error: "큐레이션 순서·부위 대표는 발행 상태의 글에만 걸 수 있습니다." };
 
   const seoTitle = String(formData.get("seoTitle") ?? "").trim() || null;
   const seoDescription = String(formData.get("seoDescription") ?? "").trim() || null;
@@ -130,7 +155,9 @@ export async function saveGuideAction(_prev: ActionState, formData: FormData): P
       spokeGroup: String(formData.get("spokeGroup") ?? "").trim() || null,
       role: formData.get("role") === "hub" ? "hub" : "spoke",
       category: cat.category,
-      pinnedOrder: pin.pinnedOrder,
+      curated,
+      curatedOrder: cur.curatedOrder,
+      areaOrder: area.areaOrder,
       bannerSpotTypes,
       status,
       medicalAdjacent,
@@ -211,6 +238,8 @@ export async function createGuideAction(_prev: ActionState, formData: FormData):
       summary: String(formData.get("summary") ?? "").trim() || null,
       bodyMd: String(formData.get("bodyMd") ?? ""),
       topicId,
+      // 운영진이 쓴 글은 큐레이션 콘텐츠가 기본 (편집 화면에서 끌 수 있다)
+      curated: true,
       role: formData.get("role") === "hub" ? "hub" : "spoke",
       spokeGroup: String(formData.get("spokeGroup") ?? "").trim() || null,
       category: cat.category,

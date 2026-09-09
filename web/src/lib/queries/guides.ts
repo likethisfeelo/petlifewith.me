@@ -1,6 +1,6 @@
 import { and, desc, eq, inArray, ne, sql } from "drizzle-orm";
 import { getDb, isDbConfigured, schema } from "../db";
-import { orderForTopic } from "../guide-order";
+import { orderArea, orderCurated, orderNewest } from "../guide-order";
 
 const { guides, topics, users, guideItemTags, guideSpotTags, guideMakerTags, guideDeviceTags } = schema;
 const { items, itemOffers, makers, spots, spotTypes, regions, deviceModels, deviceSites } = schema;
@@ -50,13 +50,21 @@ export async function getPublishedGuide(
  *  - items: 허브를 뺀 글을 "최상단 고정(1~3) → 최신순" 으로 정렬 (lib/guide-order.ts)
  *  - byCategory: 카테고리별 목록 (신체 지도 패널용). 카테고리 없는 글은 "전체"에만 있다.
  */
+/**
+ * 토픽의 발행 글을 게시판 셋으로 나눈다 (lib/guide-order.ts 의 규칙).
+ *  - curated: 큐레이션 콘텐츠 — curated=true 인 글, curated_order → 최신순
+ *  - challenge: 도전 게시판 — 회원이 쓴 글 전체, 최신순 (큐레이션에 올라간 글도 여기 남는다)
+ *  - byCategory: 부위별 게시판 — 카테고리별, 대표(area_order) → 최신순
+ * 허브(전체 지도)는 어느 목록에도 넣지 않고 따로 돌려준다.
+ */
 export async function listGuidesForTopic(topicId: number): Promise<{
   hub: GuideRow | null;
-  items: GuideListItem[];
+  curated: GuideListItem[];
+  challenge: GuideListItem[];
   byCategory: Map<string, GuideListItem[]>;
   all: GuideRow[];
 }> {
-  if (!isDbConfigured()) return { hub: null, items: [], byCategory: new Map(), all: [] };
+  if (!isDbConfigured()) return { hub: null, curated: [], challenge: [], byCategory: new Map(), all: [] };
   const db = getDb();
   const rows = await db
     .select({ guide: guides, authorName: users.displayName })
@@ -68,16 +76,24 @@ export async function listGuidesForTopic(topicId: number): Promise<{
   const spokes = rows
     .filter((r) => r.guide.role !== "hub")
     .map((r) => ({ guide: r.guide, authorName: r.guide.authorUserId ? r.authorName : null }));
-  const ordered = orderForTopic(spokes.map((r) => ({ ...r, id: r.guide.id, pinnedOrder: r.guide.pinnedOrder, publishedAt: r.guide.publishedAt })));
-  const items: GuideListItem[] = ordered.map(({ guide, authorName }) => ({ guide, authorName }));
+  const keyed = spokes.map((r) => ({
+    ...r,
+    id: r.guide.id,
+    publishedAt: r.guide.publishedAt,
+    curatedOrder: r.guide.curatedOrder,
+    areaOrder: r.guide.areaOrder,
+  }));
+  const strip = ({ guide, authorName }: (typeof keyed)[number]): GuideListItem => ({ guide, authorName });
+  const curated = orderCurated(keyed.filter((r) => r.guide.curated)).map(strip);
+  const challenge = orderNewest(keyed.filter((r) => r.guide.authorUserId)).map(strip);
   const byCategory = new Map<string, GuideListItem[]>();
-  for (const item of items) {
+  for (const item of orderArea(keyed)) {
     if (!item.guide.category) continue;
     const list = byCategory.get(item.guide.category) ?? [];
-    list.push(item);
+    list.push(strip(item));
     byCategory.set(item.guide.category, list);
   }
-  return { hub, items, byCategory, all: rows.map((r) => r.guide) };
+  return { hub, curated, challenge, byCategory, all: rows.map((r) => r.guide) };
 }
 
 export async function latestPublishedGuides(limit: number): Promise<Array<{ guide: GuideRow; topic: TopicRow }>> {

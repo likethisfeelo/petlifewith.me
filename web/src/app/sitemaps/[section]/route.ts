@@ -10,7 +10,7 @@ import {
   sitemapPlaces,
   sitemapRegions,
   sitemapRehab,
-  sitemapTopicArchives,
+  sitemapTopicBoards,
   sitemapTopics,
   type SitemapEntry,
 } from "@/lib/queries/sitemap";
@@ -24,8 +24,8 @@ export function generateStaticParams() {
 async function entriesFor(section: string): Promise<SitemapEntry[] | null> {
   switch (section) {
     case "core": {
-      const [topics, boards, archives] = await Promise.all([sitemapTopics(), sitemapCategoryBoards(), sitemapTopicArchives()]);
-      return [{ path: "/" }, { path: "/maker" }, { path: "/curation" }, ...topics, ...archives, ...boards];
+      const [topics, boards, topicBoards] = await Promise.all([sitemapTopics(), sitemapCategoryBoards(), sitemapTopicBoards()]);
+      return [{ path: "/" }, { path: "/maker" }, { path: "/curation" }, ...topics, ...topicBoards, ...boards];
     }
     case "guides":
       return sitemapGuides();

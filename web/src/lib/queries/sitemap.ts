@@ -41,16 +41,25 @@ export async function sitemapCategoryBoards(): Promise<SitemapEntry[]> {
     .map((r) => ({ path: `/topic/${r.topicSlug}/${r.category}` }));
 }
 
-/** 토픽 전체 글 목록(/topic/[토픽]/archive) — 발행 글 3편 이상인 토픽만 */
-export async function sitemapTopicArchives(): Promise<SitemapEntry[]> {
+/** 토픽 게시판 — 큐레이션(/curated)·도전(/challenge). 각각 발행 글 3편 이상인 토픽만 */
+export async function sitemapTopicBoards(): Promise<SitemapEntry[]> {
   if (!isDbConfigured()) return [];
   const rows = await getDb()
-    .select({ topicSlug: topics.slug, count: sql<number>`count(*)`.mapWith(Number) })
+    .select({
+      topicSlug: topics.slug,
+      curated: sql<number>`count(*) filter (where ${guides.curated} = true)`.mapWith(Number),
+      challenge: sql<number>`count(*) filter (where ${guides.authorUserId} is not null)`.mapWith(Number),
+    })
     .from(guides)
     .innerJoin(topics, eq(guides.topicId, topics.id))
     .where(eq(guides.status, "published"))
     .groupBy(topics.slug);
-  return rows.filter((r) => shouldIndexBoard(r.count)).map((r) => ({ path: `/topic/${r.topicSlug}/archive` }));
+  const out: SitemapEntry[] = [];
+  for (const r of rows) {
+    if (shouldIndexBoard(r.curated)) out.push({ path: `/topic/${r.topicSlug}/curated` });
+    if (shouldIndexBoard(r.challenge)) out.push({ path: `/topic/${r.topicSlug}/challenge` });
+  }
+  return out;
 }
 
 export async function sitemapTopics(): Promise<SitemapEntry[]> {

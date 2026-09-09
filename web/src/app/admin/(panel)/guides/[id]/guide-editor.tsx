@@ -14,7 +14,9 @@ interface GuideValues {
   role: "hub" | "spoke";
   spokeGroup: string | null;
   category: string | null;
-  pinnedOrder: number | null;
+  curated: boolean;
+  curatedOrder: number | null;
+  areaOrder: number | null;
   bannerSpotTypes: string[];
   status: string;
   medicalAdjacent: boolean;
@@ -118,14 +120,39 @@ export function GuideEditor({
           </p>
         </div>
         <div>
-          <label className="block text-sm font-medium text-ink" htmlFor="pinnedOrder">최상단 고정</label>
-          <select id="pinnedOrder" name="pinnedOrder" defaultValue={guide.pinnedOrder ?? ""} className={input}>
-            <option value="">고정 안 함</option>
+          <label className="block text-sm font-medium text-ink" htmlFor="areaOrder">부위 대표 순번</label>
+          <select id="areaOrder" name="areaOrder" defaultValue={guide.areaOrder ?? ""} className={input}>
+            <option value="">대표 아님</option>
             <option value="1">1번 (맨 위)</option>
             <option value="2">2번</option>
             <option value="3">3번</option>
           </select>
-          <p className="mt-1 text-xs text-ink-faint">토픽 페이지에서 고정 글이 먼저, 나머지는 최신순. 토픽당 최대 3편, 발행 글만.</p>
+          <p className="mt-1 text-xs text-ink-faint">
+            카테고리(위치)를 지정한 발행 글만. 신체 지도 패널과 부위별 게시판 맨 위에 뜹니다. 부위당 3편, 순번은 겹칠 수 없습니다.
+          </p>
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-line bg-surface p-3">
+        <p className="text-sm font-medium text-ink">큐레이션 콘텐츠</p>
+        <p className="mt-0.5 text-xs text-ink-faint">
+          토픽 페이지 맨 위 카드 그리드와 "큐레이션 전체 보기"에 나오는 글입니다. 운영진 글은 기본으로 켜져 있고, 회원 글은 여기서 켜야
+          올라갑니다(도전 게시판에는 그대로 남습니다). 순서를 준 글이 먼저, 나머지는 최신순 — 토픽당 순번 하나에 글 하나.
+        </p>
+        <div className="mt-2 grid gap-3 sm:grid-cols-2">
+          <label className="flex items-center gap-2 text-sm text-ink">
+            <input type="checkbox" name="curated" defaultChecked={guide.curated} />
+            큐레이션에 노출
+          </label>
+          <div>
+            <label className="block text-xs font-medium text-ink-soft" htmlFor="curatedOrder">노출 순서</label>
+            <select id="curatedOrder" name="curatedOrder" defaultValue={guide.curatedOrder ?? ""} className={input}>
+              <option value="">순서 지정 안 함 (최신순)</option>
+              {Array.from({ length: 9 }, (_, i) => i + 1).map((n) => (
+                <option key={n} value={n}>{n}번{n === 1 ? " (맨 위)" : ""}</option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 

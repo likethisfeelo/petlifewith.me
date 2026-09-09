@@ -6,7 +6,7 @@ import { Breadcrumbs } from "@/components/breadcrumbs";
 import { JsonLd } from "@/components/jsonld";
 import { MedicalNotice } from "@/components/notices";
 import { formatDate } from "@/lib/format";
-import { isPinned } from "@/lib/guide-order";
+import { isAreaLead } from "@/lib/guide-order";
 import { countCommentsByGuides } from "@/lib/queries/comments";
 import { getTopicBySlug, listGuidesForTopic } from "@/lib/queries/guides";
 import { buildMeta, itemListLd, robotsMeta, shouldIndexBoard } from "@/lib/seo";
@@ -82,7 +82,7 @@ export default async function CategoryBoardPage({ params }: Props) {
 
       <section className="mt-8">
         <p className="text-xs text-ink-faint">
-          {posts.length > 0 ? `${posts.length}편 · 고정 글 다음은 최신순` : ""} 회원 글은 관리자 확인 후 공개되고, 댓글은 각 글에서 남길 수 있습니다.
+          {posts.length > 0 ? `${posts.length}편 · 운영진이 정한 대표 글 다음은 최신순` : ""} 누구나 질문을 올릴 수 있고, 회원 글은 관리자 확인 후 공개되며 댓글은 각 글에서 남깁니다.
         </p>
         {posts.length === 0 ? (
           <div className="mt-4 rounded-xl border border-dashed border-line p-8 text-center text-sm text-ink-faint">
@@ -96,7 +96,7 @@ export default async function CategoryBoardPage({ params }: Props) {
                 <li key={guide.id}>
                   <Link href={`/guide/${guide.slug}`} className="group flex flex-col gap-1 px-5 py-4 hover:bg-sand/50">
                     <div className="flex flex-wrap items-center gap-2 text-xs">
-                      {isPinned(guide) && <span className="rounded-full bg-honey-soft px-2 py-0.5 font-medium text-honey">고정</span>}
+                      {isAreaLead(guide) && <span className="rounded-full bg-honey-soft px-2 py-0.5 font-medium text-honey">대표 {guide.areaOrder}</span>}
                       {authorName ? (
                         <span className="text-ink-faint">회원 글 · {authorName}</span>
                       ) : (

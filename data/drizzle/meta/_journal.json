@@ -64,6 +64,13 @@
       "when": 1788854680850,
       "tag": "0008_care_service_areas_bookings",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1788931359914,
+      "tag": "0009_curated_boards",
+      "breakpoints": true
     }
   ]
 }
