@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { contactEmail, siteName, siteTagline } from "@/lib/config";
+import { taglinesByTopic } from "./site-header";
+import { SiteTagline } from "./site-tagline";
 
 export function SiteFooter() {
   const email = contactEmail();
@@ -7,7 +9,9 @@ export function SiteFooter() {
     <footer className="mt-16 border-t border-line bg-sand/50">
       <div className="mx-auto max-w-5xl px-4 py-10 text-sm text-ink-soft">
         <p className="font-semibold text-ink">{siteName()}</p>
-        <p className="mt-0.5 text-xs text-ink-faint">{siteTagline()}</p>
+        <p className="mt-0.5 text-xs text-ink-faint">
+          <SiteTagline fallback={siteTagline()} byTopic={taglinesByTopic()} />
+        </p>
         <p className="mt-2 max-w-2xl">
           어디에 데려갈 수 있는지가 아니라, 무엇이 즐거운지를 다룹니다. 주어는 사람이 아니라 반려동물입니다.
         </p>

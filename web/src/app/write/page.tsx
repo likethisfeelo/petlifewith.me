@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { GUIDE_CATEGORIES_BY_TOPIC } from "@app/data";
 import { requireMember } from "@/lib/member";
 import { listTopics } from "@/lib/queries/guides";
+import { TopicTagline } from "@/components/site-tagline";
 import { MemberPostForm } from "./post-form";
 
 export const dynamic = "force-dynamic";
@@ -24,6 +25,7 @@ export default async function WritePage({ searchParams }: { searchParams: Promis
     preTopic && categoryParam && (GUIDE_CATEGORIES_BY_TOPIC[preTopic.slug] ?? []).some((c) => c.slug === categoryParam) ? categoryParam : null;
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">
+      <TopicTagline topic={preTopic?.slug ?? null} />
       <h1 className="text-2xl font-extrabold tracking-tight text-ink">글쓰기</h1>
       <p className="mt-2 text-sm text-ink-soft">
         우리 개의 변화, 해봤던 것, 도움이 됐던 것. 주어가 사람이 아니라 반려동물인 이야기를 나눠 주세요.

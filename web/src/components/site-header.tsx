@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { siteName, siteTagline } from "@/lib/config";
+import { TOPIC_TAGLINES } from "@/lib/tagline";
 import { MemberMenu } from "./member-menu";
+import { SiteTagline } from "./site-tagline";
 
 const NAV = [
   { href: "/topic/senior-life", label: "노견생활" },
@@ -10,13 +12,18 @@ const NAV = [
   { href: "/curation", label: "큐레이션" },
 ];
 
+/** 토픽별 태그라인 — env 로 덮어쓴 경우 모두 같은 문구가 된다 */
+export function taglinesByTopic(): Record<string, string> {
+  return Object.fromEntries(Object.keys(TOPIC_TAGLINES).map((slug) => [slug, siteTagline(slug)]));
+}
+
 export function SiteHeader() {
   return (
     <header className="sticky top-0 z-40 border-b border-line bg-cream/95 backdrop-blur">
       <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3">
         <Link href="/" className="shrink-0 text-lg font-extrabold tracking-tight text-ink">
           {siteName()}
-          <span className="ml-2 hidden text-xs font-medium text-ink-faint sm:inline">{siteTagline()}</span>
+          <SiteTagline fallback={siteTagline()} byTopic={taglinesByTopic()} className="ml-2 hidden text-xs font-medium text-ink-faint sm:inline" />
         </Link>
         <div className="flex min-w-0 items-center gap-2">
           <nav className="-mx-1 flex items-center gap-1 overflow-x-auto text-sm font-medium text-ink-soft">

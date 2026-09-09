@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Breadcrumbs } from "@/components/breadcrumbs";
+import { TopicTagline } from "@/components/site-tagline";
 import { GuideCard } from "@/components/cards";
 import { EntityTagPanels } from "@/components/entity-panels";
 import { InstagramEmbedScript } from "@/components/instagram-script";
@@ -81,6 +82,8 @@ export default async function GuidePage({ params }: Props) {
 
   return (
     <article className="mx-auto max-w-3xl px-4 py-10">
+      {/* 머리글·푸터 태그라인에 이 글의 토픽을 알린다 (놀이 → "즐거운 삶") */}
+      <TopicTagline topic={topic.slug} />
       <Breadcrumbs
         crumbs={[
           { name: "홈", path: "/" },

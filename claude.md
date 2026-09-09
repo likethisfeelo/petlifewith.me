@@ -232,7 +232,7 @@ fix(seo): 스팟 3개 미만 지역 noindex 누락
 
 **추측하지 않는다.** 공공데이터 API의 파라미터나 응답 구조를 모르면 문서를 확인하거나 물어본다. 지어내지 않는다.
 
-**브랜드 확정: 펫라이프위드미 (나와 함께한 행복한 인생, pet life with me).** 표시명은 `NEXT_PUBLIC_SITE_NAME`(기본값이 확정 브랜드), 태그라인은 `NEXT_PUBLIC_SITE_TAGLINE`. `package.json` name·DB 이름·패키지명에는 여전히 서비스명을 넣지 않는다 — 표기 변경 비용을 코드에 만들지 않기 위해서다.
+**브랜드 확정: 펫라이프위드미 (반려동물의 행복한 삶, 나와 함께 - pet life with me).** 표시명은 `NEXT_PUBLIC_SITE_NAME`(기본값이 확정 브랜드), 태그라인은 `NEXT_PUBLIC_SITE_TAGLINE`(덮어쓰면 토픽 구분 없음). 놀이 클러스터(`/topic/play` 와 그 글)에서는 태그라인이 "반려동물의 즐거운 삶, 나와 함께 - pet life with me"로 바뀐다 — 문구는 `web/src/lib/tagline.ts`, 전환은 `components/site-tagline.tsx`(주소로 알거나 글 페이지가 `<TopicTagline>` 로 알린다). `package.json` name·DB 이름·패키지명에는 여전히 서비스명을 넣지 않는다 — 표기 변경 비용을 코드에 만들지 않기 위해서다.
 
 ---
 
