@@ -8,6 +8,7 @@ export const MEMBER_BOARD_KIND = "일반";
 
 const NAMES: Record<string, string> = {
   "senior-life": "노령견 생활 공유 게시판",
+  play: "놀이 생활 공유 게시판", // 같은 규칙 — "일반 - 놀이 생활 공유 게시판"
 };
 
 /** 게시판 이름 — 토픽에 정해 둔 이름이 없으면 "<토픽명> 생활 공유 게시판" */
