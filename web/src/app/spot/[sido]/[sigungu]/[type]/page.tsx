@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { SpotCard } from "@/components/cards";
 import { CareAreaSlots } from "@/components/care/care-slots";
+import { SpotDirectory } from "@/components/spot/spot-directory";
 import { countIndexableCareProviders, listCareProvidersInArea, listCareRegions } from "@/lib/queries/care";
 import { JsonLd } from "@/components/jsonld";
 import { RememberRegion } from "@/components/region-banner";
@@ -13,6 +14,8 @@ import {
   countIndexableSpotsInRegion,
   getRegionBySlugs,
   getSpotTypeBySlug,
+  listRegionCountsForType,
+  listRegionTiles,
   listSpotsInRegion,
 } from "@/lib/queries/spots";
 import { buildMeta, itemListLd, robotsMeta, shouldIndexRegionPage } from "@/lib/seo";
@@ -94,10 +97,15 @@ export default async function RegionTypePage({ params }: Props) {
     );
   }
 
-  const spots = await listSpotsInRegion(region.id, spotType.id);
+  const [spots, regionTiles, counts] = await Promise.all([
+    listSpotsInRegion(region.id, spotType.id),
+    listRegionTiles(),
+    listRegionCountsForType(spotType.id),
+  ]);
+  const countsByRegion = Object.fromEntries(counts.map((r) => [r.region.id, r.count]));
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-10">
+    <div className="mx-auto max-w-6xl px-4 py-10">
       <RememberRegion
         region={{
           sidoSlug: region.sidoSlug,
@@ -129,19 +137,34 @@ export default async function RegionTypePage({ params }: Props) {
       {spotType.slug === "pharmacy" && <PharmacyNote />}
       {!spotType.listed && <B2BNote />}
 
-      <section className="mt-8">
-        {spots.length === 0 ? (
-          <p className="rounded-xl border border-dashed border-line p-8 text-center text-sm text-ink-faint">
-            아직 등록된 곳이 없습니다.
-          </p>
-        ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {spots.map((s) => (
-              <SpotCard key={s.spot.id} item={s} />
-            ))}
-          </div>
-        )}
-      </section>
+      {/* 좌측 지도(이 지역 강조) + 우측 목록. 다른 시군구 타일을 누르면 그 지역 페이지로 간다 — 이 페이지가 곧 SEO 페이지 */}
+      <div className="mt-8">
+        <SpotDirectory
+          regions={regionTiles}
+          countsByRegion={countsByRegion}
+          selectedSido={region.sidoSlug}
+          selectedRegionId={region.id}
+          typeSlug={spotType.slug}
+          mapTitle={`${spotType.name} 지역 지도`}
+        >
+          <section aria-labelledby="region-list-heading">
+            <h2 id="region-list-heading" className="text-sm font-bold text-ink">
+              {region.sigunguName} {spotType.name} <span className="font-medium text-ink-faint">{spots.length}곳</span>
+            </h2>
+            {spots.length === 0 ? (
+              <p className="mt-3 rounded-xl border border-dashed border-line p-8 text-center text-sm text-ink-faint">
+                아직 등록된 곳이 없습니다.
+              </p>
+            ) : (
+              <div className="mt-3 grid gap-4 sm:grid-cols-2">
+                {spots.map((s) => (
+                  <SpotCard key={s.spot.id} item={s} />
+                ))}
+              </div>
+            )}
+          </section>
+        </SpotDirectory>
+      </div>
 
       <p className="mt-6 text-xs text-ink-faint">
         시설 정보는 행정안전부 지방행정 인허가데이터(공공데이터포털 data.go.kr)와 직접 확인을 바탕으로

@@ -2,6 +2,7 @@
 
 // 돌봄 파트너 지도 — 시도 타일(17) → 시군구 타일. 버튼 격자라 크롤러·키보드에도 같은 구조다.
 // 실측 지도가 아니라 카토그램: 위치 감각만 주고, 선택은 URL 해시로 공유된다 (care-directory.tsx).
+import Link from "next/link";
 import { SEOUL_GRID, SEOUL_TILES, SIDO_GRID, SIDO_TILES, tileLabel } from "./care-map-layout";
 import type { CareRegion } from "@/lib/care";
 
@@ -14,7 +15,10 @@ export interface CareMapProps {
   selectedSido: string | null;
   selectedRegionId: number | null;
   onSelectSido: (slug: string) => void;
-  onSelectRegion: (id: number) => void;
+  /** 버튼 모드 — 누르면 호출 (돌봄 허브의 해시 선택) */
+  onSelectRegion?: (id: number) => void;
+  /** 링크 모드 — 있으면 시군구 타일이 진짜 링크가 된다 (스팟 디렉토리: 지역 페이지 = SEO 페이지) */
+  hrefForRegion?: (r: CareRegion) => string;
 }
 
 function Badge({ n }: { n: number }) {
@@ -26,7 +30,7 @@ function Badge({ n }: { n: number }) {
   );
 }
 
-export function CareMap({ regions, countsByRegion, countsBySido, selectedSido, selectedRegionId, onSelectSido, onSelectRegion }: CareMapProps) {
+export function CareMap({ regions, countsByRegion, countsBySido, selectedSido, selectedRegionId, onSelectSido, onSelectRegion, hrefForRegion }: CareMapProps) {
   const sigungus = selectedSido ? regions.filter((r) => r.sidoSlug === selectedSido) : [];
   const sidoName = sigungus[0]?.sidoName ?? "";
   const isSeoul = selectedSido === "seoul";
@@ -79,21 +83,39 @@ export function CareMap({ regions, countsByRegion, countsBySido, selectedSido, s
               const active = r.id === selectedRegionId;
               const n = countsByRegion[r.id] ?? 0;
               const pos = isSeoul ? SEOUL_TILES[r.sigunguName] : undefined;
+              const tileClass = `relative flex min-h-9 items-center justify-center rounded-lg border px-1 text-[11px] font-medium leading-tight transition-colors sm:text-xs ${
+                active
+                  ? "border-sea bg-sea text-white"
+                  : n > 0
+                    ? "border-sea/40 bg-sea-soft text-sea hover:bg-sea hover:text-white"
+                    : "border-line bg-surface text-ink-faint hover:border-sea/50 hover:text-ink"
+              }`;
+              const style = pos ? { gridColumn: pos.col + 1, gridRow: pos.row + 1 } : undefined;
+              if (hrefForRegion) {
+                return (
+                  <Link
+                    key={r.id}
+                    href={hrefForRegion(r)}
+                    scroll={false}
+                    aria-current={active ? "page" : undefined}
+                    title={`${r.sidoName} ${r.sigunguName}`}
+                    className={tileClass}
+                    style={style}
+                  >
+                    {tileLabel(r.sigunguName)}
+                    <Badge n={n} />
+                  </Link>
+                );
+              }
               return (
                 <button
                   key={r.id}
                   type="button"
-                  onClick={() => onSelectRegion(r.id)}
+                  onClick={() => onSelectRegion?.(r.id)}
                   aria-pressed={active}
                   title={`${r.sidoName} ${r.sigunguName}`}
-                  className={`relative flex min-h-9 items-center justify-center rounded-lg border px-1 text-[11px] font-medium leading-tight transition-colors sm:text-xs ${
-                    active
-                      ? "border-sea bg-sea text-white"
-                      : n > 0
-                        ? "border-sea/40 bg-sea-soft text-sea hover:bg-sea hover:text-white"
-                        : "border-line bg-surface text-ink-faint hover:border-sea/50 hover:text-ink"
-                  }`}
-                  style={pos ? { gridColumn: pos.col + 1, gridRow: pos.row + 1 } : undefined}
+                  className={tileClass}
+                  style={style}
                 >
                   {tileLabel(r.sigunguName)}
                   <Badge n={n} />

@@ -4,14 +4,10 @@ import { notFound } from "next/navigation";
 import { carePersonLabel, isCareType } from "@app/data";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { CareDirectory } from "@/components/care/care-directory";
+import { SpotDirectory } from "@/components/spot/spot-directory";
 import { B2BNote, PharmacyNote } from "@/components/notices";
 import { countIndexableCareProviders, listCareProviders, listCareRegions } from "@/lib/queries/care";
-import {
-  countIndexableSpotsForType,
-  getSpotTypeBySlug,
-  listRegionCountsForType,
-  type TypeRegionCount,
-} from "@/lib/queries/spots";
+import { countIndexableSpotsForType, getSpotTypeBySlug, listRegionCountsForType, listRegionTiles } from "@/lib/queries/spots";
 import { buildMeta, robotsMeta, shouldIndexRegionPage } from "@/lib/seo";
 import { formatNumber } from "@/lib/format";
 
@@ -56,22 +52,23 @@ export default async function SpotTypeHubPage({ params }: Props) {
 
   if (isCareType(spotType.slug)) return <CareTypeHub spotType={spotType} />;
 
-  const rows = await listRegionCountsForType(spotType.id);
+  const [rows, regionTiles] = await Promise.all([listRegionCountsForType(spotType.id), listRegionTiles()]);
   const total = rows.reduce((a, r) => a + r.count, 0);
+  const countsByRegion = Object.fromEntries(rows.map((r) => [r.region.id, r.count]));
 
-  // 시도별 그룹 (쿼리가 시도명 → 많은 순으로 정렬해 준다)
-  const bySido = new Map<string, { sidoName: string; items: TypeRegionCount[]; subtotal: number }>();
+  // 우측 패널의 시도별 현황 — 시도 페이지(지도가 그 시도로 펼쳐진 상태)로 가는 진짜 링크
+  const bySido = new Map<string, { sidoName: string; subtotal: number; regionCount: number }>();
   for (const row of rows) {
     const key = row.region.sidoSlug;
-    const group = bySido.get(key) ?? { sidoName: row.region.sidoName, items: [], subtotal: 0 };
-    group.items.push(row);
+    const group = bySido.get(key) ?? { sidoName: row.region.sidoName, subtotal: 0, regionCount: 0 };
     group.subtotal += row.count;
+    group.regionCount += 1;
     bySido.set(key, group);
   }
-  const groups = [...bySido.values()].sort((a, b) => b.subtotal - a.subtotal);
+  const sidoRows = [...bySido.entries()].map(([slug, v]) => ({ slug, ...v })).sort((a, b) => b.subtotal - a.subtotal);
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-10">
+    <div className="mx-auto max-w-6xl px-4 py-10">
       <Breadcrumbs
         crumbs={[
           { name: "홈", path: "/" },
@@ -84,7 +81,7 @@ export default async function SpotTypeHubPage({ params }: Props) {
         전국 <span className="text-sea">{spotType.name}</span>
       </h1>
       <p className="mt-2 text-sm text-ink-soft">
-        영업 중 {formatNumber(total)}곳 · 지역을 고르면 목록이 나옵니다.
+        영업 중 {formatNumber(total)}곳 · 지도에서 시도를 누르면 구·시·군이 펼쳐지고, 구·시·군을 누르면 그 지역의 목록 페이지로 갑니다.
         {spotType.description ? ` ${spotType.description}` : ""}
       </p>
       {spotType.listed && spotType.monetizable && (
@@ -114,32 +111,42 @@ export default async function SpotTypeHubPage({ params }: Props) {
         </p>
       )}
 
-      {groups.length === 0 ? (
-        <p className="mt-8 rounded-xl border border-dashed border-line p-8 text-center text-sm text-ink-faint">
-          아직 등록된 곳이 없습니다. 인허가 데이터 적재와 직접 발굴로 채워집니다.
-        </p>
-      ) : (
-        <div className="mt-8 space-y-8">
-          {groups.map((group) => (
-            <section key={group.sidoName}>
-              <h2 className="text-lg font-bold text-ink">
-                {group.sidoName} <span className="text-sm font-medium text-ink-faint">{formatNumber(group.subtotal)}곳</span>
+      {/* 좌측 지도 + 우측 패널. 시군구 타일은 지역x유형 페이지로 가는 진짜 링크 (SEO 페이지 = 지도 페이지) */}
+      <div className="mt-8">
+        <SpotDirectory
+          regions={regionTiles}
+          countsByRegion={countsByRegion}
+          selectedSido={null}
+          selectedRegionId={null}
+          typeSlug={spotType.slug}
+          mapTitle={`${spotType.name} 지역 지도`}
+        >
+          {sidoRows.length === 0 ? (
+            <p className="rounded-xl border border-dashed border-line p-8 text-center text-sm text-ink-faint">
+              아직 등록된 곳이 없습니다. 인허가 데이터 적재와 직접 발굴로 채워집니다.
+            </p>
+          ) : (
+            <section aria-labelledby="sido-summary-heading" className="rounded-2xl border border-line bg-surface p-5">
+              <h2 id="sido-summary-heading" className="text-lg font-bold text-ink">
+                시도별 현황 <span className="text-sm font-medium text-ink-faint">{spotType.name} {formatNumber(total)}곳</span>
               </h2>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {group.items.map(({ region, count }) => (
-                  <Link
-                    key={region.id}
-                    href={`/spot/${region.sidoSlug}/${region.sigunguSlug}/${spotType.slug}`}
-                    className="rounded-full bg-sea-soft px-3 py-1 text-sm font-medium text-sea hover:bg-sea hover:text-white"
-                  >
-                    {region.sigunguName} {count}
-                  </Link>
+              <p className="mt-1 text-xs text-ink-faint">지도에서 구·시·군을 고르면 그 지역의 {spotType.name} 목록이 이 자리에 나옵니다.</p>
+              <ul className="mt-4 divide-y divide-line">
+                {sidoRows.map((row) => (
+                  <li key={row.slug}>
+                    <Link href={`/spot/${row.slug}`} className="group flex items-center justify-between py-2.5 text-sm">
+                      <span className="font-semibold text-ink group-hover:underline">{row.sidoName}</span>
+                      <span className="text-ink-faint">
+                        {formatNumber(row.subtotal)}곳 · {row.regionCount}개 지역
+                      </span>
+                    </Link>
+                  </li>
                 ))}
-              </div>
+              </ul>
             </section>
-          ))}
-        </div>
-      )}
+          )}
+        </SpotDirectory>
+      </div>
 
       <p className="mt-10 text-xs text-ink-faint">
         시설 정보는 행정안전부 지방행정 인허가데이터(공공데이터포털 data.go.kr)와 직접 확인을 바탕으로

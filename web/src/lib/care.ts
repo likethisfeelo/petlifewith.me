@@ -3,14 +3,10 @@
 // DB 조회는 lib/queries/care.ts.
 // ============================================================
 import { MAX_EXPOSED_PER_AREA } from "@app/data";
+import type { RegionTile } from "./regions";
 
-export interface CareRegion {
-  id: number;
-  sidoName: string;
-  sidoSlug: string;
-  sigunguName: string;
-  sigunguSlug: string;
-}
+/** 지역 타일 — 스팟 디렉토리와 같은 모양 (lib/regions.ts) */
+export type CareRegion = RegionTile;
 
 export interface CareArea {
   regionId: number;
