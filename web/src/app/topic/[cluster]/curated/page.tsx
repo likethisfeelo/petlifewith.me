@@ -1,6 +1,7 @@
 // 큐레이션 콘텐츠 전체 — 토픽 페이지 상단 그리드는 9편만 보여 주므로 "큐레이션 전체 보기 →" 가 여기로 온다.
 // 위: 운영진이 발행한 글과 운영진이 골라 올린 회원 글 (guides.curated), 지정 순번 → 최신순.
-// 아래: 도전 게시판 전체 — 큐레이션은 이 게시판에서 대표를 골라 위에 세워 둔 것이라 같은 페이지에 붙인다.
+// 아래: 일반 게시판(회원 글, 노견생활은 "일반 - 노령견 생활 공유 게시판") 전체 — 큐레이션은 이 게시판에서 대표를 골라
+// 위에 세워 둔 것이라 같은 페이지에 붙인다.
 // 부위 분류 칩은 부위별 게시판의 것이라 여기에는 두지 않는다.
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -11,6 +12,7 @@ import { ChallengeBoardList } from "@/components/challenge-board";
 import { JsonLd } from "@/components/jsonld";
 import { MedicalNotice } from "@/components/notices";
 import { categoriesForTopic } from "@app/data";
+import { MEMBER_BOARD_KIND, memberBoardName } from "@/lib/boards";
 import { countCommentsByGuides } from "@/lib/queries/comments";
 import { getTopicBySlug, listGuidesForTopic } from "@/lib/queries/guides";
 import { buildMeta, itemListLd, robotsMeta, shouldIndexBoard } from "@/lib/seo";
@@ -52,6 +54,7 @@ export default async function TopicCuratedPage({ params }: Props) {
   if (!found) notFound();
   const { topic, items, challenge } = found;
   const style = topicStyle(topic.slug);
+  const boardName = memberBoardName(topic.slug, topic.name);
   const categories = categoriesForTopic(topic.slug);
   const categoryName = (slug: string | null) => categories.find((c) => c.slug === slug)?.name ?? null;
   const commentCounts = await countCommentsByGuides(challenge.map((p) => p.guide.id));
@@ -98,12 +101,14 @@ export default async function TopicCuratedPage({ params }: Props) {
         )}
       </section>
 
-      {/* 도전 게시판 전체 — 큐레이션의 바탕. 회원이면 누구나 쓰고, 운영진이 여기서 골라 위에 올린다 */}
+      {/* 일반 게시판 전체 — 큐레이션의 바탕. 회원이면 누구나 쓰고, 운영진이 여기서 골라 위에 올린다 */}
       <section aria-labelledby="challenge-heading" className="mt-12 border-t border-line pt-8">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div className="max-w-3xl">
-            <h2 id="challenge-heading" className="text-2xl font-extrabold tracking-tight text-ink">
-              도전 게시판 <span className="text-base font-bold text-ink-soft">보호자들이 직접 쓴 글 {challenge.length}편</span>
+            <h2 id="challenge-heading" className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-2xl font-extrabold tracking-tight text-ink">
+              <span className="rounded-md bg-ink px-2 py-0.5 text-sm font-bold text-cream">{MEMBER_BOARD_KIND}</span>
+              <span>{boardName}</span>
+              <span className="text-base font-bold text-ink-soft">보호자들이 직접 쓴 글 {challenge.length}편</span>
             </h2>
             <p className="mt-2 text-sm text-ink-soft">
               해 본 것, 잘 안 된 것, 물어보고 싶은 것. 회원이면 누구나 쓰고, 운영진이 확인한 뒤 공개됩니다. 위 큐레이션은 이 글들 가운데
@@ -117,7 +122,12 @@ export default async function TopicCuratedPage({ params }: Props) {
         <div className="mt-5">
           <ChallengeBoardList posts={challenge} commentCounts={commentCounts} categoryName={categoryName} />
         </div>
-        <p className="mt-3 text-xs text-ink-faint">최신순 · 진단·처방 단정과 광고는 숨김 처리됩니다. 댓글은 각 글에서 남깁니다.</p>
+        <p className="mt-3 flex flex-wrap gap-x-3 text-xs text-ink-faint">
+          <span>최신순 · 진단·처방 단정과 광고는 숨김 처리됩니다. 댓글은 각 글에서 남깁니다.</span>
+          <Link href={`/topic/${topic.slug}/challenge`} className="font-medium text-sea hover:underline">
+            게시판 페이지 →
+          </Link>
+        </p>
       </section>
 
       <p className="mt-8 text-sm">

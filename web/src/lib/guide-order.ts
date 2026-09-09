@@ -3,7 +3,7 @@
 //
 //   1) 큐레이션 콘텐츠 (curated) — 관리자가 발행한 글 + 관리자가 골라 올린 회원 글.
 //      curated_order(1~9) 를 준 글이 그 순서로 먼저, 나머지는 최신 발행순.
-//   2) 도전 게시판 (challenge) — 회원이 쓴 글 전체. 큐레이션 승격 여부와 무관하게 여기 남는다.
+//   2) 일반 게시판 (challenge — 노견생활은 "일반 - 노령견 생활 공유 게시판") — 회원이 쓴 글 전체. 큐레이션 승격 여부와 무관하게 여기 남는다.
 //      별도 테이블이 아니라 "글쓴이가 회원인가" 로 가른다.
 //   3) 부위별 게시판 (category) — 카테고리별 묶음. 대표(area_order 1~3)가 먼저, 나머지는 최신순.
 //
@@ -64,7 +64,7 @@ export function orderArea<T extends AreaOrderable>(rows: T[]): T[] {
   return orderByRank(rows, (r) => r.areaOrder, MAX_AREA_ORDER);
 }
 
-/** 도전 게시판 정렬 — 최신순만 (순위·고정 없음) */
+/** 일반 게시판 정렬 — 최신순만 (순위·고정 없음) */
 export function orderNewest<T extends Orderable>(rows: T[]): T[] {
   return [...rows].sort(newestFirst);
 }

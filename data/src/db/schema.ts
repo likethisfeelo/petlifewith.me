@@ -151,7 +151,7 @@ export const guides = pgTable(
     // ---- 게시판 구분 (2026-09) ----
     // 이 클러스터에는 성격이 다른 세 묶음이 있고, 별도 테이블 없이 아래 컬럼으로 가른다.
     //   1) 큐레이션 콘텐츠 — curated=true. 관리자가 발행한 글과, 관리자가 골라 올린 회원 글.
-    //   2) 도전 게시판 — author_user_id 가 있는 회원 글 전체 (큐레이션 승격 여부와 무관).
+    //   2) 일반 게시판(회원 게시판, /challenge) — author_user_id 가 있는 회원 글 전체 (큐레이션 승격 여부와 무관).
     //   3) 부위별 게시판 — category 별 묶음. 누구나 쓰고 댓글을 단다.
     // 큐레이션 노출 여부. 회원 글은 관리자가 켜 줘야 큐레이션에 올라간다.
     curated: boolean("curated").notNull().default(false),

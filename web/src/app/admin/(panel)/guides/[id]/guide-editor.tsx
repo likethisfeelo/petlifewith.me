@@ -137,7 +137,7 @@ export function GuideEditor({
         <p className="text-sm font-medium text-ink">큐레이션 콘텐츠</p>
         <p className="mt-0.5 text-xs text-ink-faint">
           토픽 페이지 맨 위 카드 그리드와 "큐레이션 전체 보기"에 나오는 글입니다. 운영진 글은 기본으로 켜져 있고, 회원 글은 여기서 켜야
-          올라갑니다(도전 게시판에는 그대로 남습니다). 순서를 준 글이 먼저, 나머지는 최신순 — 토픽당 순번 하나에 글 하나.
+          올라갑니다(일반 게시판에는 그대로 남습니다). 순서를 준 글이 먼저, 나머지는 최신순 — 토픽당 순번 하나에 글 하나.
         </p>
         <div className="mt-2 grid gap-3 sm:grid-cols-2">
           <label className="flex items-center gap-2 text-sm text-ink">

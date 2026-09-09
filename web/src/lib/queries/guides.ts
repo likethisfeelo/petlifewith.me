@@ -53,7 +53,7 @@ export async function getPublishedGuide(
 /**
  * 토픽의 발행 글을 게시판 셋으로 나눈다 (lib/guide-order.ts 의 규칙).
  *  - curated: 큐레이션 콘텐츠 — curated=true 인 글, curated_order → 최신순
- *  - challenge: 도전 게시판 — 회원이 쓴 글 전체, 최신순 (큐레이션에 올라간 글도 여기 남는다)
+ *  - challenge: 일반 게시판(노견생활은 "일반 - 노령견 생활 공유 게시판") — 회원이 쓴 글 전체, 최신순 (큐레이션에 올라간 글도 여기 남는다)
  *  - byCategory: 부위별 게시판 — 카테고리별, 대표(area_order) → 최신순
  * 허브(전체 지도)는 어느 목록에도 넣지 않고 따로 돌려준다.
  */
