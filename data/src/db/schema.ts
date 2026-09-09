@@ -58,8 +58,9 @@ export const spotSource = pgEnum("spot_source", [
   "sample", // 로컬 개발 픽스처 — 색인·사이트맵에서 항상 제외
 ]);
 export const makerStatus = pgEnum("maker_status", ["draft", "published"]);
-export const claimStatus = pgEnum("claim_status", ["pending", "approved", "rejected"]);
-export const claimTarget = pgEnum("claim_target", ["spot", "maker"]);
+// 요청함 (0012) — 업체 등록·정보 관리·유료 노출·돌봄 파트너 등록이 한 표에 쌓인다. 옛 claims 는 여기로 옮겼다.
+export const requestKind = pgEnum("request_kind", ["spot_register", "spot_claim", "maker_claim", "promo_slot", "care_partner"]);
+export const requestStatus = pgEnum("request_status", ["new", "in_progress", "done", "rejected"]);
 export const embedSource = pgEnum("embed_source", ["youtube", "instagram", "none"]);
 export const offerVendor = pgEnum("offer_vendor", ["coupang", "brand_store", "other"]);
 export const promotionKind = pgEnum("promotion_kind", ["region_top", "content_card"]);
@@ -516,30 +517,32 @@ export const promotions = pgTable(
 
 // ---------- 클레임 (업주/브랜드 소유 확인) ----------
 
-export const claims = pgTable(
-  "claims",
+export const serviceRequests = pgTable(
+  "service_requests",
   {
     id: bigint("id", { mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
-    targetType: claimTarget("target_type").notNull(),
-    spotId: bigint("spot_id", { mode: "number" }).references(() => spots.id, { onDelete: "cascade" }),
-    makerId: bigint("maker_id", { mode: "number" }).references(() => makers.id, { onDelete: "cascade" }),
-    claimantName: text("claimant_name").notNull(),
-    contact: text("contact").notNull(), // 이메일 또는 전화 — 관리자 확인용, 공개 금지
+    kind: requestKind("kind").notNull(),
+    status: requestStatus("status").notNull().default("new"),
+    // 기존 업체·메이커를 가리키는 요청(정보 관리·유료 노출). 새 등록 요청은 비어 있다가 관리자가 만든 뒤 연결한다
+    spotId: bigint("spot_id", { mode: "number" }).references(() => spots.id, { onDelete: "set null" }),
+    makerId: bigint("maker_id", { mode: "number" }).references(() => makers.id, { onDelete: "set null" }),
+    requesterName: text("requester_name").notNull(),
+    contact: text("contact").notNull(), // 이메일·전화·카카오 ID — 관리자 확인용, 공개 금지
     bizRegistrationNo: text("biz_registration_no"), // 확인용, 공개 금지
     message: text("message"),
-    status: claimStatus("status").notNull().default("pending"),
-    decidedBy: uuid("decided_by").references(() => users.id),
-    decidedAt: timestamp("decided_at", { withTimezone: true }),
+    // 종류별 내용 — 업체 등록(이름·업종·지역·주소·링크·소개), 돌봄 파트너(호칭·활동명·지역·소개·요금), 유료 노출(형·지역·업체명).
+    // 형식은 web/src/lib/requests.ts
+    payload: jsonb("payload").notNull().default(sql`'{}'::jsonb`),
+    adminNote: text("admin_note"),
+    // 유료 노출: 입금·결제 확인 시각 (수동 결제 — 운영자가 안내하고 확인한다)
+    paidAt: timestamp("paid_at", { withTimezone: true }),
+    ipHash: text("ip_hash"),
+    slackSentAt: timestamp("slack_sent_at", { withTimezone: true }),
+    handledAt: timestamp("handled_at", { withTimezone: true }),
     createdAt: createdAt(),
+    updatedAt: updatedAt(),
   },
-  (t) => [
-    index("claims_status_idx").on(t.status),
-    check(
-      "claims_exactly_one_target",
-      sql`(${t.targetType} = 'spot' AND ${t.spotId} IS NOT NULL AND ${t.makerId} IS NULL)
-       OR (${t.targetType} = 'maker' AND ${t.makerId} IS NOT NULL AND ${t.spotId} IS NULL)`,
-    ),
-  ],
+  (t) => [index("service_requests_status_idx").on(t.status, t.createdAt), index("service_requests_kind_idx").on(t.kind)],
 );
 
 // ---------- 개체 단위 태깅 (claude.md 5-4) ----------

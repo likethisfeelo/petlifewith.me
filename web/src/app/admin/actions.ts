@@ -14,7 +14,7 @@ import { parseAreaOrder, parseCuratedOrder } from "@/lib/guide-order";
 import { careRelatedPaths, guideRelatedPaths } from "@/lib/revalidate-paths";
 import { countExposedInArea } from "@/lib/queries/care";
 
-const { guides, topics, users, comments, claims, spots, spotTypes, guideItemTags, guideSpotTags, guideMakerTags, promotions, spotServiceAreas, bookingRequests } = schema;
+const { guides, topics, users, comments, spots, spotTypes, guideItemTags, guideSpotTags, guideMakerTags, promotions, spotServiceAreas, bookingRequests } = schema;
 
 /** 대표 영상(hero_media) — 형식이 맞고 본문에 있는 영상만. 비우면 자동(본문 첫 영상) */
 function readHeroMedia(formData: FormData, bodyMd: string): { error?: string; heroMedia: string | null } {
@@ -328,21 +328,6 @@ export async function removeGuideTagAction(formData: FormData): Promise<void> {
 
   const g = (await db.select({ slug: guides.slug }).from(guides).where(eq(guides.id, guideId)).limit(1))[0];
   if (g) revalidatePath(`/guide/${g.slug}`);
-}
-
-// ---------- 클레임 ----------
-
-export async function decideClaimAction(formData: FormData): Promise<void> {
-  const db = await requireAdminSession();
-  const id = Number(formData.get("id"));
-  const decision = String(formData.get("decision") ?? "");
-  if (!Number.isSafeInteger(id) || (decision !== "approved" && decision !== "rejected")) return;
-
-  await db
-    .update(claims)
-    .set({ status: decision, decidedAt: new Date() })
-    .where(eq(claims.id, id));
-  revalidatePath("/admin/claims");
 }
 
 /** 프로모션 토글 — 장묘(monetizable=false) 유형에는 만들 수 없다 (기획서 4-1) */

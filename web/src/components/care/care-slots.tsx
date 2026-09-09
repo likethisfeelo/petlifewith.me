@@ -69,11 +69,14 @@ export function CareProviderCard({
 
 export function CareAreaSlots({
   personLabel,
+  typeSlug,
   region,
   providers,
   regionNameById,
 }: {
   personLabel: string;
+  /** pet-sitter / hourly-sitter / dog-walk — 등록 요청 링크에 실어 보낸다 */
+  typeSlug: string;
   region: CareRegion;
   providers: CareProvider[];
   regionNameById: Record<number, string>;
@@ -98,7 +101,7 @@ export function CareAreaSlots({
           ) : (
             <li key={`empty-${i}`} className="flex items-center justify-between rounded-xl border border-dashed border-line bg-surface/60 px-4 py-3">
               <span className="text-sm text-ink-faint">{i + 1}번 자리 · 비어있습니다</span>
-              <Link href="/portal/spot" className="text-xs font-medium text-sea hover:underline">
+              <Link href={`/portal/care?type=${typeSlug}&region=${region.id}`} className="text-xs font-medium text-sea hover:underline">
                 이 지역 {personLabel}로 등록 →
               </Link>
             </li>

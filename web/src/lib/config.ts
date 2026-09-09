@@ -126,6 +126,13 @@ export function slackBookingWebhookUrl(): string | undefined {
   return v && /^https:\/\/hooks\.slack\.com\//.test(v) ? v : undefined;
 }
 
+/** 요청함(업체 등록·정보 관리·유료 노출·돌봄 파트너) 알림 웹훅 — 따로 없으면 예약 신청 웹훅을 같이 쓴다 */
+export function slackRequestsWebhookUrl(): string | undefined {
+  const v = getOptionalEnv("SLACK_REQUESTS_WEBHOOK_URL");
+  if (v && v.startsWith("https://hooks.slack.com/")) return v;
+  return slackBookingWebhookUrl();
+}
+
 // ---------- DB ----------
 // 연결 문자열은 여기서만 읽는다. 나중에 RDS Proxy 를 붙일 때도 이 한 곳만 바뀐다. (claude.md 10-2)
 

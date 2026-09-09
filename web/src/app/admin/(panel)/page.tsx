@@ -2,7 +2,7 @@ import Link from "next/link";
 import { sql, eq, isNull } from "drizzle-orm";
 import { getDb, isDbConfigured, schema } from "@/lib/db";
 
-const { guides, claims, spots, makers, items, deviceModels, curations, rehabSites, users, comments, spotServiceAreas, bookingRequests } = schema;
+const { guides, serviceRequests, spots, makers, items, deviceModels, curations, rehabSites, users, comments, spotServiceAreas, bookingRequests } = schema;
 
 export default async function AdminDashboardPage() {
   if (!isDbConfigured()) {
@@ -10,12 +10,12 @@ export default async function AdminDashboardPage() {
   }
   const db = getDb();
 
-  const [guideCounts, pendingClaims, spotCount, makerCount, itemCount, deviceCount, curationCount, rehabCount, memberCount, commentCount, careCount, openBookings] = await Promise.all([
+  const [guideCounts, newRequests, spotCount, makerCount, itemCount, deviceCount, curationCount, rehabCount, memberCount, commentCount, careCount, openBookings] = await Promise.all([
     db
       .select({ status: guides.status, count: sql<number>`count(*)`.mapWith(Number) })
       .from(guides)
       .groupBy(guides.status),
-    db.select({ count: sql<number>`count(*)`.mapWith(Number) }).from(claims).where(eq(claims.status, "pending")),
+    db.select({ count: sql<number>`count(*)`.mapWith(Number) }).from(serviceRequests).where(eq(serviceRequests.status, "new")),
     db.select({ count: sql<number>`count(*)`.mapWith(Number) }).from(spots),
     db.select({ count: sql<number>`count(*)`.mapWith(Number) }).from(makers),
     db.select({ count: sql<number>`count(*)`.mapWith(Number) }).from(items),
@@ -35,7 +35,7 @@ export default async function AdminDashboardPage() {
     { label: "감수 대기", value: byStatus.review_pending ?? 0, href: "/admin/guides?status=review_pending", alert: (byStatus.review_pending ?? 0) > 0 },
     { label: "회원 글 승인 대기", value: byStatus.pending ?? 0, href: "/admin/guides?status=pending", alert: (byStatus.pending ?? 0) > 0 },
     { label: "작성 중", value: byStatus.draft ?? 0, href: "/admin/guides" },
-    { label: "대기 중 클레임", value: pendingClaims[0]?.count ?? 0, href: "/admin/claims", alert: (pendingClaims[0]?.count ?? 0) > 0 },
+    { label: "미처리 요청 (요청함)", value: newRequests[0]?.count ?? 0, href: "/admin/requests?status=new", alert: (newRequests[0]?.count ?? 0) > 0 },
     { label: "스팟", value: spotCount[0]?.count ?? 0, href: "/admin/spots" },
     { label: "메이커", value: makerCount[0]?.count ?? 0, href: "/admin/makers" },
     { label: "상품", value: itemCount[0]?.count ?? 0, href: "/admin/items" },

@@ -4,8 +4,8 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { isDbConfigured } from "@/lib/db";
-import { saveMemberMediaSettings } from "@/lib/queries/settings";
-import { normalizeMemberMedia } from "@/lib/settings";
+import { saveMemberMediaSettings, savePromoPlanSettings } from "@/lib/queries/settings";
+import { normalizeMemberMedia, normalizePromoPlans } from "@/lib/settings";
 import type { ActionState } from "./actions";
 
 export async function saveMemberMediaSettingsAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
@@ -22,5 +22,14 @@ export async function saveMemberMediaSettingsAction(_prev: ActionState, formData
     requireApproval: formData.get("requireApproval") === "on",
   });
   await saveMemberMediaSettings(next);
+  return { saved: true };
+}
+
+export async function savePromoPlansAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  if (!(await getSession())) redirect("/admin/login");
+  if (!isDbConfigured()) return { error: "DATABASE_URL 미설정" };
+  const text = (name: string) => String(formData.get(name) ?? "");
+  const plan = (p: "a" | "b" | "c") => ({ description: text(`${p}_description`), priceText: text(`${p}_priceText`) });
+  await savePromoPlanSettings(normalizePromoPlans({ a: plan("a"), b: plan("b"), c: plan("c") }));
   return { saved: true };
 }

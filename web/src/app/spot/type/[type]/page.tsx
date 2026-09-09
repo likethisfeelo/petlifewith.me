@@ -89,8 +89,8 @@ export default async function SpotTypeHubPage({ params }: Props) {
       {spotType.listed && spotType.monetizable && (
         <p className="mt-3 rounded-lg border border-line bg-sand/60 px-4 py-2.5 text-sm text-ink-soft">
           이 유형의 업체를 운영하시나요? 기본 등록은 무료입니다 —{" "}
-          <Link href="/portal/spot" className="font-medium text-sea underline">
-            업체 정보 등록·관리 안내
+          <Link href="/portal/spot#register" className="font-medium text-sea underline">
+            내 업체 등록 요청
           </Link>
         </p>
       )}
@@ -202,8 +202,8 @@ async function CareTypeHub({ spotType }: { spotType: NonNullable<Awaited<ReturnT
       </p>
       <p className="mt-3 rounded-lg border border-line bg-sand/60 px-4 py-2.5 text-sm text-ink-soft">
         {person}로 활동하시나요? 지역별 자리는 무료이고 운영자 확인 후 노출됩니다 —{" "}
-        <Link href="/portal/spot" className="font-medium text-sea underline">
-          등록·관리 안내
+        <Link href={`/portal/care?type=${spotType.slug}`} className="font-medium text-sea underline">
+          {person} 등록 요청
         </Link>
       </p>
       <div className="mt-4">

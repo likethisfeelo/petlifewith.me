@@ -4,7 +4,7 @@
 import { eq } from "drizzle-orm";
 import { closeDb, getDb } from "../db/client.js";
 import {
-  claims,
+  serviceRequests,
   curationEntries,
   curations,
   deviceModels,
@@ -339,15 +339,15 @@ async function main() {
     },
   ]);
 
-  // ---------- 클레임 (관리자 큐 확인용) ----------
-  const existingClaim = (await db.select().from(claims).where(eq(claims.claimantName, "샘플 사장님")))[0];
-  if (!existingClaim) {
-    await db.insert(claims).values({
-      targetType: "spot",
+  // ---------- 요청함 (관리자 큐 확인용) ----------
+  const existingRequest = (await db.select().from(serviceRequests).where(eq(serviceRequests.requesterName, "샘플 사장님")))[0];
+  if (!existingRequest) {
+    await db.insert(serviceRequests).values({
+      kind: "spot_claim",
       spotId: spotIds["spa-gangnam"]!,
-      claimantName: "샘플 사장님",
+      requesterName: "샘플 사장님",
       contact: "owner@example.com",
-      message: "개발용 샘플 클레임입니다.",
+      message: "개발용 샘플 정보 관리 요청입니다.",
     });
   }
 

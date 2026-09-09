@@ -30,6 +30,7 @@ const {
   curations,
   curationEntries,
   rehabSites,
+  serviceRequests,
 } = schema;
 
 export interface ActionState {
@@ -238,6 +239,17 @@ export async function createSpotAction(_prev: ActionState, formData: FormData): 
   await replaceSpotLinks(db, spotId, links.rows);
   await writeServiceAreas(db, spotId, areas.rows);
   for (const p of await careRelatedPaths(spotId)) revalidatePath(p);
+
+  // 요청함에서 넘어온 등록 — 요청에 스팟을 연결하고 "처리 중"으로 (완료 표시는 운영자가 안내를 마친 뒤 직접)
+  const fromRequestId = intOrNull(formData, "fromRequestId");
+  if (fromRequestId) {
+    await db
+      .update(serviceRequests)
+      .set({ spotId, status: "in_progress", updatedAt: new Date() })
+      .where(and(eq(serviceRequests.id, fromRequestId), eq(serviceRequests.status, "new")));
+    await db.update(serviceRequests).set({ spotId, updatedAt: new Date() }).where(eq(serviceRequests.id, fromRequestId));
+    revalidatePath("/admin/requests");
+  }
 
   revalidatePath("/admin/spots");
   revalidatePath("/admin/care");
