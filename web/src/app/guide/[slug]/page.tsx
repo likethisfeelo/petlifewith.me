@@ -23,6 +23,7 @@ import {
 } from "@/lib/queries/guides";
 import { articleLd, buildMeta, robotsMeta, shouldIndexGuide } from "@/lib/seo";
 import { assetUrl } from "@/lib/assets";
+import { tagHref } from "@/lib/tags";
 import { topicStyle } from "@/lib/topic-style";
 
 export const revalidate = 86400; // REVALIDATE.guide
@@ -119,6 +120,15 @@ export default async function GuidePage({ params }: Props) {
           {guide.title}
         </h1>
         {guide.summary && <p className="mt-3 text-base leading-relaxed text-ink-soft">{guide.summary}</p>}
+        {guide.tags.length > 0 && (
+          <p className="mt-3 flex flex-wrap gap-1.5" aria-label="태그">
+            {guide.tags.map((t) => (
+              <Link key={t} href={tagHref(t)} className="rounded-full bg-sand px-2.5 py-0.5 text-xs font-semibold text-ink-soft hover:bg-ink hover:text-cream">
+                #{t}
+              </Link>
+            ))}
+          </p>
+        )}
         <p className="mt-3 text-xs text-ink-faint">
           {formatDate(guide.publishedAt)} 발행
           {guide.updatedAt && guide.publishedAt && guide.updatedAt.getTime() - guide.publishedAt.getTime() > 86_400_000

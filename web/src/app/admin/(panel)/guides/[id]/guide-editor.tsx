@@ -1,10 +1,11 @@
 "use client";
 
-import { useActionState, useRef, useState } from "react";
+import { useActionState, useCallback, useState } from "react";
 import { categoriesForTopic } from "@app/data";
 import type { UploadPolicy } from "@/lib/settings";
+import { BlockEditor } from "@/components/editor/block-editor";
+import { TagInput } from "@/components/editor/tag-input";
 import { HeroMediaSelect } from "@/components/media/hero-media-select";
-import { MediaToolbar } from "@/components/media/media-toolbar";
 import { saveGuideAction, type ActionState } from "../../../actions";
 import { SeoFields } from "../../../_components/seo-fields";
 import { UploadField } from "../../../_components/upload-field";
@@ -28,6 +29,7 @@ interface GuideValues {
   vetReviewedAt: string | null;
   heroImageKey: string | null;
   heroMedia: string | null;
+  tags: string[];
   seoTitle: string | null;
   seoDescription: string | null;
   ogImageKey: string | null;
@@ -41,6 +43,7 @@ export function GuideEditor({
   authorName,
   spotTypes,
   policy,
+  tagSuggestions = [],
 }: {
   guide: GuideValues;
   topicSlug: string;
@@ -50,12 +53,13 @@ export function GuideEditor({
   spotTypes: Array<{ slug: string; name: string }>;
   /** 업로드 상한 (관리자: 시스템 상한 + 영상 길이 상한) */
   policy: UploadPolicy;
+  tagSuggestions?: string[];
 }) {
   const [state, formAction, pending] = useActionState<ActionState, FormData>(saveGuideAction, {});
   const categories = categoriesForTopic(topicSlug);
-  // 본문은 제어 컴포넌트 — 툴바가 커서 자리에 숏코드를 끼워 넣고, 대표 영상 목록이 본문을 따라간다
+  // 블록 편집기가 마크다운을 만들어 hidden input 에 싣는다. 대표 영상 목록이 본문을 따라간다
   const [body, setBody] = useState(guide.bodyMd);
-  const bodyRef = useRef<HTMLTextAreaElement>(null);
+  const onBody = useCallback((md: string) => setBody(md), []);
 
   return (
     <form action={formAction} className="space-y-4">
@@ -205,22 +209,14 @@ export function GuideEditor({
       <SeoFields defaults={{ seoTitle: guide.seoTitle, seoDescription: guide.seoDescription, ogImageKey: guide.ogImageKey }} />
 
       <div>
-        <label className="block text-sm font-medium text-ink" htmlFor="bodyMd">
-          본문 (마크다운 · 사진·영상은 아래 툴바로 올리면 커서 자리에 숏코드가 들어갑니다 · 미디어 탭의 숏코드를 붙여 넣어도 됩니다)
-        </label>
+        <p className="block text-sm font-medium text-ink">본문 <span className="font-normal text-ink-faint">— 블록으로 편집합니다. 사진·영상은 버튼이나 끌어다 놓기, 원문은 "마크다운" 버튼</span></p>
         <div className="mt-2">
-          <MediaToolbar policy={policy} textareaRef={bodyRef} value={body} onChange={setBody} disabled={pending} />
+          <BlockEditor defaultValue={guide.bodyMd} policy={policy} onChange={onBody} disabled={pending} />
         </div>
-        <textarea
-          ref={bodyRef}
-          id="bodyMd"
-          name="bodyMd"
-          rows={24}
-          value={body}
-          onChange={(e) => setBody(e.target.value)}
-          className={`${input} font-mono text-xs leading-relaxed`}
-        />
         <HeroMediaSelect body={body} defaultValue={guide.heroMedia} className="mt-3" />
+        <div className="mt-3">
+          <TagInput defaultTags={guide.tags} suggestions={tagSuggestions} />
+        </div>
       </div>
 
       {state.error && (

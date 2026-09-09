@@ -3,6 +3,7 @@ import { GUIDE_CATEGORIES_BY_TOPIC } from "@app/data";
 import { requireMember } from "@/lib/member";
 import { listTopics } from "@/lib/queries/guides";
 import { getMemberMediaSettings } from "@/lib/queries/settings";
+import { listPopularTags } from "@/lib/queries/tags";
 import { uploadPolicyFor } from "@/lib/settings";
 import { TopicTagline } from "@/components/site-tagline";
 import { MemberPostForm } from "./post-form";
@@ -20,9 +21,13 @@ export default async function WritePage({ searchParams }: { searchParams: Promis
   if (topicParam) qs.set("topic", topicParam);
   if (categoryParam) qs.set("category", categoryParam);
   await requireMember(qs.size > 0 ? `/write?${qs.toString()}` : "/write");
-  const [topics, limits] = await Promise.all([listTopics().then((ts) => ts.filter((t) => t.slug !== "spot")), getMemberMediaSettings()]);
-  // 게시판에서 넘어온 경우 주제·카테고리를 미리 채운다 (정의에 있는 값만)
-  const preTopic = topics.find((t) => t.slug === topicParam) ?? topics.find((t) => t.slug === "senior-life") ?? null;
+  const [topics, limits, popular] = await Promise.all([
+    listTopics().then((ts) => ts.filter((t) => t.slug !== "spot")),
+    getMemberMediaSettings(),
+    listPopularTags(30),
+  ]);
+  // 게시판에서 넘어온 경우 주제·카테고리를 미리 채운다 (정의에 있는 값만). 없으면 첫 단계에서 고른다
+  const preTopic = topics.find((t) => t.slug === topicParam) ?? null;
   const preCategory =
     preTopic && categoryParam && (GUIDE_CATEGORIES_BY_TOPIC[preTopic.slug] ?? []).some((c) => c.slug === categoryParam) ? categoryParam : null;
   return (
@@ -35,11 +40,13 @@ export default async function WritePage({ searchParams }: { searchParams: Promis
       <div className="mt-6">
         <MemberPostForm
           mode="create"
-          post={{ topicId: preTopic?.id ?? null, category: preCategory, title: "", summary: null, bodyMd: "", heroMedia: null }}
-          topics={topics.map((t) => ({ id: t.id, slug: t.slug, name: t.name }))}
+          post={{ topicId: preTopic?.id ?? null, category: preCategory, title: "", summary: null, bodyMd: "", heroMedia: null, tags: [] }}
+          topics={topics.map((t) => ({ id: t.id, slug: t.slug, name: t.name, description: t.description }))}
           categoriesByTopic={GUIDE_CATEGORIES_BY_TOPIC}
           policy={uploadPolicyFor("member", limits)}
           limits={limits}
+          tagSuggestions={popular.map((t) => t.tag)}
+          categoryPreset={preCategory !== null}
         />
       </div>
     </div>

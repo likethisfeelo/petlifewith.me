@@ -2,6 +2,7 @@ import { GUIDE_CATEGORIES_BY_TOPIC } from "@app/data";
 import { getDb, isDbConfigured, schema } from "@/lib/db";
 import { AdminPageHeader } from "../../../_components/fields";
 import { getMemberMediaSettings } from "@/lib/queries/settings";
+import { listPopularTags } from "@/lib/queries/tags";
 import { uploadPolicyFor } from "@/lib/settings";
 import { NewPostForm } from "./new-post-form";
 
@@ -23,7 +24,7 @@ export default async function AdminGuideNewPage() {
         </p>
       ) : (
         <div className="mt-5">
-          <NewPostForm policy={uploadPolicyFor("admin", await getMemberMediaSettings())}
+          <NewPostForm policy={uploadPolicyFor("admin", await getMemberMediaSettings())} tagSuggestions={(await listPopularTags(30)).map((t) => t.tag)}
             topics={topicRows.map((t) => ({ id: t.id, slug: t.slug, name: t.name }))}
             categoriesByTopic={GUIDE_CATEGORIES_BY_TOPIC}
           />

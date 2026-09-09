@@ -149,3 +149,19 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .pl-pulse { animation: none; opacity: 0; }
 }
+
+/* 본문 속 #태그 링크 — 칩처럼 (lib/tags.ts linkifyHashtags) */
+.guide-prose a.md-tag {
+  display: inline-block;
+  border-radius: 9999px;
+  background: var(--color-sand, #efe9df);
+  padding: 0 0.5rem;
+  font-size: 0.85em;
+  font-weight: 600;
+  text-decoration: none;
+  color: var(--color-ink-soft, #5c5a55);
+}
+.guide-prose a.md-tag:hover {
+  background: var(--color-ink, #1f1e1b);
+  color: var(--color-cream, #fbf8f2);
+}

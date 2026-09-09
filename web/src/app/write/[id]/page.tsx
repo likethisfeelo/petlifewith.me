@@ -6,6 +6,7 @@ import { getDb, schema } from "@/lib/db";
 import { requireMember } from "@/lib/member";
 import { listTopics } from "@/lib/queries/guides";
 import { getMemberMediaSettings } from "@/lib/queries/settings";
+import { listPopularTags } from "@/lib/queries/tags";
 import { uploadPolicyFor } from "@/lib/settings";
 import { MemberPostForm } from "../post-form";
 
@@ -27,7 +28,11 @@ export default async function EditPostPage({ params }: { params: Promise<{ id: s
   // 내 글이 아니면 존재 자체를 드러내지 않는다
   if (!guide || guide.authorUserId !== member.id) notFound();
   const editable = guide.status === "pending" || guide.status === "published";
-  const [topics, limits] = await Promise.all([listTopics().then((ts) => ts.filter((t) => t.slug !== "spot")), getMemberMediaSettings()]);
+  const [topics, limits, popular] = await Promise.all([
+    listTopics().then((ts) => ts.filter((t) => t.slug !== "spot")),
+    getMemberMediaSettings(),
+    listPopularTags(30),
+  ]);
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">
@@ -48,12 +53,14 @@ export default async function EditPostPage({ params }: { params: Promise<{ id: s
               summary: guide.summary,
               bodyMd: guide.bodyMd,
               heroMedia: guide.heroMedia,
+              tags: guide.tags,
               status: guide.status,
             }}
-            topics={topics.map((t) => ({ id: t.id, slug: t.slug, name: t.name }))}
+            topics={topics.map((t) => ({ id: t.id, slug: t.slug, name: t.name, description: t.description }))}
             categoriesByTopic={GUIDE_CATEGORIES_BY_TOPIC}
             policy={uploadPolicyFor("member", limits)}
             limits={limits}
+            tagSuggestions={popular.map((t) => t.tag)}
           />
         </div>
       )}

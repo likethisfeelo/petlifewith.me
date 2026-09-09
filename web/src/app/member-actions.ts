@@ -27,6 +27,7 @@ import { findAssetsByKeys } from "@/lib/queries/media";
 import { getMemberMediaSettings } from "@/lib/queries/settings";
 import { guideRelatedPaths } from "@/lib/revalidate-paths";
 import { mediaCountError } from "@/lib/settings";
+import { hashtagsIn, mergeTags, parseTagInput, tagHref } from "@/lib/tags";
 
 const { users, guides, topics, comments } = schema;
 
@@ -180,6 +181,7 @@ interface PostInput {
   summary: string | null;
   bodyMd: string;
   heroMedia: string | null;
+  tags: string[];
 }
 
 /**
@@ -224,6 +226,7 @@ async function readPostInput(formData: FormData, memberId: string): Promise<{ er
     summary: str(formData, "summary"),
     bodyMd: String(formData.get("bodyMd") ?? ""),
     heroMedia: str(formData, "heroMedia"),
+    tags: str(formData, "tags"),
   };
   const topicId = Number(values.topicId);
   if (!Number.isSafeInteger(topicId) || topicId <= 0) return { error: "주제(클러스터)를 선택해 주세요.", values };
@@ -242,7 +245,8 @@ async function readPostInput(formData: FormData, memberId: string): Promise<{ er
   if (bodyMd.length > POST_BODY_MAX) return { error: `본문은 ${POST_BODY_MAX.toLocaleString("ko-KR")}자 이하로 써 주세요.`, values };
   const media = await checkPostMedia(memberId, bodyMd, values.heroMedia);
   if (media.error) return { error: media.error, values };
-  return { values, input: { topicId: topic.id, topicSlug: topic.slug, category, title, summary, bodyMd, heroMedia: media.heroMedia } };
+  const tags = mergeTags(parseTagInput(values.tags), hashtagsIn(bodyMd));
+  return { values, input: { topicId: topic.id, topicSlug: topic.slug, category, title, summary, bodyMd, heroMedia: media.heroMedia, tags } };
 }
 
 function randomSuffix(): string {
@@ -284,6 +288,7 @@ export async function createMemberPostAction(_prev: MemberActionState, formData:
             role: "spoke",
             category: input.category,
             heroMedia: input.heroMedia,
+            tags: input.tags,
             // 승인 대기가 꺼져 있으면 저장 즉시 공개
             status: requireApproval ? "pending" : "published",
             publishedAt: requireApproval ? null : new Date(),
@@ -299,6 +304,7 @@ export async function createMemberPostAction(_prev: MemberActionState, formData:
   if (!inserted) return { error: "저장에 실패했습니다. 잠시 후 다시 시도해 주세요.", values };
   if (!requireApproval) {
     for (const p of await guideRelatedPaths(inserted.id)) revalidatePath(p);
+    for (const t of input.tags) revalidatePath(tagHref(t));
     revalidatePath(`/topic/${input.topicSlug}/challenge`);
     revalidatePath(`/topic/${input.topicSlug}/curated`);
   }
@@ -332,6 +338,7 @@ export async function updateMemberPostAction(_prev: MemberActionState, formData:
       topicId: input.topicId,
       category: input.category,
       heroMedia: input.heroMedia,
+      tags: input.tags,
       status: nextStatus,
       publishedAt: nextStatus === "published" ? (existing.publishedAt ?? new Date()) : existing.publishedAt,
       // 승인 전 글에는 큐레이션 순서·부위 대표가 붙어 있으면 안 된다 (관리자가 승인하며 다시 정한다)
@@ -342,6 +349,7 @@ export async function updateMemberPostAction(_prev: MemberActionState, formData:
   if (wasPublished || nextStatus === "published") {
     if (existing.category) revalidatePath(`/topic/${input.topicSlug}/${existing.category}`);
     for (const p of await guideRelatedPaths(id)) revalidatePath(p);
+    for (const t of new Set([...existing.tags, ...input.tags])) revalidatePath(tagHref(t));
     revalidatePath(`/topic/${input.topicSlug}/challenge`);
     revalidatePath(`/topic/${input.topicSlug}/curated`);
   }

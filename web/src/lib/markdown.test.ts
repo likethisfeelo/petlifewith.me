@@ -98,3 +98,12 @@ describe("renderMarkdown — 업로드 미디어 숏코드 (키만 저장, URL �
     expect(html).not.toContain("<img");
   });
 });
+
+describe("renderMarkdown — #태그", () => {
+  it("본문의 #태그 는 /tag/ 링크(md-tag)가 되고 제목·주소 속 # 은 그대로", () => {
+    const { html } = renderMarkdown("## 제목 #아님\n\n오늘 #노즈워크 했다. https://a.b/#frag");
+    expect(html).toContain('<a href="/tag/%EB%85%B8%EC%A6%88%EC%9B%8C%ED%81%AC" class="md-tag">#노즈워크</a>');
+    expect(html).toContain("제목 #아님");
+    expect(html).toContain("https://a.b/#frag");
+  });
+});

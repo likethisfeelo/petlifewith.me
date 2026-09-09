@@ -1,19 +1,7 @@
 // 섹션별 사이트맵 — noindex 게이트를 통과한 URL 만 내보낸다 (lib/queries/sitemap.ts)
 import { notFound } from "next/navigation";
 import { siteUrl } from "@/lib/config";
-import {
-  sitemapCategoryBoards,
-  sitemapCurations,
-  sitemapGuides,
-  sitemapItems,
-  sitemapMakers,
-  sitemapPlaces,
-  sitemapRegions,
-  sitemapRehab,
-  sitemapTopicBoards,
-  sitemapTopics,
-  type SitemapEntry,
-} from "@/lib/queries/sitemap";
+import { sitemapCategoryBoards, sitemapCurations, sitemapGuides, sitemapItems, sitemapMakers, sitemapPlaces, sitemapRegions, sitemapRehab, sitemapTags, sitemapTopicBoards, sitemapTopics, type SitemapEntry } from "@/lib/queries/sitemap";
 
 export const revalidate = 3600; // REVALIDATE.sitemap
 
@@ -24,8 +12,8 @@ export function generateStaticParams() {
 async function entriesFor(section: string): Promise<SitemapEntry[] | null> {
   switch (section) {
     case "core": {
-      const [topics, boards, topicBoards] = await Promise.all([sitemapTopics(), sitemapCategoryBoards(), sitemapTopicBoards()]);
-      return [{ path: "/" }, { path: "/maker" }, { path: "/curation" }, ...topics, ...topicBoards, ...boards];
+      const [topics, boards, topicBoards, tags] = await Promise.all([sitemapTopics(), sitemapCategoryBoards(), sitemapTopicBoards(), sitemapTags()]);
+      return [{ path: "/" }, { path: "/maker" }, { path: "/curation" }, ...topics, ...topicBoards, ...boards, ...tags];
     }
     case "guides":
       return sitemapGuides();
