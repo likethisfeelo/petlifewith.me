@@ -2,6 +2,9 @@
 
 // 댓글 목록 + 작성 폼. 목록은 서버(ISR)에서 온 데이터를 그대로 그리고,
 // 작성 가능 여부는 마운트 후 /api/me 로 판단한다 (페이지 HTML 은 로그인과 무관).
+//
+// 시각은 서버가 만든 문자열(createdAtLabel)을 그대로 찍는다 — 여기서 Intl 로 포맷하면
+// 서버(UTC)와 브라우저(KST)의 결과가 달라 하이드레이션이 깨진다 (lib/format.ts 주석 참조).
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useRef } from "react";
@@ -9,11 +12,6 @@ import { addCommentAction, deleteOwnCommentAction, type MemberActionState } from
 import { COMMENT_MAX } from "@/lib/member-limits";
 import type { PublicComment } from "@/lib/queries/comments";
 import { useCurrentMember } from "./member-menu";
-
-function formatDateTime(d: Date | string): string {
-  const date = typeof d === "string" ? new Date(d) : d;
-  return new Intl.DateTimeFormat("ko-KR", { year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" }).format(date);
-}
 
 export function CommentSection({ guideId, slug, comments }: { guideId: number; slug: string; comments: PublicComment[] }) {
   const { loading, member } = useCurrentMember();
@@ -40,7 +38,7 @@ export function CommentSection({ guideId, slug, comments }: { guideId: number; s
             <li key={c.id} className="rounded-xl border border-line bg-surface px-4 py-3">
               <div className="flex flex-wrap items-baseline gap-x-2 text-xs text-ink-faint">
                 <span className="font-semibold text-ink">{c.authorName}</span>
-                <span>{formatDateTime(c.createdAt)}</span>
+                <span>{c.createdAtLabel}</span>
                 {member?.id === c.authorId && (
                   <form action={deleteOwnCommentAction} className="ml-auto">
                     <input type="hidden" name="id" value={c.id} />
