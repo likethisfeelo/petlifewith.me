@@ -1,9 +1,10 @@
 "use client";
 
-import { useActionState, useRef, useState } from "react";
+import { useActionState, useCallback, useState } from "react";
 import type { UploadPolicy } from "@/lib/settings";
+import { BlockEditor } from "@/components/editor/block-editor";
+import { TagInput } from "@/components/editor/tag-input";
 import { HeroMediaSelect } from "@/components/media/hero-media-select";
-import { MediaToolbar } from "@/components/media/media-toolbar";
 import type { GuideCategoryDef } from "@app/data";
 import {
   CheckboxField,
@@ -49,14 +50,16 @@ export function NewPostForm({
   topics,
   categoriesByTopic,
   policy,
+  tagSuggestions = [],
 }: {
   topics: Array<{ id: number; slug: string; name: string }>;
   categoriesByTopic: Record<string, GuideCategoryDef[]>;
   policy: UploadPolicy;
+  tagSuggestions?: string[];
 }) {
   const [state, formAction, pending] = useActionState<ActionState, FormData>(createGuideAction, {});
   const [body, setBody] = useState("");
-  const bodyRef = useRef<HTMLTextAreaElement>(null);
+  const onBody = useCallback((md: string) => setBody(md), []);
   const [topicId, setTopicId] = useState<string>("");
   const topicSlug = topics.find((t) => String(t.id) === topicId)?.slug ?? "";
   const categories = categoriesByTopic[topicSlug] ?? [];
@@ -137,18 +140,13 @@ export function NewPostForm({
           없으면 렌더되지 않습니다). 쿠팡 링크를 넣으면 수수료 고지가 자동으로 붙습니다.
         </p>
         <div className="mt-3">
-          <MediaToolbar policy={policy} textareaRef={bodyRef} value={body} onChange={setBody} disabled={pending} />
+          <BlockEditor defaultValue="" policy={policy} onChange={onBody} disabled={pending} />
         </div>
-        <textarea
-          ref={bodyRef}
-          name="bodyMd"
-          rows={22}
-          value={body}
-          onChange={(e) => setBody(e.target.value)}
-          className="mt-3 w-full rounded-lg border border-line bg-surface px-3 py-2 font-mono text-xs leading-relaxed outline-none focus:border-ink"
-        />
         <p className="mt-1 text-right text-xs text-ink-faint">{body.length}자</p>
         <HeroMediaSelect body={body} defaultValue={null} className="mt-3" />
+        <div className="mt-3">
+          <TagInput defaultTags={[]} suggestions={tagSuggestions} />
+        </div>
       </section>
 
       <FormMessage error={state.error} saved={state.saved} />

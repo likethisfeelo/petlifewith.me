@@ -9,6 +9,7 @@ import { getSession, loginWithToken, logout } from "@/lib/auth";
 import { MAX_EXPOSED_PER_AREA, categoriesForTopic, slugify } from "@app/data";
 import { isValidObjectKey } from "@/lib/assets";
 import { parseMediaRef, sameRef, videoEmbeds } from "@/lib/media-ref";
+import { hashtagsIn, mergeTags, parseTagInput, tagHref } from "@/lib/tags";
 import { parseAreaOrder, parseCuratedOrder } from "@/lib/guide-order";
 import { careRelatedPaths, guideRelatedPaths } from "@/lib/revalidate-paths";
 import { countExposedInArea } from "@/lib/queries/care";
@@ -158,6 +159,8 @@ export async function saveGuideAction(_prev: ActionState, formData: FormData): P
   const bodyMd = String(formData.get("bodyMd") ?? existing.bodyMd);
   const hero = readHeroMedia(formData, bodyMd);
   if (hero.error) return { error: hero.error };
+  // 태그 칸 + 본문 #태그
+  const tags = mergeTags(parseTagInput(String(formData.get("tags") ?? "")), hashtagsIn(bodyMd));
 
   const publishedAt = status === "published" ? (existing.publishedAt ?? new Date()) : existing.publishedAt;
 
@@ -168,6 +171,7 @@ export async function saveGuideAction(_prev: ActionState, formData: FormData): P
       summary: String(formData.get("summary") ?? "").trim() || null,
       bodyMd,
       heroMedia: hero.heroMedia,
+      tags,
       spokeGroup: String(formData.get("spokeGroup") ?? "").trim() || null,
       role: formData.get("role") === "hub" ? "hub" : "spoke",
       category: cat.category,
@@ -189,6 +193,7 @@ export async function saveGuideAction(_prev: ActionState, formData: FormData): P
     })
     .where(eq(guides.id, id));
 
+  for (const t of new Set([...existing.tags, ...tags])) revalidatePath(tagHref(t));
   // 카테고리가 바뀐 경우 이전 게시판도 함께
   if (existing.category) revalidatePath(`/topic/${cat.topicSlug}/${existing.category}`);
   for (const p of await guideRelatedPaths(id)) revalidatePath(p);
@@ -248,6 +253,7 @@ export async function createGuideAction(_prev: ActionState, formData: FormData):
   const bodyMd = String(formData.get("bodyMd") ?? "");
   const hero = readHeroMedia(formData, bodyMd);
   if (hero.error) return { error: hero.error };
+  const tags = mergeTags(parseTagInput(String(formData.get("tags") ?? "")), hashtagsIn(bodyMd));
 
   const inserted = await db
     .insert(guides)
@@ -257,6 +263,7 @@ export async function createGuideAction(_prev: ActionState, formData: FormData):
       summary: String(formData.get("summary") ?? "").trim() || null,
       bodyMd,
       heroMedia: hero.heroMedia,
+      tags,
       topicId,
       // 운영진이 쓴 글은 큐레이션 콘텐츠가 기본 (편집 화면에서 끌 수 있다)
       curated: true,

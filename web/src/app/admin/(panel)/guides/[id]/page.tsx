@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { getDb, isDbConfigured, schema } from "@/lib/db";
 import { getGuideEntityTags } from "@/lib/queries/guides";
 import { getMemberMediaSettings } from "@/lib/queries/settings";
+import { listPopularTags } from "@/lib/queries/tags";
 import { uploadPolicyFor } from "@/lib/settings";
 import { GuideEditor } from "./guide-editor";
 import { TagManager, type ExistingTag, type TagOption } from "./tag-manager";
@@ -85,6 +86,7 @@ export default async function AdminGuideEditPage({ params, searchParams }: Props
         <div className="rounded-xl border border-line bg-surface p-4">
           <GuideEditor
             policy={uploadPolicyFor("admin", await getMemberMediaSettings())}
+            tagSuggestions={(await listPopularTags(30)).map((t) => t.tag)}
             topicSlug={topicSlug}
             authorName={authorName}
             spotTypes={typeRows}
@@ -107,6 +109,7 @@ export default async function AdminGuideEditPage({ params, searchParams }: Props
               vetReviewedAt: guide.vetReviewedAt,
               heroImageKey: guide.heroImageKey,
               heroMedia: guide.heroMedia,
+              tags: guide.tags,
               seoTitle: guide.seoTitle,
               seoDescription: guide.seoDescription,
               ogImageKey: guide.ogImageKey,

@@ -14,6 +14,7 @@
 import { Marked } from "marked";
 import { assetUrl, isValidObjectKey } from "./assets";
 import { instagramPermalink } from "./media-ref";
+import { linkifyHashtags } from "./tags";
 
 export interface RenderedMarkdown {
   html: string;
@@ -146,6 +147,9 @@ export function renderMarkdown(md: string, opts: RenderOptions = {}): RenderedMa
     return `\n\n<!--EMBED:${idx}-->\n\n`;
   });
 
+  // 1.5) 본문의 #태그 → /tag/ 링크 (제목·코드·링크·주소 속 # 은 건드리지 않는다 — lib/tags.ts)
+  const withTags = linkifyHashtags(withPlaceholders);
+
   // 2) 마크다운 → HTML (원문 HTML 은 이스케이프, 링크 rel 처리, 헤딩 id)
   let hasAffiliateLinks = false;
   const marked = new Marked({ gfm: true });
@@ -165,7 +169,9 @@ export function renderMarkdown(md: string, opts: RenderOptions = {}): RenderedMa
         const href = token.href;
         const title = token.title ? ` title="${escapeHtml(token.title)}"` : "";
         if (!isExternalUrl(href)) {
-          return `<a href="${escapeHtml(href)}"${title}>${text}</a>`;
+          // 태그 링크는 칩처럼 보이게 클래스를 붙인다 (globals.css .md-tag)
+          const cls = href.startsWith("/tag/") ? ' class="md-tag"' : "";
+          return `<a href="${escapeHtml(href)}"${title}${cls}>${text}</a>`;
         }
         const affiliate = isAffiliateUrl(href);
         if (affiliate) hasAffiliateLinks = true;
@@ -179,7 +185,7 @@ export function renderMarkdown(md: string, opts: RenderOptions = {}): RenderedMa
     },
   });
 
-  let html = marked.parse(withPlaceholders, { async: false }) as string;
+  let html = marked.parse(withTags, { async: false }) as string;
 
   // 3) 플레이스홀더 → 임베드 HTML
   html = html.replace(/<!--EMBED:(\d+)-->/g, (_m, i: string) => embeds[Number(i)] ?? "");

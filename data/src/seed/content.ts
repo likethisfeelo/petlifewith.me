@@ -6,6 +6,7 @@
 //   summary, role(hub|spoke), spokeGroup(body|support|...), status,
 //   category(토픽별 카테고리 슬러그 — data/src/guides/categories.ts, 없으면 "전체"),
 //   curated(기본 true — 큐레이션 콘텐츠 피드 노출. false 면 부위별 게시판에만 둔다),
+//   tags(선택 — 배열 또는 쉼표 문자열. 소문자·공백 없음으로 정규화),
 //   banners(글 상단 디렉토리 배너 — spot_types.slug 배열, 클릭하면 그 유형의 디렉토리로),
 //   medicalAdjacent, vetReviewed, vetReviewerName, vetReviewedAt — 선택
 import { readFileSync, readdirSync } from "node:fs";
@@ -82,6 +83,8 @@ async function main() {
       // 마크다운 글은 큐레이션 콘텐츠가 기본. frontmatter 에 `curated: false` 를 두면 뺀다
       // (부위별 게시판에만 두고 싶은 글). 회원 글은 관리자가 켜 준다.
       curated: data.curated === false ? false : true,
+      // frontmatter `tags: [노즈워크, 실내놀이]` 또는 쉼표 문자열 — web/src/lib/tags.ts 와 같은 규칙(소문자·공백 없음·# 제거)
+      tags: normalizeTags(data.tags),
       bannerSpotTypes: banners,
       status,
       medicalAdjacent,
@@ -137,3 +140,16 @@ main().catch(async (e) => {
   await closeDb();
   process.exit(1);
 });
+
+/** frontmatter tags → 정규화 목록 (web/src/lib/tags.ts normalizeTag 와 같은 규칙) */
+function normalizeTags(raw: unknown): string[] {
+  const list = Array.isArray(raw) ? raw.map(String) : typeof raw === "string" ? raw.split(/[,\n]/) : [];
+  const out: string[] = [];
+  for (const piece of list) {
+    const t = piece.trim().replace(/^#+/, "").replace(/\s+/g, "").replace(/[.\-·]+$/, "").toLowerCase().slice(0, 30);
+    if (!t || !/^[\p{L}\p{N}_][\p{L}\p{N}_\-·.]*$/u.test(t) || !/\p{L}/u.test(t)) continue;
+    if (!out.includes(t)) out.push(t);
+    if (out.length >= 10) break;
+  }
+  return out;
+}

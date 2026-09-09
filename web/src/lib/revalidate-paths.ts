@@ -8,7 +8,7 @@ const { guides, topics } = schema;
 export async function guideRelatedPaths(guideId: number): Promise<string[]> {
   const row = (
     await getDb()
-      .select({ slug: guides.slug, category: guides.category, topicSlug: topics.slug })
+      .select({ slug: guides.slug, category: guides.category, topicSlug: topics.slug, tags: guides.tags })
       .from(guides)
       .innerJoin(topics, eq(guides.topicId, topics.id))
       .where(eq(guides.id, guideId))
@@ -17,6 +17,7 @@ export async function guideRelatedPaths(guideId: number): Promise<string[]> {
   if (!row) return ["/"];
   const paths = [`/guide/${row.slug}`, `/topic/${row.topicSlug}`, "/"];
   if (row.category) paths.push(`/topic/${row.topicSlug}/${row.category}`);
+  for (const t of row.tags) paths.push(`/tag/${encodeURIComponent(t)}`);
   return paths;
 }
 

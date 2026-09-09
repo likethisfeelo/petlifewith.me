@@ -6,6 +6,7 @@ import { getDb, isDbConfigured, schema } from "../db";
 import { MIN_PLACE_INFO_ITEMS, MIN_SPOTS_FOR_INDEX, placeInfoItemCount, shouldIndexBoard, shouldIndexGuide } from "../seo";
 import { CARE_TYPE_SLUGS, categoriesForTopic } from "@app/data";
 import { countRehabSites, countRehabSitesByModality } from "./rehab";
+import { resultRows } from "./tags";
 
 const {
   guides,
@@ -72,6 +73,20 @@ export async function sitemapTopicBoards(): Promise<SitemapEntry[]> {
     if (shouldIndexBoard(r.challenge)) out.push({ path: `/topic/${r.topicSlug}/challenge` });
   }
   return out;
+}
+
+/** 태그 페이지 — 발행 글 3편 이상인 태그만 */
+export async function sitemapTags(): Promise<SitemapEntry[]> {
+  if (!isDbConfigured()) return [];
+  const rows = resultRows<{ tag: string; count: number }>(
+    await getDb().execute(sql`
+      select t as tag, count(*)::int as count
+      from ${guides}, unnest(${guides.tags}) as t
+      where ${guides.status} = 'published'
+      group by t
+    `),
+  );
+  return rows.filter((r) => shouldIndexBoard(Number(r.count))).map((r) => ({ path: `/tag/${encodeURIComponent(r.tag)}` }));
 }
 
 export async function sitemapTopics(): Promise<SitemapEntry[]> {

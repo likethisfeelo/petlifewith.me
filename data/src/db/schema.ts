@@ -178,6 +178,8 @@ export const guides = pgTable(
     // 글 상단 디렉토리 배너 — 스팟 유형 슬러그 배열(spot_types.slug). 클릭하면 그 유형의 디렉토리(/spot/type/…)로.
     // 커뮤니티 게시판이 아니라 업체 검색·등록 입구다 (관리자만 지정)
     bannerSpotTypes: text("banner_spot_types").array().notNull().default(sql`'{}'::text[]`),
+    // 태그 (0011) — 글과 별도로 붙이는 키워드. 본문의 #태그 도 저장 시 합쳐진다. 정규화 규칙은 web/src/lib/tags.ts (소문자, 공백 없음)
+    tags: text("tags").array().notNull().default(sql`'{}'::text[]`),
     // 회원이 쓴 글이면 글쓴이. 관리자 글은 null. 회원 글은 pending 으로 시작해 승인 후 published.
     authorUserId: uuid("author_user_id").references(() => users.id, { onDelete: "set null" }),
     status: guideStatus("status").notNull().default("draft"),
@@ -206,6 +208,7 @@ export const guides = pgTable(
     uniqueIndex("guides_topic_curated_uq").on(t.topicId, t.curatedOrder).where(sql`${t.curatedOrder} is not null`),
     // 부위(카테고리) 안에서 같은 대표 순번은 하나뿐 (1~3)
     uniqueIndex("guides_area_order_uq").on(t.topicId, t.category, t.areaOrder).where(sql`${t.areaOrder} is not null`),
+    index("guides_tags_idx").using("gin", t.tags),
     // 감수 없는 의료 인접 편은 published 로 전환할 수 없다.
     check(
       "guides_medical_review_gate",
