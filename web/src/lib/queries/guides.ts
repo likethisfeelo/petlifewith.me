@@ -3,7 +3,7 @@ import { getDb, isDbConfigured, schema } from "../db";
 import { orderArea, orderCurated, orderNewest } from "../guide-order";
 
 const { guides, topics, users, guideItemTags, guideSpotTags, guideMakerTags, guideDeviceTags } = schema;
-const { items, itemOffers, makers, spots, spotTypes, regions, deviceModels, deviceSites } = schema;
+const { items, itemOffers, makers, makerLinks, spots, spotTypes, regions, deviceModels, deviceSites } = schema;
 
 export type GuideRow = typeof guides.$inferSelect;
 export type TopicRow = typeof topics.$inferSelect;
@@ -61,10 +61,12 @@ export async function listGuidesForTopic(topicId: number): Promise<{
   hub: GuideRow | null;
   curated: GuideListItem[];
   challenge: GuideListItem[];
+  /** 허브를 뺀 발행 글 전체 — 큐레이션 순번 → 최신순 (놀이 영상 피드처럼 운영진·회원 글을 한 목록으로 볼 때) */
+  feed: GuideListItem[];
   byCategory: Map<string, GuideListItem[]>;
   all: GuideRow[];
 }> {
-  if (!isDbConfigured()) return { hub: null, curated: [], challenge: [], byCategory: new Map(), all: [] };
+  if (!isDbConfigured()) return { hub: null, curated: [], challenge: [], feed: [], byCategory: new Map(), all: [] };
   const db = getDb();
   const rows = await db
     .select({ guide: guides, authorName: users.displayName })
@@ -86,6 +88,7 @@ export async function listGuidesForTopic(topicId: number): Promise<{
   const strip = ({ guide, authorName }: (typeof keyed)[number]): GuideListItem => ({ guide, authorName });
   const curated = orderCurated(keyed.filter((r) => r.guide.curated)).map(strip);
   const challenge = orderNewest(keyed.filter((r) => r.guide.authorUserId)).map(strip);
+  const feed = orderCurated(keyed).map(strip);
   const byCategory = new Map<string, GuideListItem[]>();
   for (const item of orderArea(keyed)) {
     if (!item.guide.category) continue;
@@ -93,7 +96,7 @@ export async function listGuidesForTopic(topicId: number): Promise<{
     list.push(strip(item));
     byCategory.set(item.guide.category, list);
   }
-  return { hub, curated, challenge, byCategory, all: rows.map((r) => r.guide) };
+  return { hub, curated, challenge, feed, byCategory, all: rows.map((r) => r.guide) };
 }
 
 export async function latestPublishedGuides(limit: number): Promise<Array<{ guide: GuideRow; topic: TopicRow }>> {
@@ -141,6 +144,8 @@ export interface TaggedSpot {
 export interface TaggedMaker {
   contextLabel: string | null;
   maker: typeof makers.$inferSelect;
+  /** 홈페이지·인스타그램·스마트스토어 등 (maker_links) — 놀이 글 우측 패널의 "홈페이지 정보" */
+  links: Array<typeof makerLinks.$inferSelect>;
 }
 
 export interface TaggedDevice {
@@ -200,6 +205,15 @@ export async function getGuideEntityTags(guideId: number): Promise<GuideEntityTa
     .where(eq(guideMakerTags.guideId, guideId))
     .orderBy(guideMakerTags.sortOrder);
 
+  const makerLinkRows =
+    makerRows.length > 0
+      ? await db
+          .select()
+          .from(makerLinks)
+          .where(inArray(makerLinks.makerId, makerRows.map((r) => r.maker.id)))
+          .orderBy(makerLinks.sortOrder)
+      : [];
+
   const deviceRows = await db
     .select({ device: deviceModels })
     .from(guideDeviceTags)
@@ -240,7 +254,11 @@ export async function getGuideEntityTags(guideId: number): Promise<GuideEntityTa
       sidoName: r.sidoName,
       sigunguName: r.sigunguName,
     })),
-    makers: makerRows.map((r) => ({ contextLabel: r.tag.contextLabel, maker: r.maker })),
+    makers: makerRows.map((r) => ({
+    contextLabel: r.tag.contextLabel,
+    maker: r.maker,
+    links: makerLinkRows.filter((l) => l.makerId === r.maker.id),
+  })),
     devices,
     hasAffiliateOffers: offerRows.some((o) => o.isAffiliate),
   };
