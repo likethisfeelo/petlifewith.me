@@ -1,8 +1,12 @@
+// 시도 페이지 — 지도가 이 시도로 펼쳐진 채 시작한다. 유형 칩을 고르면 배지와 시군구 타일 링크가
+// 그 유형의 지역x유형 페이지(SEO 페이지)로 바뀐다. 우측은 시군구별 현황(지역 허브 링크)과 유형별 링크.
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Breadcrumbs } from "@/components/breadcrumbs";
-import { listSigunguSummaries } from "@/lib/queries/spots";
+import { SpotDirectory, type TypeChip } from "@/components/spot/spot-directory";
+import { formatNumber } from "@/lib/format";
+import { listRegionTiles, listSigunguSummaries, listSigunguTypeCounts } from "@/lib/queries/spots";
 import { buildMeta, robotsMeta } from "@/lib/seo";
 
 export const revalidate = 21600; // REVALIDATE.spotDirectory
@@ -31,36 +35,94 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function SidoPage({ params }: Props) {
   const { sido } = await params;
-  const rows = await listSigunguSummaries(decodeURIComponent(sido));
+  const sidoSlug = decodeURIComponent(sido);
+  const [rows, regionTiles, typeCounts] = await Promise.all([
+    listSigunguSummaries(sidoSlug),
+    listRegionTiles(),
+    listSigunguTypeCounts(sidoSlug),
+  ]);
   if (rows.length === 0) notFound();
   const sidoName = rows[0]!.region.sidoName;
+  const total = rows.reduce((a, r) => a + r.spotCount, 0);
+
+  // 지도 배지("전체"): 이 시도의 시군구별 영업 중 스팟 수 (소비자 유형)
+  const countsByRegion = Object.fromEntries(rows.map((r) => [r.region.id, r.spotCount]));
+  // 유형 칩: 이 시도에 하나라도 있는 유형만, 유형 정렬 순서대로. 칩을 고르면 배지·타일 링크가 그 유형으로 바뀐다.
+  const typeMap = new Map<string, TypeChip & { sortOrder: number; total: number }>();
+  const countsByType: Record<string, Record<number, number>> = {};
+  for (const t of typeCounts) {
+    const entry = typeMap.get(t.typeSlug) ?? { slug: t.typeSlug, name: t.typeName, sortOrder: t.sortOrder, total: 0 };
+    entry.total += t.count;
+    typeMap.set(t.typeSlug, entry);
+    (countsByType[t.typeSlug] ??= {})[t.regionId] = t.count;
+  }
+  const types = [...typeMap.values()].sort((a, b) => a.sortOrder - b.sortOrder);
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-10">
+    <div className="mx-auto max-w-6xl px-4 py-10">
       <Breadcrumbs
         crumbs={[
           { name: "홈", path: "/" },
           { name: "스팟", path: "/spot" },
-          { name: sidoName, path: `/spot/${sido}` },
+          { name: sidoName, path: `/spot/${sidoSlug}` },
         ]}
       />
 
       <h1 className="mt-6 text-3xl font-extrabold tracking-tight text-sea">{sidoName}</h1>
-      <p className="mt-2 text-ink-soft">시군구를 선택하세요. 숫자는 영업 중으로 확인된 스팟 수입니다.</p>
+      <p className="mt-2 text-ink-soft">
+        영업 중 {formatNumber(total)}곳 · 지도에서 유형을 고르고 구·시·군을 누르면 그 지역의 목록 페이지로 갑니다.
+      </p>
 
-      <div className="mt-8 grid gap-3 sm:grid-cols-3 lg:grid-cols-4">
-        {rows.map(({ region, spotCount }) => (
-          <Link
-            key={region.id}
-            href={`/spot/${region.sidoSlug}/${region.sigunguSlug}`}
-            className={`flex items-center justify-between rounded-xl border px-4 py-3 transition-shadow hover:shadow-md ${
-              spotCount > 0 ? "border-line bg-surface" : "border-dashed border-line bg-transparent"
-            }`}
-          >
-            <span className={spotCount > 0 ? "font-semibold text-ink" : "text-ink-faint"}>{region.sigunguName}</span>
-            <span className="text-sm text-ink-faint">{spotCount > 0 ? spotCount : "-"}</span>
-          </Link>
-        ))}
+      <div className="mt-8">
+        <SpotDirectory
+          regions={regionTiles}
+          countsByRegion={countsByRegion}
+          typeFilter={{ types: types.map(({ slug, name }) => ({ slug, name })), countsByType }}
+          selectedSido={sidoSlug}
+          selectedRegionId={null}
+          typeSlug={null}
+          mapTitle={`${sidoName} 지역 지도`}
+        >
+          <section aria-labelledby="sigungu-heading" className="rounded-2xl border border-line bg-surface p-5">
+            <h2 id="sigungu-heading" className="text-lg font-bold text-ink">
+              시군구별 현황 <span className="text-sm font-medium text-ink-faint">{rows.length}개 지역</span>
+            </h2>
+            <p className="mt-1 text-xs text-ink-faint">숫자는 영업 중으로 확인된 스팟 수입니다. 지역을 누르면 그 지역의 전체 스팟과 데이터가 나옵니다.</p>
+            <div className="mt-4 grid gap-2 sm:grid-cols-2">
+              {rows.map(({ region, spotCount }) => (
+                <Link
+                  key={region.id}
+                  href={`/spot/${region.sidoSlug}/${region.sigunguSlug}`}
+                  className={`flex items-center justify-between rounded-xl border px-4 py-2.5 transition-shadow hover:shadow-md ${
+                    spotCount > 0 ? "border-line bg-cream" : "border-dashed border-line bg-transparent"
+                  }`}
+                >
+                  <span className={spotCount > 0 ? "font-semibold text-ink" : "text-ink-faint"}>{region.sigunguName}</span>
+                  <span className="text-sm text-ink-faint">{spotCount > 0 ? formatNumber(spotCount) : "-"}</span>
+                </Link>
+              ))}
+            </div>
+          </section>
+
+          {types.length > 0 && (
+            <section aria-labelledby="type-links-heading" className="mt-5 rounded-2xl border border-line bg-surface p-5">
+              <h2 id="type-links-heading" className="text-sm font-bold text-ink">
+                {sidoName} 유형별 <span className="font-medium text-ink-faint">전국 디렉토리로 갑니다</span>
+              </h2>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {types.map((t) => (
+                  <Link
+                    key={t.slug}
+                    href={`/spot/type/${t.slug}`}
+                    className="rounded-full bg-sea-soft px-3 py-1 text-sm font-medium text-sea hover:bg-sea hover:text-white"
+                  >
+                    {t.name} <span className="opacity-80">{formatNumber(t.total)}</span>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          )}
+        </SpotDirectory>
       </div>
     </div>
   );

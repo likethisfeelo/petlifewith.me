@@ -1,9 +1,34 @@
 // 표시용 포맷터·라벨. UI 문자열을 한 곳에 모은다.
+//
+// 날짜·시각은 반드시 **한국 시간(KST) 고정**으로 찍는다. 시간대를 지정하지 않으면
+// 서버(Lambda=UTC)와 브라우저(KST)가 다른 문자열을 만든다 — 클라이언트 컴포넌트에서 그러면
+// 하이드레이션 불일치(React #418)로 페이지가 통째로 죽는다. 그래서 시각 문자열은
+// 서버에서 만들어 넘기고(예: PublicComment.createdAtLabel), 포맷터는 항상 timeZone 을 준다.
+const DISPLAY_TIME_ZONE = "Asia/Seoul";
 
 export function formatDate(d: Date | string | null | undefined): string {
   if (!d) return "";
   const date = typeof d === "string" ? new Date(d) : d;
-  return new Intl.DateTimeFormat("ko-KR", { year: "numeric", month: "long", day: "numeric" }).format(date);
+  return new Intl.DateTimeFormat("ko-KR", {
+    timeZone: DISPLAY_TIME_ZONE,
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  }).format(date);
+}
+
+/** 날짜 + 시각 (KST 고정). 서버에서만 호출해 문자열로 넘긴다. */
+export function formatDateTime(d: Date | string | null | undefined): string {
+  if (!d) return "";
+  const date = typeof d === "string" ? new Date(d) : d;
+  return new Intl.DateTimeFormat("ko-KR", {
+    timeZone: DISPLAY_TIME_ZONE,
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
 }
 
 export function formatNumber(n: number): string {

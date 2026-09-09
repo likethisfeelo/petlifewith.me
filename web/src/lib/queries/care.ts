@@ -8,6 +8,7 @@
 import { and, asc, eq, inArray, ne, sql } from "drizzle-orm";
 import { getDb, isDbConfigured, schema } from "../db";
 import { plainExcerpt, providersInArea, type CareArea, type CareProvider, type CareRegion } from "../care";
+import { listRegionTiles } from "./spots";
 
 const { spots, spotTypes, regions, spotLinks, spotServiceAreas } = schema;
 
@@ -15,17 +16,7 @@ export type { CareArea, CareProvider, CareRegion } from "../care";
 export { plainExcerpt, providersInArea } from "../care";
 
 export async function listCareRegions(): Promise<CareRegion[]> {
-  if (!isDbConfigured()) return [];
-  return getDb()
-    .select({
-      id: regions.id,
-      sidoName: regions.sidoName,
-      sidoSlug: regions.sidoSlug,
-      sigunguName: regions.sigunguName,
-      sigunguSlug: regions.sigunguSlug,
-    })
-    .from(regions)
-    .orderBy(asc(regions.id));
+  return listRegionTiles();
 }
 
 /**

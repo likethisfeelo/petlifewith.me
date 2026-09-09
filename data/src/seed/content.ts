@@ -5,6 +5,7 @@
 //   slug, title, topic(토픽 슬러그) — 필수
 //   summary, role(hub|spoke), spokeGroup(body|support|...), status,
 //   category(토픽별 카테고리 슬러그 — data/src/guides/categories.ts, 없으면 "전체"),
+//   curated(기본 true — 큐레이션 콘텐츠 피드 노출. false 면 부위별 게시판에만 둔다),
 //   banners(글 상단 디렉토리 배너 — spot_types.slug 배열, 클릭하면 그 유형의 디렉토리로),
 //   medicalAdjacent, vetReviewed, vetReviewerName, vetReviewedAt — 선택
 import { readFileSync, readdirSync } from "node:fs";
@@ -78,6 +79,9 @@ async function main() {
       role: (data.role === "hub" ? "hub" : "spoke") as "hub" | "spoke",
       spokeGroup: data.spokeGroup ? String(data.spokeGroup) : null,
       category,
+      // 마크다운 글은 큐레이션 콘텐츠가 기본. frontmatter 에 `curated: false` 를 두면 뺀다
+      // (부위별 게시판에만 두고 싶은 글). 회원 글은 관리자가 켜 준다.
+      curated: data.curated === false ? false : true,
       bannerSpotTypes: banners,
       status,
       medicalAdjacent,
@@ -113,6 +117,8 @@ async function main() {
         role: "spoke" as const,
         spokeGroup: "body",
         category: post.category,
+        // 부위별 게시판 전용 — 큐레이션 피드에는 올리지 않는다
+        curated: false,
         status: "published" as const,
         medicalAdjacent: false,
         publishedAt: post.publishedAt,

@@ -6,12 +6,15 @@ import { SpotCard } from "@/components/cards";
 import { JsonLd } from "@/components/jsonld";
 import { RememberRegion } from "@/components/region-banner";
 import { RegionDataBlock } from "@/components/region-data-block";
+import { SpotDirectory } from "@/components/spot/spot-directory";
 import { guidesForRegion } from "@/lib/queries/guides";
 import {
   countIndexableSpotsInRegion,
   countSpotsByTypeInRegion,
   getRegionBySlugs,
   getRegionDogStats,
+  listRegionTiles,
+  listRegionTotals,
   listSpotsInRegion,
 } from "@/lib/queries/spots";
 import { buildMeta, itemListLd, robotsMeta, shouldIndexRegionPage } from "@/lib/seo";
@@ -48,11 +51,13 @@ export default async function SigunguPage({ params }: Props) {
 
   // 적재 후 지역당 수백 곳이 될 수 있다 — 지역 허브는 상위 일부만 보여주고 전체는 유형 페이지로
   const REGION_LIST_LIMIT = 48;
-  const [spots, allTypeCounts, dogStats, related] = await Promise.all([
+  const [spots, allTypeCounts, dogStats, related, regionTiles, countsByRegion] = await Promise.all([
     listSpotsInRegion(region.id, undefined, REGION_LIST_LIMIT),
     countSpotsByTypeInRegion(region.id),
     getRegionDogStats(region.id),
     guidesForRegion(region.id),
+    listRegionTiles(),
+    listRegionTotals(),
   ]);
   // 소비자 유형만 혼합 목록·분포에. B2B 참고 유형은 아래 별도 줄에서 지역x유형 페이지로 링크한다.
   const typeCounts = allTypeCounts.filter((c) => c.listed);
@@ -60,7 +65,7 @@ export default async function SigunguPage({ params }: Props) {
   const listedTotal = typeCounts.reduce((a, c) => a + c.count, 0);
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-10">
+    <div className="mx-auto max-w-6xl px-4 py-10">
       <RememberRegion
         region={{
           sidoSlug: region.sidoSlug,
@@ -81,7 +86,17 @@ export default async function SigunguPage({ params }: Props) {
         {region.sidoName} <span className="text-sea">{region.sigunguName}</span>
       </h1>
 
+      {/* 좌측 지도(이 지역 강조, 배지는 전체 스팟 수) + 우측 지역 정보·목록. 시군구 타일은 지역 허브로 간다 */}
       <div className="mt-6">
+        <SpotDirectory
+          regions={regionTiles}
+          countsByRegion={countsByRegion}
+          selectedSido={region.sidoSlug}
+          selectedRegionId={region.id}
+          typeSlug={null}
+          mapTitle={`${region.sidoName} 지역 지도`}
+        >
+      <div>
         <RegionDataBlock
           sidoSlug={region.sidoSlug}
           sigunguSlug={region.sigunguSlug}
@@ -120,13 +135,16 @@ export default async function SigunguPage({ params }: Props) {
             아직 등록된 스팟이 없습니다. 인허가 데이터 적재와 직접 발굴로 채워집니다.
           </p>
         ) : (
-          <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
             {spots.map((s) => (
               <SpotCard key={s.spot.id} item={s} />
             ))}
           </div>
         )}
       </section>
+
+        </SpotDirectory>
+      </div>
 
       <p className="mt-6 text-xs text-ink-faint">
         시설 정보는 행정안전부 지방행정 인허가데이터(공공데이터포털 data.go.kr)와 직접 확인을 바탕으로

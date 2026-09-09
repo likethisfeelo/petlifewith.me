@@ -278,7 +278,9 @@ export async function updateMemberPostAction(_prev: MemberActionState, formData:
       topicId: input.topicId,
       category: input.category,
       status: "pending",
-      pinnedOrder: null,
+      // 승인 전 글에는 큐레이션 순서·부위 대표가 붙어 있으면 안 된다 (관리자가 승인하며 다시 정한다)
+      curatedOrder: null,
+      areaOrder: null,
       updatedAt: new Date(),
     })
     .where(eq(guides.id, id));

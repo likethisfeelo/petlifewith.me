@@ -27,7 +27,7 @@ export function GuideCard({
   showTopic = true,
   categoryName,
   authorName,
-  pinned,
+  badge,
   thumbnail = false,
 }: {
   guide: GuideRow;
@@ -37,8 +37,8 @@ export function GuideCard({
   categoryName?: string | null;
   /** 회원 글이면 닉네임 */
   authorName?: string | null;
-  /** 최상단 고정 표시 */
-  pinned?: boolean;
+  /** 강조 배지 — "대표", "큐레이션 1" 처럼 짧게. 있으면 테두리도 강조된다 */
+  badge?: string | null;
   /** 상단에 대표 이미지 섬네일을 붙인다 (없으면 발자국 자리표시) */
   thumbnail?: boolean;
 }) {
@@ -48,7 +48,7 @@ export function GuideCard({
     <Link
       href={`/guide/${guide.slug}`}
       className={`group flex h-full flex-col overflow-hidden rounded-xl border bg-surface transition-shadow hover:shadow-md ${
-        pinned ? "border-honey/40" : "border-line"
+        badge ? "border-honey/40" : "border-line"
       }`}
     >
       {thumbnail && (
@@ -69,7 +69,7 @@ export function GuideCard({
       )}
       <span className="flex flex-1 flex-col p-5">
         <span className="flex flex-wrap items-center gap-2 text-xs">
-          {pinned && <span className="rounded-full bg-honey-soft px-2 py-0.5 font-medium text-honey">고정</span>}
+          {badge && <span className="rounded-full bg-honey-soft px-2 py-0.5 font-medium text-honey">{badge}</span>}
           {showTopic && topic && style && (
             <span className={`rounded-full px-2 py-0.5 font-medium ${style.chip}`}>{topic.name}</span>
           )}

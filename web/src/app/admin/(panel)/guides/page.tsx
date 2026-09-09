@@ -103,8 +103,13 @@ export default async function AdminGuidesPage({ searchParams }: Props) {
               return (
                 <tr key={guide.id} className="hover:bg-sand/50">
                   <td className="px-4 py-2.5">
-                    {guide.pinnedOrder && (
-                      <span className="mr-1.5 rounded-full bg-honey-soft px-1.5 py-0.5 text-[10px] font-semibold text-honey">최상단 {guide.pinnedOrder}</span>
+                    {guide.curated && (
+                      <span className="mr-1.5 rounded-full bg-sea-soft px-1.5 py-0.5 text-[10px] font-semibold text-sea">
+                        큐레이션{guide.curatedOrder ? ` ${guide.curatedOrder}` : ""}
+                      </span>
+                    )}
+                    {guide.areaOrder && (
+                      <span className="mr-1.5 rounded-full bg-honey-soft px-1.5 py-0.5 text-[10px] font-semibold text-honey">대표 {guide.areaOrder}</span>
                     )}
                     <Link href={`/admin/guides/${guide.id}`} className="font-medium text-ink hover:underline">
                       {guide.title}

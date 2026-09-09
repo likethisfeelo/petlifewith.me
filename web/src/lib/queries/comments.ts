@@ -1,6 +1,7 @@
 // 댓글 — 회원만 쓴다. 공개 목록은 숨김 처리되지 않은 것만, 닉네임만 노출 (이메일 없음).
 import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { getDb, isDbConfigured, schema } from "../db";
+import { formatDateTime } from "../format";
 
 const { comments, users } = schema;
 
@@ -8,6 +9,9 @@ export interface PublicComment {
   id: number;
   body: string;
   createdAt: Date;
+  /** 화면에 찍을 시각 문자열 — 서버에서 KST 로 만든다.
+   *  클라이언트에서 포맷하면 서버(UTC)와 달라져 하이드레이션이 깨진다 (lib/format.ts). */
+  createdAtLabel: string;
   authorName: string;
   authorId: string;
 }
@@ -26,7 +30,7 @@ export async function listVisibleComments(guideId: number): Promise<PublicCommen
     .innerJoin(users, eq(comments.userId, users.id))
     .where(and(eq(comments.guideId, guideId), isNull(comments.hiddenAt)))
     .orderBy(asc(comments.createdAt));
-  return rows.map((r) => ({ ...r, authorName: r.authorName ?? "회원" }));
+  return rows.map((r) => ({ ...r, authorName: r.authorName ?? "회원", createdAtLabel: formatDateTime(r.createdAt) }));
 }
 
 export async function countVisibleComments(guideId: number): Promise<number> {

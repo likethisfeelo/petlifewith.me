@@ -1,5 +1,6 @@
 import { and, asc, eq, inArray, ne, sql } from "drizzle-orm";
 import { getDb, isDbConfigured, schema } from "../db";
+import type { RegionTile } from "../regions";
 
 const { spots, spotTypes, regions, promotions, regionDogStats, spotLinks } = schema;
 
@@ -193,6 +194,60 @@ export async function listRegionCountsForType(typeId: number): Promise<TypeRegio
     .where(and(eq(spots.typeId, typeId), eq(spots.status, "operating")))
     .groupBy(regions.id)
     .orderBy(regions.sidoName, sql`count(*) desc`, regions.sigunguName);
+}
+
+/** 지도용 지역 타일 전체 (id·이름·슬러그만, regions.id 순) */
+export async function listRegionTiles(): Promise<RegionTile[]> {
+  if (!isDbConfigured()) return [];
+  return getDb()
+    .select({
+      id: regions.id,
+      sidoName: regions.sidoName,
+      sidoSlug: regions.sidoSlug,
+      sigunguName: regions.sigunguName,
+      sigunguSlug: regions.sigunguSlug,
+    })
+    .from(regions)
+    .orderBy(asc(regions.id));
+}
+
+/** 지역 허브 지도 배지 — 시군구별 영업 중 스팟 수 (소비자 유형만) */
+export async function listRegionTotals(): Promise<Record<number, number>> {
+  if (!isDbConfigured()) return {};
+  const rows = await getDb()
+    .select({ regionId: spots.regionId, count: sql<number>`count(*)`.mapWith(Number) })
+    .from(spots)
+    .innerJoin(spotTypes, eq(spots.typeId, spotTypes.id))
+    .where(and(eq(spots.status, "operating"), eq(spotTypes.listed, true)))
+    .groupBy(spots.regionId);
+  return Object.fromEntries(rows.map((r) => [r.regionId, r.count]));
+}
+
+export interface SigunguTypeCount {
+  regionId: number;
+  typeSlug: string;
+  typeName: string;
+  sortOrder: number;
+  count: number;
+}
+
+/** 시도 페이지 유형 필터용 — 그 시도의 시군구 x 유형별 영업 중 스팟 수 (소비자 유형만) */
+export async function listSigunguTypeCounts(sidoSlug: string): Promise<SigunguTypeCount[]> {
+  if (!isDbConfigured()) return [];
+  return getDb()
+    .select({
+      regionId: spots.regionId,
+      typeSlug: spotTypes.slug,
+      typeName: spotTypes.name,
+      sortOrder: spotTypes.sortOrder,
+      count: sql<number>`count(*)`.mapWith(Number),
+    })
+    .from(spots)
+    .innerJoin(spotTypes, eq(spots.typeId, spotTypes.id))
+    .innerJoin(regions, eq(spots.regionId, regions.id))
+    .where(and(eq(regions.sidoSlug, sidoSlug), eq(spots.status, "operating"), eq(spotTypes.listed, true)))
+    .groupBy(spots.regionId, spotTypes.slug, spotTypes.name, spotTypes.sortOrder)
+    .orderBy(asc(spotTypes.sortOrder));
 }
 
 /** 유형 허브 색인 게이트용 — 샘플 제외 전국 카운트 */

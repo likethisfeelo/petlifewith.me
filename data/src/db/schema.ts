@@ -148,8 +148,17 @@ export const guides = pgTable(
     spokeGroup: text("spoke_group"), // 노견: body(신체 영역) / support(지지 서비스)
     // "위치" 카테고리 — 토픽별 정의(data/src/guides/categories.ts). null 은 "전체"에만 노출.
     category: text("category"),
-    // 최상단 고정(1~3). 토픽 페이지에서 고정 글이 먼저, 나머지는 최신순 (관리자만 지정)
-    pinnedOrder: integer("pinned_order"),
+    // ---- 게시판 구분 (2026-09) ----
+    // 이 클러스터에는 성격이 다른 세 묶음이 있고, 별도 테이블 없이 아래 컬럼으로 가른다.
+    //   1) 큐레이션 콘텐츠 — curated=true. 관리자가 발행한 글과, 관리자가 골라 올린 회원 글.
+    //   2) 도전 게시판 — author_user_id 가 있는 회원 글 전체 (큐레이션 승격 여부와 무관).
+    //   3) 부위별 게시판 — category 별 묶음. 누구나 쓰고 댓글을 단다.
+    // 큐레이션 노출 여부. 회원 글은 관리자가 켜 줘야 큐레이션에 올라간다.
+    curated: boolean("curated").notNull().default(false),
+    // 큐레이션 노출 순서(1~9). 지정한 글이 앞에, 나머지는 최신순 (관리자만 지정)
+    curatedOrder: integer("curated_order"),
+    // 부위별 게시판 대표 순번(1~3) — 신체 지도 패널에 먼저 뜨는 글 (관리자만 지정)
+    areaOrder: integer("area_order"),
     // 글 상단 디렉토리 배너 — 스팟 유형 슬러그 배열(spot_types.slug). 클릭하면 그 유형의 디렉토리(/spot/type/…)로.
     // 커뮤니티 게시판이 아니라 업체 검색·등록 입구다 (관리자만 지정)
     bannerSpotTypes: text("banner_spot_types").array().notNull().default(sql`'{}'::text[]`),
@@ -174,8 +183,10 @@ export const guides = pgTable(
     index("guides_topic_idx").on(t.topicId, t.status),
     index("guides_status_idx").on(t.status),
     index("guides_author_idx").on(t.authorUserId),
-    // 토픽 안에서 같은 고정 순번은 하나뿐 (최대 3 은 앱 레이어에서 1~3 으로 제한)
-    uniqueIndex("guides_topic_pinned_uq").on(t.topicId, t.pinnedOrder).where(sql`${t.pinnedOrder} is not null`),
+    // 토픽 안에서 같은 큐레이션 순번은 하나뿐 (1~9 범위는 앱 레이어에서 제한)
+    uniqueIndex("guides_topic_curated_uq").on(t.topicId, t.curatedOrder).where(sql`${t.curatedOrder} is not null`),
+    // 부위(카테고리) 안에서 같은 대표 순번은 하나뿐 (1~3)
+    uniqueIndex("guides_area_order_uq").on(t.topicId, t.category, t.areaOrder).where(sql`${t.areaOrder} is not null`),
     // 감수 없는 의료 인접 편은 published 로 전환할 수 없다.
     check(
       "guides_medical_review_gate",

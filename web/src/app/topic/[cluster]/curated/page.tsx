@@ -1,5 +1,6 @@
-// 토픽 전체 글 목록 — 토픽 페이지 상단 큐레이션 그리드가 9편만 보여 주므로,
-// "전체 글보기 →" 가 여기로 온다. 정렬은 토픽 페이지와 같다(최상단 고정 → 최신순).
+// 큐레이션 콘텐츠 전체 — 토픽 페이지 상단 그리드는 9편만 보여 주므로 "큐레이션 전체 보기 →" 가 여기로 온다.
+// 운영진이 발행한 글과 운영진이 골라 올린 회원 글만 (guides.curated). 정렬은 지정 순번 → 최신순.
+// 부위별 게시판·도전 게시판과는 다른 묶음이라 여기에는 카테고리 칩을 두지 않는다.
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -8,7 +9,6 @@ import { GuideCard } from "@/components/cards";
 import { JsonLd } from "@/components/jsonld";
 import { MedicalNotice } from "@/components/notices";
 import { categoriesForTopic } from "@app/data";
-import { isPinned } from "@/lib/guide-order";
 import { getTopicBySlug, listGuidesForTopic } from "@/lib/queries/guides";
 import { buildMeta, itemListLd, robotsMeta, shouldIndexBoard } from "@/lib/seo";
 import { topicStyle } from "@/lib/topic-style";
@@ -26,8 +26,8 @@ interface Props {
 async function load(cluster: string) {
   const topic = await getTopicBySlug(decodeURIComponent(cluster));
   if (!topic) return null;
-  const { items } = await listGuidesForTopic(topic.id);
-  return { topic, items };
+  const { curated } = await listGuidesForTopic(topic.id);
+  return { topic, items: curated };
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -36,14 +36,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!found) return { robots: robotsMeta(false) };
   const { topic, items } = found;
   return buildMeta({
-    title: `${topic.name} 전체 글`,
-    description: `${topic.name} 클러스터에 발행된 글 ${items.length}편을 최신순으로 모았습니다.`,
-    path: `/topic/${topic.slug}/archive`,
+    title: `${topic.name} 큐레이티드 콘텐츠`,
+    description: `${topic.name} 클러스터에서 운영진이 발행하고 고른 글 ${items.length}편.`,
+    path: `/topic/${topic.slug}/curated`,
     indexable: shouldIndexBoard(items.length),
   });
 }
 
-export default async function TopicArchivePage({ params }: Props) {
+export default async function TopicCuratedPage({ params }: Props) {
   const { cluster } = await params;
   const found = await load(cluster);
   if (!found) notFound();
@@ -58,7 +58,7 @@ export default async function TopicArchivePage({ params }: Props) {
         crumbs={[
           { name: "홈", path: "/" },
           { name: topic.name, path: `/topic/${topic.slug}` },
-          { name: "전체 글", path: `/topic/${topic.slug}/archive` },
+          { name: "큐레이티드 콘텐츠", path: `/topic/${topic.slug}/curated` },
         ]}
       />
 
@@ -66,26 +66,11 @@ export default async function TopicArchivePage({ params }: Props) {
         <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-faint">
           Long Live Petlifewithme · Curated Content
         </p>
-        <h1 className={`mt-1 text-3xl font-extrabold tracking-tight ${style.heading}`}>{topic.name} 전체 글</h1>
+        <h1 className={`mt-1 text-3xl font-extrabold tracking-tight ${style.heading}`}>{topic.name} 큐레이티드 콘텐츠</h1>
         <p className="mt-3 text-sm text-ink-soft">
-          발행된 글 {items.length.toLocaleString("ko-KR")}편 · 최상단 고정 글이 먼저, 그다음 최신순입니다.
+          운영진이 발행하거나 골라 올린 글 {items.length.toLocaleString("ko-KR")}편 · 운영진이 정한 순서가 먼저, 그다음 최신순입니다.
         </p>
       </header>
-
-      {categories.length > 0 && (
-        <nav aria-label="카테고리별 게시판" className="mt-5 flex flex-wrap items-center gap-1.5 text-xs">
-          <span className="mr-1 text-ink-faint">카테고리:</span>
-          {categories.map((c) => (
-            <Link
-              key={c.slug}
-              href={`/topic/${topic.slug}/${c.slug}`}
-              className="rounded-full border border-line px-2.5 py-1 text-ink-soft hover:bg-sand hover:text-ink"
-            >
-              {c.name}
-            </Link>
-          ))}
-        </nav>
-      )}
 
       <section className="mt-8">
         {items.length === 0 ? (
@@ -101,7 +86,6 @@ export default async function TopicArchivePage({ params }: Props) {
                 showTopic={false}
                 categoryName={categoryName(i.guide.category)}
                 authorName={i.authorName}
-                pinned={isPinned(i.guide)}
                 thumbnail
               />
             ))}
@@ -109,9 +93,12 @@ export default async function TopicArchivePage({ params }: Props) {
         )}
       </section>
 
-      <p className="mt-8 text-sm">
+      <p className="mt-8 flex flex-wrap gap-x-4 gap-y-1 text-sm">
         <Link href={`/topic/${topic.slug}`} className="font-medium text-sea hover:underline">
           ← {topic.name} 페이지로
+        </Link>
+        <Link href={`/topic/${topic.slug}/challenge`} className="font-medium text-sea hover:underline">
+          도전 게시판 (회원 글) →
         </Link>
       </p>
 
@@ -124,7 +111,7 @@ export default async function TopicArchivePage({ params }: Props) {
       {items.length > 0 && (
         <JsonLd
           data={itemListLd({
-            name: `${topic.name} 전체 글`,
+            name: `${topic.name} 큐레이티드 콘텐츠`,
             items: items.map((i) => ({ name: i.guide.title, path: `/guide/${i.guide.slug}` })),
           })}
         />

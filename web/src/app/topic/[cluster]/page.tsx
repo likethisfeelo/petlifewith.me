@@ -9,7 +9,6 @@ import { JsonLd } from "@/components/jsonld";
 import { MedicalNotice } from "@/components/notices";
 import { SeniorBodyMap, type MapPost } from "@/components/senior-body-map";
 import { TOPIC_PHASE_LABEL } from "@/lib/format";
-import { isPinned } from "@/lib/guide-order";
 import { getTopicBySlug, listGuidesForTopic } from "@/lib/queries/guides";
 import { buildMeta, itemListLd, robotsMeta } from "@/lib/seo";
 import { topicStyle } from "@/lib/topic-style";
@@ -45,13 +44,11 @@ export default async function TopicPage({ params }: Props) {
   const topic = await getTopicBySlug(decodeURIComponent(cluster));
   if (!topic) notFound();
 
-  const { hub, items, byCategory, all } = await listGuidesForTopic(topic.id);
+  const { hub, curated, challenge, byCategory, all } = await listGuidesForTopic(topic.id);
   const style = topicStyle(topic.slug);
   const categories = categoriesForTopic(topic.slug);
   const categoryName = (slug: string | null) => categories.find((c) => c.slug === slug)?.name ?? null;
-  // 정렬은 쿼리가 끝냈다: 최상단 고정(1~3) → 최신순. 여기서는 두 묶음으로 나눠 그린다.
-  const pinned = items.filter((i) => isPinned(i.guide));
-  const latest = items.filter((i) => !isPinned(i.guide));
+  // 정렬은 쿼리가 끝냈다 (lib/guide-order.ts): 큐레이션은 지정 순번 → 최신순.
   const isSenior = topic.slug === "senior-life";
   const postsByCategory: Record<string, MapPost[]> = {};
   for (const [slug, list] of byCategory) {
@@ -73,21 +70,23 @@ export default async function TopicPage({ params }: Props) {
         <p className="mt-3 text-ink-soft">{topic.description}</p>
       </header>
 
-      {/* 큐레이션 콘텐츠 — 최신 글이 맨 위. 넘치는 글은 전체 목록으로 (LATEST_ON_TOPIC) */}
-      <section className="mt-8">
+      {/* 큐레이션 콘텐츠 — 운영진이 발행하거나 골라 올린 글. 지정 순번 → 최신순, 넘치는 글은 전체 목록으로 (LATEST_ON_TOPIC) */}
+      <section className="mt-8" aria-labelledby="curated-heading">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <p className="text-xs text-ink-faint">새 글이 맨 위로 옵니다</p>
-          <Link href={`/topic/${topic.slug}/archive`} className="text-sm font-medium text-sea hover:underline">
-            전체 글보기 →
+          <p id="curated-heading" className="text-xs text-ink-faint">
+            운영진이 고른 글 · 순서는 운영진이 정하고, 새 글이 위로 옵니다
+          </p>
+          <Link href={`/topic/${topic.slug}/curated`} className="text-sm font-medium text-sea hover:underline">
+            큐레이션 전체 보기 →
           </Link>
         </div>
-        {latest.length === 0 ? (
+        {curated.length === 0 ? (
           <p className="mt-4 rounded-xl border border-dashed border-line p-8 text-center text-sm text-ink-faint">
             아직 글이 없습니다. 발행 전 감수·검수 절차를 거칩니다.
           </p>
         ) : (
           <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {latest.slice(0, LATEST_ON_TOPIC).map((i) => (
+            {curated.slice(0, LATEST_ON_TOPIC).map((i) => (
               <GuideCard
                 key={i.guide.id}
                 guide={i.guide}
@@ -112,9 +111,21 @@ export default async function TopicPage({ params }: Props) {
         </section>
       )}
 
+      {/* 도전 게시판 — 회원이 쓴 글만 모아 보는 별도 게시판 (큐레이션과 다른 곳) */}
+      <Link
+        href={`/topic/${topic.slug}/challenge`}
+        className="mt-8 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-line bg-surface px-5 py-4 transition-shadow hover:shadow-md"
+      >
+        <span>
+          <span className="block text-base font-bold text-ink">도전 게시판</span>
+          <span className="mt-0.5 block text-xs text-ink-soft">보호자들이 직접 쓴 글 {challenge.length}편 · 회원이면 누구나 씁니다</span>
+        </span>
+        <span className="text-sm font-medium text-sea">보러 가기 →</span>
+      </Link>
+
       {isSenior && categories.length > 0 && (
         <nav aria-label="부위별 게시판" className="mt-5 flex flex-wrap items-center gap-1.5 text-xs">
-          <span className="mr-1 text-ink-faint">부위별 게시판:</span>
+          <span className="mr-1 text-ink-faint">부위별 게시판 (질문·댓글):</span>
           {categories.map((c) => (
             <Link key={c.slug} href={`/topic/${topic.slug}/${c.slug}`} className="rounded-full border border-line px-2.5 py-1 text-ink-soft hover:bg-sand hover:text-ink">
               {c.name}
@@ -133,18 +144,6 @@ export default async function TopicPage({ params }: Props) {
           <h2 className="mt-1.5 text-lg font-extrabold text-ink">{hub.title}</h2>
           {hub.summary && <p className="mt-1.5 text-sm text-ink-soft">{hub.summary}</p>}
         </Link>
-      )}
-
-      {pinned.length > 0 && (
-        <section className="mt-10">
-          <h2 className="text-lg font-bold text-ink">지금 읽을 글</h2>
-          <p className="mt-1 text-xs text-ink-faint">운영진이 맨 위에 고정한 글입니다.</p>
-          <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {pinned.map((i) => (
-              <GuideCard key={i.guide.id} guide={i.guide} showTopic={false} categoryName={categoryName(i.guide.category)} authorName={i.authorName} pinned thumbnail />
-            ))}
-          </div>
-        </section>
       )}
 
 
