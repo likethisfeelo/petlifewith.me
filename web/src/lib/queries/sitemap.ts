@@ -41,6 +41,18 @@ export async function sitemapCategoryBoards(): Promise<SitemapEntry[]> {
     .map((r) => ({ path: `/topic/${r.topicSlug}/${r.category}` }));
 }
 
+/** 토픽 전체 글 목록(/topic/[토픽]/archive) — 발행 글 3편 이상인 토픽만 */
+export async function sitemapTopicArchives(): Promise<SitemapEntry[]> {
+  if (!isDbConfigured()) return [];
+  const rows = await getDb()
+    .select({ topicSlug: topics.slug, count: sql<number>`count(*)`.mapWith(Number) })
+    .from(guides)
+    .innerJoin(topics, eq(guides.topicId, topics.id))
+    .where(eq(guides.status, "published"))
+    .groupBy(topics.slug);
+  return rows.filter((r) => shouldIndexBoard(r.count)).map((r) => ({ path: `/topic/${r.topicSlug}/archive` }));
+}
+
 export async function sitemapTopics(): Promise<SitemapEntry[]> {
   if (!isDbConfigured()) return [];
   const db = getDb();

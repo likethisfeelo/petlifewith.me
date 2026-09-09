@@ -4,7 +4,22 @@ import type { SpotWithMeta } from "@/lib/queries/spots";
 import type { MakerRow } from "@/lib/queries/makers";
 import { topicStyle } from "@/lib/topic-style";
 import { MAKER_CATEGORY_LABEL, SPOT_STATUS_LABEL, formatDate, idSlugPath } from "@/lib/format";
+import { assetUrl } from "@/lib/assets";
 import { AdLabel, FactBadge } from "./notices";
+
+/** 대표 이미지가 없는 글의 섬네일 자리 — 빈 사각형 대신 발자국 문양을 옅게 깐다 */
+function ThumbPlaceholder() {
+  return (
+    <span className="flex h-full w-full items-center justify-center bg-sand" aria-hidden="true">
+      <svg viewBox="0 0 48 48" className="h-12 w-12 text-ink-faint/35" fill="currentColor">
+        <ellipse cx="16" cy="16" rx="4.4" ry="5.6" />
+        <ellipse cx="27" cy="12.5" rx="4.2" ry="5.4" />
+        <ellipse cx="37" cy="18" rx="4" ry="5" />
+        <path d="M24.5 22c-5.6 0-9.6 4.2-9.6 8.6 0 3.5 2.9 5.4 6.6 5.4h6c3.7 0 6.6-1.9 6.6-5.4 0-4.4-4-8.6-9.6-8.6Z" />
+      </svg>
+    </span>
+  );
+}
 
 export function GuideCard({
   guide,
@@ -13,6 +28,7 @@ export function GuideCard({
   categoryName,
   authorName,
   pinned,
+  thumbnail = false,
 }: {
   guide: GuideRow;
   topic?: TopicRow;
@@ -23,32 +39,51 @@ export function GuideCard({
   authorName?: string | null;
   /** 최상단 고정 표시 */
   pinned?: boolean;
+  /** 상단에 대표 이미지 섬네일을 붙인다 (없으면 발자국 자리표시) */
+  thumbnail?: boolean;
 }) {
   const style = topic ? topicStyle(topic.slug) : null;
+  const thumbSrc = thumbnail ? assetUrl(guide.heroImageKey) : undefined;
   return (
     <Link
       href={`/guide/${guide.slug}`}
-      className={`group flex h-full flex-col rounded-xl border bg-surface p-5 transition-shadow hover:shadow-md ${
+      className={`group flex h-full flex-col overflow-hidden rounded-xl border bg-surface transition-shadow hover:shadow-md ${
         pinned ? "border-honey/40" : "border-line"
       }`}
     >
-      <div className="flex flex-wrap items-center gap-2 text-xs">
-        {pinned && <span className="rounded-full bg-honey-soft px-2 py-0.5 font-medium text-honey">고정</span>}
-        {showTopic && topic && style && (
-          <span className={`rounded-full px-2 py-0.5 font-medium ${style.chip}`}>{topic.name}</span>
-        )}
-        {categoryName && <span className="rounded-full bg-sand px-2 py-0.5 font-medium text-ink-soft">{categoryName}</span>}
-        {guide.role === "hub" && <span className="rounded-full bg-sand px-2 py-0.5 font-medium text-ink-soft">전체 지도</span>}
-        {guide.vetReviewed && guide.vetReviewerName && (
-          <span className="text-sage-deep">수의사 감수</span>
-        )}
-      </div>
-      <h3 className="mt-2 text-base font-bold leading-snug text-ink group-hover:underline">{guide.title}</h3>
-      {guide.summary && <p className="mt-1.5 line-clamp-2 text-sm text-ink-soft">{guide.summary}</p>}
-      <p className="mt-auto pt-3 text-xs text-ink-faint">
-        {authorName ? `${authorName} · ` : ""}
-        {formatDate(guide.publishedAt)}
-      </p>
+      {thumbnail && (
+        <span className="block aspect-[16/10] w-full overflow-hidden bg-sand">
+          {thumbSrc ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={thumbSrc}
+              alt=""
+              className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+              loading="lazy"
+              decoding="async"
+            />
+          ) : (
+            <ThumbPlaceholder />
+          )}
+        </span>
+      )}
+      <span className="flex flex-1 flex-col p-5">
+        <span className="flex flex-wrap items-center gap-2 text-xs">
+          {pinned && <span className="rounded-full bg-honey-soft px-2 py-0.5 font-medium text-honey">고정</span>}
+          {showTopic && topic && style && (
+            <span className={`rounded-full px-2 py-0.5 font-medium ${style.chip}`}>{topic.name}</span>
+          )}
+          {categoryName && <span className="rounded-full bg-sand px-2 py-0.5 font-medium text-ink-soft">{categoryName}</span>}
+          {guide.role === "hub" && <span className="rounded-full bg-sand px-2 py-0.5 font-medium text-ink-soft">전체 지도</span>}
+          {guide.vetReviewed && guide.vetReviewerName && <span className="text-sage-deep">수의사 감수</span>}
+        </span>
+        <span className="mt-2 block text-base font-bold leading-snug text-ink group-hover:underline">{guide.title}</span>
+        {guide.summary && <span className="mt-1.5 line-clamp-2 block text-sm text-ink-soft">{guide.summary}</span>}
+        <span className="mt-auto block pt-3 text-xs text-ink-faint">
+          {authorName ? `${authorName} · ` : ""}
+          {formatDate(guide.publishedAt)}
+        </span>
+      </span>
     </Link>
   );
 }

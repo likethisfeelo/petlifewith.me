@@ -14,6 +14,9 @@ import { getTopicBySlug, listGuidesForTopic } from "@/lib/queries/guides";
 import { buildMeta, itemListLd, robotsMeta } from "@/lib/seo";
 import { topicStyle } from "@/lib/topic-style";
 
+/** 토픽 상단 큐레이션 그리드에 띄우는 최신 글 수 — 넘치면 "전체 글보기"로 간다 */
+const LATEST_ON_TOPIC = 9;
+
 export const revalidate = 3600; // REVALIDATE.topic
 
 export function generateStaticParams() {
@@ -63,18 +66,51 @@ export default async function TopicPage({ params }: Props) {
         <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${style.chip}`}>
           {TOPIC_PHASE_LABEL[topic.phase] ?? topic.phase}
         </span>
-        <h1 className={`mt-3 text-3xl font-extrabold tracking-tight ${style.heading}`}>
-          {isSenior ? "신체 영역별로 살펴보기" : topic.name}
-        </h1>
-        <p className="mt-3 text-ink-soft">
-          {isSenior
-            ? "몸의 변화는 영역별로 신호가 다릅니다. 강아지 그림에서 지금 눈에 밟히는 부위를 올려 보고, 눌러 관찰 포인트와 관련 글을 여세요."
-            : topic.description}
+        <p className="mt-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-faint">
+          Long Live Petlifewithme · Curated Content
         </p>
+        <h1 className={`mt-1 text-3xl font-extrabold tracking-tight ${style.heading}`}>{topic.name}</h1>
+        <p className="mt-3 text-ink-soft">{topic.description}</p>
       </header>
 
+      {/* 큐레이션 콘텐츠 — 최신 글이 맨 위. 넘치는 글은 전체 목록으로 (LATEST_ON_TOPIC) */}
+      <section className="mt-8">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <p className="text-xs text-ink-faint">새 글이 맨 위로 옵니다</p>
+          <Link href={`/topic/${topic.slug}/archive`} className="text-sm font-medium text-sea hover:underline">
+            전체 글보기 →
+          </Link>
+        </div>
+        {latest.length === 0 ? (
+          <p className="mt-4 rounded-xl border border-dashed border-line p-8 text-center text-sm text-ink-faint">
+            아직 글이 없습니다. 발행 전 감수·검수 절차를 거칩니다.
+          </p>
+        ) : (
+          <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {latest.slice(0, LATEST_ON_TOPIC).map((i) => (
+              <GuideCard
+                key={i.guide.id}
+                guide={i.guide}
+                showTopic={false}
+                categoryName={categoryName(i.guide.category)}
+                authorName={i.authorName}
+                thumbnail
+              />
+            ))}
+          </div>
+        )}
+      </section>
+
       {/* 신체 지도 — 노견생활 전용. 카테고리 정의는 data/src/guides/categories.ts */}
-      {isSenior && categories.length > 0 && <SeniorBodyMap areas={categories} postsByCategory={postsByCategory} topicSlug={topic.slug} />}
+      {isSenior && categories.length > 0 && (
+        <section className="mt-12">
+          <h2 className={`text-2xl font-extrabold tracking-tight ${style.heading}`}>신체 영역별로 살펴보기</h2>
+          <p className="mt-2 max-w-3xl text-ink-soft">
+            몸의 변화는 영역별로 신호가 다릅니다. 강아지 그림에서 지금 눈에 밟히는 부위를 올려 보고, 눌러 관찰 포인트와 관련 글을 여세요.
+          </p>
+          <SeniorBodyMap areas={categories} postsByCategory={postsByCategory} topicSlug={topic.slug} />
+        </section>
+      )}
 
       {isSenior && categories.length > 0 && (
         <nav aria-label="부위별 게시판" className="mt-5 flex flex-wrap items-center gap-1.5 text-xs">
@@ -105,33 +141,12 @@ export default async function TopicPage({ params }: Props) {
           <p className="mt-1 text-xs text-ink-faint">운영진이 맨 위에 고정한 글입니다.</p>
           <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {pinned.map((i) => (
-              <GuideCard key={i.guide.id} guide={i.guide} showTopic={false} categoryName={categoryName(i.guide.category)} authorName={i.authorName} pinned />
+              <GuideCard key={i.guide.id} guide={i.guide} showTopic={false} categoryName={categoryName(i.guide.category)} authorName={i.authorName} pinned thumbnail />
             ))}
           </div>
         </section>
       )}
 
-      <section className="mt-10">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="text-lg font-bold text-ink">
-            최신 글 <span className="text-sm font-medium text-ink-faint">새 글이 맨 위로 옵니다</span>
-          </h2>
-          <Link href="/write" className="text-sm font-medium text-sea hover:underline">
-            회원 글쓰기 →
-          </Link>
-        </div>
-        {latest.length === 0 ? (
-          <p className="mt-4 rounded-xl border border-dashed border-line p-8 text-center text-sm text-ink-faint">
-            아직 글이 없습니다. 발행 전 감수·검수 절차를 거칩니다.
-          </p>
-        ) : (
-          <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {latest.map((i) => (
-              <GuideCard key={i.guide.id} guide={i.guide} showTopic={false} categoryName={categoryName(i.guide.category)} authorName={i.authorName} />
-            ))}
-          </div>
-        )}
-      </section>
 
       {/* 페이지 하단 돌봄 서비스 입구 — 맡기러 가는 곳 / 집으로 오는 사람 (디렉토리 링크, 게시판 아님) */}
       {isSenior && (
