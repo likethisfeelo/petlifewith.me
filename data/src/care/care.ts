@@ -6,7 +6,8 @@
 // 지역 단위는 regions 테이블(시도/시군구, 일반구는 시로 합침)을 그대로 쓴다.
 // ============================================================
 
-export const CARE_TYPE_SLUGS = ["pet-sitter", "dog-walk"] as const;
+// 순서 = 관리자 탭·목록 순서. hourly-sitter(시간제 시터, 2026-09 신설)는 주인 집 방문·시간 단위 — 종일·1박 펫시터와 구분.
+export const CARE_TYPE_SLUGS = ["pet-sitter", "hourly-sitter", "dog-walk"] as const;
 export type CareTypeSlug = (typeof CARE_TYPE_SLUGS)[number];
 
 export function isCareType(slug: string | null | undefined): slug is CareTypeSlug {
@@ -22,6 +23,7 @@ export const CARE_PROVIDER_LABEL = "돌봄 파트너";
 /** 유형별 사람 호칭 (spot_types.name 은 서비스명: 펫시터 / 펫산책) */
 export const CARE_PERSON_LABEL: Record<CareTypeSlug, string> = {
   "pet-sitter": "펫시터",
+  "hourly-sitter": "시간제 시터",
   "dog-walk": "도그워커",
 };
 

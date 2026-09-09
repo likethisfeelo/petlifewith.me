@@ -73,7 +73,7 @@ export default async function AdminCarePage({ searchParams }: Props) {
             href={`/admin/care?type=${t.slug}${sidoFilter ? `&sido=${sidoFilter}` : ""}`}
             className={`rounded-full px-3 py-1 font-medium ${t.slug === current.slug ? "bg-ink text-white" : "bg-sand text-ink-soft hover:text-ink"}`}
           >
-            {t.name} · {carePersonLabel(t.slug)}
+            {carePersonLabel(t.slug) === t.name ? t.name : `${t.name} · ${carePersonLabel(t.slug)}`}
           </Link>
         ))}
         <form method="get" className="ml-auto flex items-center gap-2">

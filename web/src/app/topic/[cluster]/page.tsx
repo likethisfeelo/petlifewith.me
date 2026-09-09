@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { categoriesForTopic } from "@app/data";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { GuideCard } from "@/components/cards";
+import { CareEntryBanner } from "@/components/care/care-entry-banner";
 import { JsonLd } from "@/components/jsonld";
 import { MedicalNotice } from "@/components/notices";
 import { SeniorBodyMap, type MapPost } from "@/components/senior-body-map";
@@ -131,6 +132,13 @@ export default async function TopicPage({ params }: Props) {
           </div>
         )}
       </section>
+
+      {/* 페이지 하단 돌봄 서비스 입구 — 맡기러 가는 곳 / 집으로 오는 사람 (디렉토리 링크, 게시판 아님) */}
+      {isSenior && (
+        <div className="mt-12">
+          <CareEntryBanner />
+        </div>
+      )}
 
       {isSenior && (
         <div className="mt-10">
