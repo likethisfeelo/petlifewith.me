@@ -2,12 +2,14 @@ import { isStorageConfigured } from "@/lib/storage";
 import { assetBase } from "@/lib/assets";
 import { isDbConfigured } from "@/lib/db";
 import { AdminPageHeader } from "../../_components/fields";
+import { getMemberMediaSettings } from "@/lib/queries/settings";
+import { uploadPolicyFor } from "@/lib/settings";
 import { listMediaAssets } from "../../media-actions";
 import { MediaManager } from "./media-manager";
 
 export default async function AdminMediaPage() {
   if (!isDbConfigured()) return <p className="text-sm text-ink-soft">DATABASE_URL 미설정</p>;
-  const assets = await listMediaAssets(120);
+  const [assets, settings] = await Promise.all([listMediaAssets(120), getMemberMediaSettings()]);
   const storageReady = isStorageConfigured() && Boolean(assetBase());
 
   return (
@@ -26,6 +28,7 @@ export default async function AdminMediaPage() {
 
       <div className="mt-5">
         <MediaManager
+          policy={uploadPolicyFor("admin", settings)}
           assets={assets.map((a) => ({
             id: a.id,
             objectKey: a.objectKey,
@@ -35,6 +38,9 @@ export default async function AdminMediaPage() {
             width: a.width,
             height: a.height,
             originalName: a.originalName,
+            posterKey: a.posterKey,
+            durationSec: a.durationSec,
+            uploaderName: a.uploaderName,
           }))}
         />
       </div>

@@ -18,9 +18,9 @@ const STATUS_STYLE: Record<string, string> = {
   pending: "bg-honey-soft text-honey",
 };
 
-export default async function MePage({ searchParams }: { searchParams: Promise<{ submitted?: string; deleted?: string }> }) {
+export default async function MePage({ searchParams }: { searchParams: Promise<{ submitted?: string; deleted?: string; published?: string }> }) {
   const member = await requireMember("/me");
-  const { submitted, deleted } = await searchParams;
+  const { submitted, deleted, published } = await searchParams;
   const posts = await listMyPosts(member.id);
 
   return (
@@ -34,6 +34,7 @@ export default async function MePage({ searchParams }: { searchParams: Promise<{
         </p>
       )}
       {deleted && <p className="mt-4 rounded-lg border border-line bg-sand px-4 py-3 text-sm text-ink-soft">글을 삭제했습니다.</p>}
+      {published && <p className="mt-4 rounded-lg border border-sage/30 bg-sage-soft px-4 py-3 text-sm text-sage-deep">글이 게시되었습니다. 아래 목록에서 바로 볼 수 있습니다.</p>}
 
       <section className="mt-8">
         <div className="flex items-baseline justify-between">

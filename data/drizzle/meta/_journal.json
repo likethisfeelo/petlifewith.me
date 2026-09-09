@@ -71,6 +71,13 @@
       "when": 1788931359914,
       "tag": "0009_curated_boards",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1788942601388,
+      "tag": "0010_play_media",
+      "breakpoints": true
     }
   ]
 }

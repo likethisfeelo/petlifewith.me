@@ -2,7 +2,8 @@
 
 // 회원 서버 액션 — 가입·로그인·프로필·회원 글·댓글.
 // 인증은 lib/auth.ts(세션)·lib/member.ts(현재 회원)만 거친다.
-// 회원 글은 pending 으로 시작해 관리자가 승인(published)해야 노출된다.
+// 회원 글은 pending 으로 시작해 관리자가 승인(published)해야 노출된다 — 관리자 설정(member_media.requireApproval)을
+// 끄면 저장 즉시 공개된다. 본문의 사진·영상은 자기 자산만, 외부 영상은 창작자·원본 링크가 있어야 한다.
 import { randomInt } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -20,8 +21,12 @@ import {
   POST_SUMMARY_MAX,
   POST_TITLE_MAX,
 } from "@/lib/member-limits";
+import { extractEmbeds, parseMediaRef, sameRef, uploadedKeysIn, videoEmbeds } from "@/lib/media-ref";
 import { hashPassword, passwordPolicyError, verifyPassword } from "@/lib/password";
+import { findAssetsByKeys } from "@/lib/queries/media";
+import { getMemberMediaSettings } from "@/lib/queries/settings";
 import { guideRelatedPaths } from "@/lib/revalidate-paths";
+import { mediaCountError } from "@/lib/settings";
 
 const { users, guides, topics, comments } = schema;
 
@@ -174,9 +179,43 @@ interface PostInput {
   title: string;
   summary: string | null;
   bodyMd: string;
+  heroMedia: string | null;
 }
 
-async function readPostInput(formData: FormData): Promise<{ error?: string; values: Record<string, string>; input?: PostInput }> {
+/**
+ * 본문 미디어 검사 — 외부 영상은 창작자·원본 링크가 있어야 하고(운영 규칙 3-4), 업로드 자산은 등록된 자기 것이어야 하며,
+ * 개수는 관리자 설정 한도 안이어야 한다. 대표 영상은 본문에 있는 영상만 가리킬 수 있다.
+ */
+async function checkPostMedia(memberId: string, bodyMd: string, heroMediaRaw: string): Promise<{ error?: string; heroMedia: string | null }> {
+  for (const e of extractEmbeds(bodyMd)) {
+    if (!e.complete) {
+      return { error: e.ref.kind === "youtube" ? "유튜브 영상에는 채널(창작자) 이름과 원본 링크가 필요합니다. 툴바의 '유튜브 링크'로 넣어 주세요." : "인스타그램 게시물에는 계정 이름과 원본 링크가 필요합니다. 툴바의 '인스타그램 링크'로 넣어 주세요.", heroMedia: null };
+    }
+  }
+  // 스토리 등 허용되지 않는 인스타그램 주소는 extractEmbeds 가 걸러 렌더도 막히지만, 글쓴이에게 미리 알린다
+  if (/^\{\{instagram:[^}]*\/stories\//m.test(bodyMd)) return { error: "인스타그램 스토리는 넣을 수 없습니다. 게시물·릴스 주소만 됩니다.", heroMedia: null };
+
+  const keys = uploadedKeysIn(bodyMd);
+  const settings = await getMemberMediaSettings();
+  const countError = mediaCountError({ images: keys.images.length, videos: keys.videos.length }, settings);
+  if (countError) return { error: countError, heroMedia: null };
+  const all = [...keys.images, ...keys.videos];
+  if (all.length > 0) {
+    const assets = await findAssetsByKeys(all);
+    const byKey = new Map(assets.map((a) => [a.objectKey, a]));
+    for (const key of all) {
+      const a = byKey.get(key);
+      if (!a || a.uploaderUserId !== memberId) return { error: "본문에 내가 올리지 않은 사진·영상 키가 있습니다. 툴바로 다시 올려 주세요.", heroMedia: null };
+    }
+  }
+
+  const hero = heroMediaRaw ? parseMediaRef(heroMediaRaw) : null;
+  if (heroMediaRaw && !hero) return { error: "대표 영상 값이 올바르지 않습니다.", heroMedia: null };
+  if (hero && !videoEmbeds(bodyMd).some((e) => sameRef(e.ref, hero))) return { error: "대표 영상은 본문에 넣은 영상 가운데 골라 주세요.", heroMedia: null };
+  return { heroMedia: hero ? heroMediaRaw : null };
+}
+
+async function readPostInput(formData: FormData, memberId: string): Promise<{ error?: string; values: Record<string, string>; input?: PostInput }> {
   const db = getDb();
   const values = {
     topicId: str(formData, "topicId"),
@@ -184,6 +223,7 @@ async function readPostInput(formData: FormData): Promise<{ error?: string; valu
     title: str(formData, "title"),
     summary: str(formData, "summary"),
     bodyMd: String(formData.get("bodyMd") ?? ""),
+    heroMedia: str(formData, "heroMedia"),
   };
   const topicId = Number(values.topicId);
   if (!Number.isSafeInteger(topicId) || topicId <= 0) return { error: "주제(클러스터)를 선택해 주세요.", values };
@@ -200,7 +240,9 @@ async function readPostInput(formData: FormData): Promise<{ error?: string; valu
   if (summary && summary.length > POST_SUMMARY_MAX) return { error: `한 줄 요약은 ${POST_SUMMARY_MAX}자 이하로 써 주세요.`, values };
   if (bodyMd.length < POST_BODY_MIN) return { error: `본문은 ${POST_BODY_MIN}자 이상 써 주세요.`, values };
   if (bodyMd.length > POST_BODY_MAX) return { error: `본문은 ${POST_BODY_MAX.toLocaleString("ko-KR")}자 이하로 써 주세요.`, values };
-  return { values, input: { topicId: topic.id, topicSlug: topic.slug, category, title, summary, bodyMd } };
+  const media = await checkPostMedia(memberId, bodyMd, values.heroMedia);
+  if (media.error) return { error: media.error, values };
+  return { values, input: { topicId: topic.id, topicSlug: topic.slug, category, title, summary, bodyMd, heroMedia: media.heroMedia } };
 }
 
 function randomSuffix(): string {
@@ -211,8 +253,9 @@ export async function createMemberPostAction(_prev: MemberActionState, formData:
   const member = await getCurrentMember();
   if (!member) redirect("/login?next=%2Fwrite");
   const db = getDb();
-  const { error, values, input } = await readPostInput(formData);
+  const { error, values, input } = await readPostInput(formData, member.id);
   if (error || !input) return { error: error ?? "입력을 확인해 주세요.", values };
+  const { requireApproval } = await getMemberMediaSettings();
 
   const pendingCount = (
     await db
@@ -240,7 +283,10 @@ export async function createMemberPostAction(_prev: MemberActionState, formData:
             topicId: input.topicId,
             role: "spoke",
             category: input.category,
-            status: "pending",
+            heroMedia: input.heroMedia,
+            // 승인 대기가 꺼져 있으면 저장 즉시 공개
+            status: requireApproval ? "pending" : "published",
+            publishedAt: requireApproval ? null : new Date(),
             medicalAdjacent: false,
             authorUserId: member.id,
           })
@@ -251,7 +297,12 @@ export async function createMemberPostAction(_prev: MemberActionState, formData:
     }
   }
   if (!inserted) return { error: "저장에 실패했습니다. 잠시 후 다시 시도해 주세요.", values };
-  redirect("/me?submitted=1");
+  if (!requireApproval) {
+    for (const p of await guideRelatedPaths(inserted.id)) revalidatePath(p);
+    revalidatePath(`/topic/${input.topicSlug}/challenge`);
+    revalidatePath(`/topic/${input.topicSlug}/curated`);
+  }
+  redirect(requireApproval ? "/me?submitted=1" : "/me?published=1");
 }
 
 export async function updateMemberPostAction(_prev: MemberActionState, formData: FormData): Promise<MemberActionState> {
@@ -264,11 +315,14 @@ export async function updateMemberPostAction(_prev: MemberActionState, formData:
   if (!existing || existing.authorUserId !== member.id) return { error: "내 글이 아닙니다." };
   if (existing.status !== "pending" && existing.status !== "published") return { error: "지금 상태에서는 수정할 수 없습니다. 문의해 주세요." };
 
-  const { error, values, input } = await readPostInput(formData);
+  const { error, values, input } = await readPostInput(formData, member.id);
   if (error || !input) return { error: error ?? "입력을 확인해 주세요.", values };
+  const { requireApproval } = await getMemberMediaSettings();
 
-  // 발행된 글을 고치면 다시 승인 대기로 — 승인된 내용이 조용히 바뀌지 않게
+  // 발행된 글을 고치면 다시 승인 대기로 — 승인된 내용이 조용히 바뀌지 않게. 승인 대기가 꺼져 있으면 그대로 공개 유지
   const wasPublished = existing.status === "published";
+  const backToPending = requireApproval;
+  const nextStatus = backToPending ? "pending" : existing.status === "pending" ? "published" : existing.status;
   await db
     .update(guides)
     .set({
@@ -277,18 +331,21 @@ export async function updateMemberPostAction(_prev: MemberActionState, formData:
       bodyMd: input.bodyMd,
       topicId: input.topicId,
       category: input.category,
-      status: "pending",
+      heroMedia: input.heroMedia,
+      status: nextStatus,
+      publishedAt: nextStatus === "published" ? (existing.publishedAt ?? new Date()) : existing.publishedAt,
       // 승인 전 글에는 큐레이션 순서·부위 대표가 붙어 있으면 안 된다 (관리자가 승인하며 다시 정한다)
-      curatedOrder: null,
-      areaOrder: null,
+      ...(backToPending ? { curatedOrder: null, areaOrder: null } : {}),
       updatedAt: new Date(),
     })
     .where(eq(guides.id, id));
-  if (wasPublished) {
+  if (wasPublished || nextStatus === "published") {
     if (existing.category) revalidatePath(`/topic/${input.topicSlug}/${existing.category}`);
     for (const p of await guideRelatedPaths(id)) revalidatePath(p);
+    revalidatePath(`/topic/${input.topicSlug}/challenge`);
+    revalidatePath(`/topic/${input.topicSlug}/curated`);
   }
-  return { saved: true, notice: wasPublished ? "수정한 글은 다시 승인 대기로 바뀌었습니다. 승인되면 다시 공개됩니다." : undefined };
+  return { saved: true, notice: wasPublished && backToPending ? "수정한 글은 다시 승인 대기로 바뀌었습니다. 승인되면 다시 공개됩니다." : undefined };
 }
 
 export async function deleteMemberPostAction(formData: FormData): Promise<void> {

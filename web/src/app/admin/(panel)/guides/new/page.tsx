@@ -1,6 +1,8 @@
 import { GUIDE_CATEGORIES_BY_TOPIC } from "@app/data";
 import { getDb, isDbConfigured, schema } from "@/lib/db";
 import { AdminPageHeader } from "../../../_components/fields";
+import { getMemberMediaSettings } from "@/lib/queries/settings";
+import { uploadPolicyFor } from "@/lib/settings";
 import { NewPostForm } from "./new-post-form";
 
 const { topics } = schema;
@@ -21,7 +23,7 @@ export default async function AdminGuideNewPage() {
         </p>
       ) : (
         <div className="mt-5">
-          <NewPostForm
+          <NewPostForm policy={uploadPolicyFor("admin", await getMemberMediaSettings())}
             topics={topicRows.map((t) => ({ id: t.id, slug: t.slug, name: t.name }))}
             categoriesByTopic={GUIDE_CATEGORIES_BY_TOPIC}
           />

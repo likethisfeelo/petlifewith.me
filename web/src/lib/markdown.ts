@@ -13,6 +13,7 @@
 // ============================================================
 import { Marked } from "marked";
 import { assetUrl, isValidObjectKey } from "./assets";
+import { instagramPermalink } from "./media-ref";
 
 export interface RenderedMarkdown {
   html: string;
@@ -136,10 +137,10 @@ export function renderMarkdown(md: string, opts: RenderOptions = {}): RenderedMa
       html = YOUTUBE_ID_RE.test(id) ? youtubeEmbedHtml(id, creatorName, originalUrl) : invalidEmbedHtml("유효하지 않은 YouTube ID");
       if (YOUTUBE_ID_RE.test(id)) hasYoutubeEmbed = true;
     } else {
-      const postUrl = ref.trim();
-      const ok = /^https:\/\/(www\.)?instagram\.com\//.test(postUrl);
-      html = ok ? instagramEmbedHtml(postUrl, creatorName, originalUrl) : invalidEmbedHtml("유효하지 않은 Instagram URL");
-      if (ok) hasInstagramEmbed = true;
+      // 게시물(/p/)·릴스(/reel/)만 — 스토리·프로필은 임베드하지 않는다 (lib/media-ref.ts)
+      const postUrl = instagramPermalink(ref);
+      html = postUrl ? instagramEmbedHtml(postUrl, creatorName, originalUrl) : invalidEmbedHtml("Instagram 게시물·릴스 주소만 넣을 수 있습니다 (스토리 불가)");
+      if (postUrl) hasInstagramEmbed = true;
     }
     const idx = embeds.push(html) - 1;
     return `\n\n<!--EMBED:${idx}-->\n\n`;

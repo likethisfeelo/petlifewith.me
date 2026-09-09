@@ -23,6 +23,7 @@ const NAV = [
   { href: "/admin/claims", label: "클레임" },
   { href: "/admin/members", label: "회원" },
   { href: "/admin/comments", label: "댓글" },
+  { href: "/admin/settings", label: "설정" },
 ];
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {

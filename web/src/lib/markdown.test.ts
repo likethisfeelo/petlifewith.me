@@ -18,13 +18,21 @@ describe("renderMarkdown — 임베드 규칙 (기획서 3-2·3-4)", () => {
   });
 
   it("인스타그램은 공식 임베드 코드 형식만", () => {
-    const ok = renderMarkdown("{{instagram:https://www.instagram.com/p/XYZ/|작가|https://www.instagram.com/p/XYZ/}}");
+    const ok = renderMarkdown("{{instagram:https://www.instagram.com/p/C1a2B3c4D5e/|작가|https://www.instagram.com/p/C1a2B3c4D5e/}}");
     expect(ok.hasInstagramEmbed).toBe(true);
     expect(ok.html).toContain("instagram-media");
 
-    const bad = renderMarkdown("{{instagram:https://evil.example.com/p/XYZ/|작가|https://a.b}}");
+    const bad = renderMarkdown("{{instagram:https://evil.example.com/p/C1a2B3c4D5e/|작가|https://a.b}}");
     expect(bad.hasInstagramEmbed).toBe(false);
     expect(bad.html).toContain("md-embed-invalid");
+
+    // 릴스는 되고 스토리는 안 된다. 주소는 정규화된 퍼머링크로 들어간다
+    const reel = renderMarkdown("{{instagram:https://instagram.com/reels/C1a2B3c4D5e?igsh=1|작가|https://www.instagram.com/reel/C1a2B3c4D5e/}}");
+    expect(reel.hasInstagramEmbed).toBe(true);
+    expect(reel.html).toContain('data-instgrm-permalink="https://www.instagram.com/reel/C1a2B3c4D5e/"');
+    const story = renderMarkdown("{{instagram:https://www.instagram.com/stories/someone/123/|작가|https://www.instagram.com/stories/someone/123/}}");
+    expect(story.hasInstagramEmbed).toBe(false);
+    expect(story.html).toContain("스토리 불가");
   });
 });
 

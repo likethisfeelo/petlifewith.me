@@ -1,6 +1,9 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useRef, useState } from "react";
+import type { UploadPolicy } from "@/lib/settings";
+import { HeroMediaSelect } from "@/components/media/hero-media-select";
+import { MediaToolbar } from "@/components/media/media-toolbar";
 import type { GuideCategoryDef } from "@app/data";
 import {
   CheckboxField,
@@ -45,12 +48,15 @@ const TEMPLATE = `## 이런 순간이 있었나요
 export function NewPostForm({
   topics,
   categoriesByTopic,
+  policy,
 }: {
   topics: Array<{ id: number; slug: string; name: string }>;
   categoriesByTopic: Record<string, GuideCategoryDef[]>;
+  policy: UploadPolicy;
 }) {
   const [state, formAction, pending] = useActionState<ActionState, FormData>(createGuideAction, {});
   const [body, setBody] = useState("");
+  const bodyRef = useRef<HTMLTextAreaElement>(null);
   const [topicId, setTopicId] = useState<string>("");
   const topicSlug = topics.find((t) => String(t.id) === topicId)?.slug ?? "";
   const categories = categoriesByTopic[topicSlug] ?? [];
@@ -127,10 +133,14 @@ export function NewPostForm({
           </button>
         </div>
         <p className="mt-1 text-xs text-ink-faint">
-          마크다운으로 씁니다. 임베드는 <code>{"{{youtube:영상ID|창작자명|원본URL}}"}</code> 형식만 동작하며,
-          창작자명이나 원본 링크가 없으면 렌더되지 않습니다. 쿠팡 링크를 넣으면 수수료 고지가 자동으로 붙습니다.
+          마크다운으로 씁니다. 사진·영상은 툴바로 올리고, 외부 영상은 유튜브·인스타그램 링크 버튼으로 넣습니다(창작자명·원본 링크가
+          없으면 렌더되지 않습니다). 쿠팡 링크를 넣으면 수수료 고지가 자동으로 붙습니다.
         </p>
+        <div className="mt-3">
+          <MediaToolbar policy={policy} textareaRef={bodyRef} value={body} onChange={setBody} disabled={pending} />
+        </div>
         <textarea
+          ref={bodyRef}
           name="bodyMd"
           rows={22}
           value={body}
@@ -138,6 +148,7 @@ export function NewPostForm({
           className="mt-3 w-full rounded-lg border border-line bg-surface px-3 py-2 font-mono text-xs leading-relaxed outline-none focus:border-ink"
         />
         <p className="mt-1 text-right text-xs text-ink-faint">{body.length}자</p>
+        <HeroMediaSelect body={body} defaultValue={null} className="mt-3" />
       </section>
 
       <FormMessage error={state.error} saved={state.saved} />

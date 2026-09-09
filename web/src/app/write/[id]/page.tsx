@@ -5,6 +5,8 @@ import { GUIDE_CATEGORIES_BY_TOPIC } from "@app/data";
 import { getDb, schema } from "@/lib/db";
 import { requireMember } from "@/lib/member";
 import { listTopics } from "@/lib/queries/guides";
+import { getMemberMediaSettings } from "@/lib/queries/settings";
+import { uploadPolicyFor } from "@/lib/settings";
 import { MemberPostForm } from "../post-form";
 
 const { guides } = schema;
@@ -25,7 +27,7 @@ export default async function EditPostPage({ params }: { params: Promise<{ id: s
   // 내 글이 아니면 존재 자체를 드러내지 않는다
   if (!guide || guide.authorUserId !== member.id) notFound();
   const editable = guide.status === "pending" || guide.status === "published";
-  const topics = (await listTopics()).filter((t) => t.slug !== "spot");
+  const [topics, limits] = await Promise.all([listTopics().then((ts) => ts.filter((t) => t.slug !== "spot")), getMemberMediaSettings()]);
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">
@@ -38,9 +40,20 @@ export default async function EditPostPage({ params }: { params: Promise<{ id: s
         <div className="mt-6">
           <MemberPostForm
             mode="edit"
-            post={{ id: guide.id, topicId: guide.topicId, category: guide.category, title: guide.title, summary: guide.summary, bodyMd: guide.bodyMd, status: guide.status }}
+            post={{
+              id: guide.id,
+              topicId: guide.topicId,
+              category: guide.category,
+              title: guide.title,
+              summary: guide.summary,
+              bodyMd: guide.bodyMd,
+              heroMedia: guide.heroMedia,
+              status: guide.status,
+            }}
             topics={topics.map((t) => ({ id: t.id, slug: t.slug, name: t.name }))}
             categoriesByTopic={GUIDE_CATEGORIES_BY_TOPIC}
+            policy={uploadPolicyFor("member", limits)}
+            limits={limits}
           />
         </div>
       )}

@@ -113,10 +113,26 @@ export const mediaAssets = pgTable(
     width: integer("width"), // 이미지: 업로드 시 측정. 영상: null
     height: integer("height"),
     originalName: text("original_name"),
+    // ---- 0010 (놀이 영상 피드 · 회원 업로드) ----
+    // 영상의 포스터(첫 화면) 이미지 키 — 업로드할 때 브라우저가 잡아 별도 이미지 자산으로 올린다. 없으면 브라우저 첫 프레임.
+    posterKey: text("poster_key"),
+    // 영상 길이(초) — 업로드 클라이언트가 잰 값 (자르기 상한 검사·표시용)
+    durationSec: integer("duration_sec"),
+    // 회원이 올렸으면 그 회원. 관리자 업로드는 null. 회원 글 본문은 자기 자산만 참조할 수 있다.
+    uploaderUserId: uuid("uploader_user_id").references(() => users.id, { onDelete: "set null" }),
     createdAt: createdAt(),
   },
-  (t) => [index("media_assets_kind_idx").on(t.kind, t.createdAt)],
+  (t) => [index("media_assets_kind_idx").on(t.kind, t.createdAt), index("media_assets_uploader_idx").on(t.uploaderUserId)],
 );
+
+// ---------- 사이트 설정 (0010) ----------
+// 관리자가 화면에서 바꾸는 운영값 — 키 하나에 JSON 하나. 예: member_media (회원 미디어 한도·승인 대기).
+// 코드 기본값은 web/src/lib/settings.ts 에 있고, 행이 없으면 기본값이 쓰인다.
+export const siteSettings = pgTable("site_settings", {
+  key: text("key").primaryKey(),
+  value: jsonb("value").notNull(),
+  updatedAt: updatedAt(),
+});
 
 // ---------- 토픽 (클러스터) ----------
 
@@ -171,6 +187,9 @@ export const guides = pgTable(
     vetReviewerName: text("vet_reviewer_name"), // "○○ 수의사 감수" 표기용
     vetReviewedAt: date("vet_reviewed_at"),
     heroImageKey: text("hero_image_key"), // S3 오브젝트 키 (URL 아님)
+    // 대표 영상 (0010, 놀이 영상 피드) — "video:<오브젝트 키>" | "youtube:<ID>" | "instagram:<URL>".
+    // null 이면 본문의 첫 영상이 대표. 카드 섬네일은 대표 이미지 → 영상 포스터 → 유튜브 섬네일 순 (web/src/lib/media-ref.ts)
+    heroMedia: text("hero_media"),
     // 페이지별 SEO 오버라이드 — 비우면 제목·요약·대표 이미지에서 자동 생성
     seoTitle: text("seo_title"),
     seoDescription: text("seo_description"),
