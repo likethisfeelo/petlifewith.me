@@ -7,6 +7,7 @@ import { JsonLd } from "@/components/jsonld";
 import { RememberRegion } from "@/components/region-banner";
 import { RegionDataBlock } from "@/components/region-data-block";
 import { SpotDirectory } from "@/components/spot/spot-directory";
+import { listCareCountsByRegion } from "@/lib/queries/care";
 import { guidesForRegion } from "@/lib/queries/guides";
 import {
   countIndexableSpotsInRegion,
@@ -51,14 +52,16 @@ export default async function SigunguPage({ params }: Props) {
 
   // 적재 후 지역당 수백 곳이 될 수 있다 — 지역 허브는 상위 일부만 보여주고 전체는 유형 페이지로
   const REGION_LIST_LIMIT = 48;
-  const [spots, allTypeCounts, dogStats, related, regionTiles, countsByRegion] = await Promise.all([
+  const [spots, addressTypeCounts, dogStats, related, regionTiles, countsByRegion, careCounts] = await Promise.all([
     listSpotsInRegion(region.id, undefined, REGION_LIST_LIMIT),
     countSpotsByTypeInRegion(region.id),
     getRegionDogStats(region.id),
     guidesForRegion(region.id),
     listRegionTiles(),
     listRegionTotals(),
+    listCareCountsByRegion({ regionId: region.id }), // 돌봄 파트너는 이 지역을 서비스 지역으로 둔 사람 수
   ]);
+  const allTypeCounts = [...addressTypeCounts, ...careCounts].sort((a, b) => b.count - a.count);
   // 소비자 유형만 혼합 목록·분포에. B2B 참고 유형은 아래 별도 줄에서 지역x유형 페이지로 링크한다.
   const typeCounts = allTypeCounts.filter((c) => c.listed);
   const infraCounts = allTypeCounts.filter((c) => !c.listed);

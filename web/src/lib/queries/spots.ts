@@ -1,4 +1,5 @@
-import { and, asc, eq, inArray, ne, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, ne, notInArray, sql } from "drizzle-orm";
+import { CARE_TYPE_SLUGS } from "@app/data";
 import { getDb, isDbConfigured, schema } from "../db";
 import type { RegionTile } from "../regions";
 
@@ -150,7 +151,8 @@ export async function countSpotsByTypeInRegion(regionId: number): Promise<Region
     })
     .from(spots)
     .innerJoin(spotTypes, eq(spots.typeId, spotTypes.id))
-    .where(and(eq(spots.regionId, regionId), eq(spots.status, "operating")))
+    // 돌봄 유형은 서비스 지역 기준으로 따로 센다 (queries/care.ts listCareCountsByRegion)
+    .where(and(eq(spots.regionId, regionId), eq(spots.status, "operating"), notInArray(spotTypes.slug, [...CARE_TYPE_SLUGS])))
     .groupBy(spotTypes.id, spotTypes.name, spotTypes.slug, spotTypes.listed)
     .orderBy(sql`count(*) desc`);
 }
@@ -231,7 +233,7 @@ export interface SigunguTypeCount {
   count: number;
 }
 
-/** 시도 페이지 유형 필터용 — 그 시도의 시군구 x 유형별 영업 중 스팟 수 (소비자 유형만) */
+/** 시도 페이지 유형 필터용 — 그 시도의 시군구 x 유형별 영업 중 스팟 수 (소비자 유형만, 돌봄 유형은 서비스 지역 기준으로 따로) */
 export async function listSigunguTypeCounts(sidoSlug: string): Promise<SigunguTypeCount[]> {
   if (!isDbConfigured()) return [];
   return getDb()
@@ -245,7 +247,14 @@ export async function listSigunguTypeCounts(sidoSlug: string): Promise<SigunguTy
     .from(spots)
     .innerJoin(spotTypes, eq(spots.typeId, spotTypes.id))
     .innerJoin(regions, eq(spots.regionId, regions.id))
-    .where(and(eq(regions.sidoSlug, sidoSlug), eq(spots.status, "operating"), eq(spotTypes.listed, true)))
+    .where(
+      and(
+        eq(regions.sidoSlug, sidoSlug),
+        eq(spots.status, "operating"),
+        eq(spotTypes.listed, true),
+        notInArray(spotTypes.slug, [...CARE_TYPE_SLUGS]),
+      ),
+    )
     .groupBy(spots.regionId, spotTypes.slug, spotTypes.name, spotTypes.sortOrder)
     .orderBy(asc(spotTypes.sortOrder));
 }

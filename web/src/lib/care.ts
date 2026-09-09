@@ -33,6 +33,19 @@ export interface CareProvider {
   reservationUrl: string | null;
 }
 
+/** 돌봄 유형별 첫 문장 — 무엇을 하는 사람인지 한 줄로 (유형 허브·지역 페이지) */
+export const CARE_INTRO: Record<string, string> = {
+  "pet-sitter": "보호자 집으로 와서 돌보는 방문 펫시터를 지역별로 찾습니다.",
+  "hourly-sitter": "몇 시간 자리를 비울 때 시터 집에 아이를 맡기는 시간제 시터를 지역별로 찾습니다.",
+  "dog-walk": "산책 대행·동행 도그워커를 지역별로 찾습니다.",
+};
+
+/** 파트너의 1순위 노출 지역 (허브가 처음 펼쳐 둘 시도를 고를 때) */
+export function primaryArea(provider: CareProvider | undefined): CareArea | null {
+  if (!provider) return null;
+  return [...provider.areas].filter((a) => a.exposed).sort((a, b) => a.sortOrder - b.sortOrder)[0] ?? null;
+}
+
 /** 마크다운 소개 → 카드용 한 문단. 강조·링크·제목 기호만 걷어낸다. */
 export function plainExcerpt(md: string | null | undefined, max = 150): string | null {
   if (!md) return null;

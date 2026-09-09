@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
+import { TopicTaglineProvider } from "@/components/site-tagline";
 import { JsonLd } from "@/components/jsonld";
 import { AdSense, Analytics, GtmNoScript } from "@/components/analytics";
 import {
@@ -55,9 +56,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="ko">
       <body className="flex min-h-screen flex-col">
         {gtmId && <GtmNoScript gtmId={gtmId} />}
-        <SiteHeader />
-        <main className="flex-1">{children}</main>
-        <SiteFooter />
+        {/* 태그라인 토픽 공유 — 글 페이지가 머리글·푸터에 토픽(놀이 → "즐거운 삶")을 알려 준다 */}
+        <TopicTaglineProvider>
+          <SiteHeader />
+          <main className="flex-1">{children}</main>
+          <SiteFooter />
+        </TopicTaglineProvider>
         <JsonLd data={websiteLd()} />
         {analytics && <Analytics gtmId={gtmId} gaId={gaId} apexDomain={apexDomain()} />}
         {adsId && <AdSense clientId={adsId} apexDomain={apexDomain()} />}

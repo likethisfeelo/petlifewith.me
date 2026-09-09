@@ -8,6 +8,7 @@
 //   같은 UX 레이어에 붙인다.
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { regionHref } from "@/lib/regions";
 
 const KEY = "recent-region";
 
@@ -33,8 +34,8 @@ export function RememberRegion({ region }: { region: RecentRegion }) {
   return null;
 }
 
-/** /spot 진입점에서 최근 본 지역으로 가는 제안 배너 */
-export function RegionSuggestBanner() {
+/** /spot 진입점·돌봄 허브에서 최근 본 지역으로 가는 제안 배너. typeSlug 가 있으면 그 지역의 유형 페이지로 간다 */
+export function RegionSuggestBanner({ typeSlug = null }: { typeSlug?: string | null }) {
   const [recent, setRecent] = useState<RecentRegion | null>(null);
   const [dismissed, setDismissed] = useState(false);
 
@@ -56,7 +57,7 @@ export function RegionSuggestBanner() {
       </p>
       <div className="flex shrink-0 items-center gap-2">
         <Link
-          href={`/spot/${recent.sidoSlug}/${recent.sigunguSlug}`}
+          href={regionHref(recent, typeSlug)}
           className="rounded-full bg-sea px-3 py-1 text-xs font-medium text-white hover:opacity-90"
         >
           바로 가기

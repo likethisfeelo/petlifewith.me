@@ -1,14 +1,26 @@
 // 사이트맵 전용 쿼리 — 색인 가능한 URL 만 내보낸다.
 // noindex 게이트(lib/seo.ts)와 반드시 같은 기준을 쓴다: 게이트에 걸리는 페이지는
 // 사이트맵에도 넣지 않는다.
-import { and, eq, gte, ne, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, ne, notInArray, sql } from "drizzle-orm";
 import { getDb, isDbConfigured, schema } from "../db";
 import { MIN_PLACE_INFO_ITEMS, MIN_SPOTS_FOR_INDEX, placeInfoItemCount, shouldIndexBoard, shouldIndexGuide } from "../seo";
-import { categoriesForTopic } from "@app/data";
+import { CARE_TYPE_SLUGS, categoriesForTopic } from "@app/data";
 import { countRehabSites, countRehabSitesByModality } from "./rehab";
 
-const { guides, topics, spots, spotTypes, regions, makers, items, guideItemTags, curations, curationEntries, spotLinks } =
-  schema;
+const {
+  guides,
+  topics,
+  spots,
+  spotTypes,
+  regions,
+  makers,
+  items,
+  guideItemTags,
+  curations,
+  curationEntries,
+  spotLinks,
+  spotServiceAreas,
+} = schema;
 
 export interface SitemapEntry {
   path: string;
@@ -41,7 +53,7 @@ export async function sitemapCategoryBoards(): Promise<SitemapEntry[]> {
     .map((r) => ({ path: `/topic/${r.topicSlug}/${r.category}` }));
 }
 
-/** 토픽 게시판 — 큐레이션(/curated)·도전(/challenge). 각각 발행 글 3편 이상인 토픽만 */
+/** 토픽 게시판 — 큐레이션(/curated)·일반 게시판(/challenge, 회원 글). 각각 발행 글 3편 이상인 토픽만 */
 export async function sitemapTopicBoards(): Promise<SitemapEntry[]> {
   if (!isDbConfigured()) return [];
   const rows = await getDb()
@@ -92,6 +104,8 @@ export async function sitemapRegions(): Promise<SitemapEntry[]> {
     .groupBy(regions.sidoSlug, regions.sigunguSlug)
     .having(gte(sql`count(*)`, MIN_SPOTS_FOR_INDEX));
 
+  // 주소 기준 유형 집계는 돌봄 유형을 뺀다 — 돌봄은 아래에서 서비스 지역 기준으로 센다 (페이지 게이트와 같은 기준)
+  const notCare = notInArray(spotTypes.slug, [...CARE_TYPE_SLUGS]);
   const regionTypeCounts = await db
     .select({
       sidoSlug: regions.sidoSlug,
@@ -103,7 +117,7 @@ export async function sitemapRegions(): Promise<SitemapEntry[]> {
     .innerJoin(regions, eq(spots.regionId, regions.id))
     .innerJoin(spotTypes, eq(spots.typeId, spotTypes.id))
     // 지역x유형 페이지는 B2B 참고 유형도 게시된다 — 게이트(3곳)만 동일 적용
-    .where(indexableSpot)
+    .where(and(indexableSpot, notCare))
     .groupBy(regions.sidoSlug, regions.sigunguSlug, spotTypes.slug)
     .having(gte(sql`count(*)`, MIN_SPOTS_FOR_INDEX));
 
@@ -112,18 +126,45 @@ export async function sitemapRegions(): Promise<SitemapEntry[]> {
     .select({ typeSlug: spotTypes.slug, count: sql<number>`count(*)`.mapWith(Number) })
     .from(spots)
     .innerJoin(spotTypes, eq(spots.typeId, spotTypes.id))
-    .where(indexableSpot)
+    .where(and(indexableSpot, notCare))
     .groupBy(spotTypes.slug)
     .having(gte(sql`count(*)`, MIN_SPOTS_FOR_INDEX));
+
+  // 돌봄 파트너 — 서비스 지역(노출 ON) 기준, 예시 제외 (countIndexableCareProviders 와 같은 기준)
+  const indexableCare = and(indexableSpot, eq(spotServiceAreas.exposed, true), inArray(spotTypes.slug, [...CARE_TYPE_SLUGS]));
+  const careRegionCounts = await db
+    .select({
+      sidoSlug: regions.sidoSlug,
+      sigunguSlug: regions.sigunguSlug,
+      typeSlug: spotTypes.slug,
+      count: sql<number>`count(distinct ${spots.id})`.mapWith(Number),
+    })
+    .from(spotServiceAreas)
+    .innerJoin(spots, eq(spotServiceAreas.spotId, spots.id))
+    .innerJoin(spotTypes, eq(spots.typeId, spotTypes.id))
+    .innerJoin(regions, eq(spotServiceAreas.regionId, regions.id))
+    .where(indexableCare)
+    .groupBy(regions.sidoSlug, regions.sigunguSlug, spotTypes.slug)
+    .having(gte(sql`count(distinct ${spots.id})`, MIN_SPOTS_FOR_INDEX));
+  const careTypeTotals = await db
+    .select({ typeSlug: spotTypes.slug, count: sql<number>`count(distinct ${spots.id})`.mapWith(Number) })
+    .from(spotServiceAreas)
+    .innerJoin(spots, eq(spotServiceAreas.spotId, spots.id))
+    .innerJoin(spotTypes, eq(spots.typeId, spotTypes.id))
+    .where(indexableCare)
+    .groupBy(spotTypes.slug)
+    .having(gte(sql`count(distinct ${spots.id})`, MIN_SPOTS_FOR_INDEX));
 
   const sidoWithAny = new Set(regionCounts.map((r) => r.sidoSlug));
 
   return [
     { path: "/spot" },
     ...typeTotals.map((t) => ({ path: `/spot/type/${t.typeSlug}` })),
+    ...careTypeTotals.map((t) => ({ path: `/spot/type/${t.typeSlug}` })),
     ...[...sidoWithAny].map((s) => ({ path: `/spot/${s}` })),
     ...regionCounts.map((r) => ({ path: `/spot/${r.sidoSlug}/${r.sigunguSlug}` })),
     ...regionTypeCounts.map((r) => ({ path: `/spot/${r.sidoSlug}/${r.sigunguSlug}/${r.typeSlug}` })),
+    ...careRegionCounts.map((r) => ({ path: `/spot/${r.sidoSlug}/${r.sigunguSlug}/${r.typeSlug}` })),
   ];
 }
 

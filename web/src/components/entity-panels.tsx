@@ -57,8 +57,10 @@ function SpotTagCard({ tagged }: { tagged: TaggedSpot }) {
   );
 }
 
+const MAKER_LINK_LABEL: Record<string, string> = { website: "홈페이지", instagram: "인스타그램", smartstore: "스마트스토어", funding: "펀딩", blog: "블로그", naver: "네이버" };
+
 function MakerTagCard({ tagged }: { tagged: TaggedMaker }) {
-  const { maker, contextLabel } = tagged;
+  const { maker, contextLabel, links } = tagged;
   return (
     <div className="rounded-xl border border-line bg-surface p-4">
       {contextLabel && <p className="text-xs font-medium text-honey">{contextLabel}</p>}
@@ -73,6 +75,21 @@ function MakerTagCard({ tagged }: { tagged: TaggedMaker }) {
           <FactBadge label="사료제조업 등록 확인" verifiedAt={maker.badgeVerifiedAt} note={maker.badgeNote} />
         )}
       </div>
+      {links.length > 0 && (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {links.map((l) => (
+            <a
+              key={l.id}
+              href={l.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-full border border-line bg-cream px-3 py-1 text-xs font-medium text-ink-soft transition-colors hover:bg-sand hover:text-ink"
+            >
+              {l.label ?? MAKER_LINK_LABEL[l.kind] ?? l.kind} ↗
+            </a>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -114,15 +131,23 @@ function DeviceBlock({ tagged }: { tagged: TaggedDevice }) {
   );
 }
 
-export function EntityTagPanels({ tags }: { tags: GuideEntityTags }) {
-  const hasAny = tags.items.length + tags.spots.length + tags.makers.length + tags.devices.length > 0;
-  if (!hasAny) return null;
+/** 태그된 개체가 하나라도 있는가 — 놀이 글은 우측 패널을, 그 밖은 본문 아래 패널을 그릴지 정한다 */
+export function hasEntityTags(tags: GuideEntityTags): boolean {
+  return tags.items.length + tags.spots.length + tags.makers.length + tags.devices.length > 0;
+}
+
+/**
+ * compact: 우측 고정 패널용 — 카드를 한 줄로 쌓는다 (놀이 글: 제품 링크·홈페이지 정보가 본문 옆에 뜬다).
+ */
+export function EntityTagPanels({ tags, compact = false }: { tags: GuideEntityTags; compact?: boolean }) {
+  if (!hasEntityTags(tags)) return null;
+  const grid = compact ? "mt-3 space-y-3" : "mt-3 grid gap-3 sm:grid-cols-2";
   return (
-    <div className="space-y-6">
+    <div className={compact ? "space-y-5" : "space-y-6"}>
       {tags.items.length > 0 && (
         <section>
           <h2 className="text-sm font-bold text-ink">이 글에 등장한 상품</h2>
-          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <div className={grid}>
             {tags.items.map((t) => (
               <ItemTagCard key={t.item.id} tagged={t} />
             ))}
@@ -132,7 +157,7 @@ export function EntityTagPanels({ tags }: { tags: GuideEntityTags }) {
       {tags.spots.length > 0 && (
         <section>
           <h2 className="text-sm font-bold text-ink">이 글에 등장한 장소</h2>
-          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <div className={grid}>
             {tags.spots.map((t) => (
               <SpotTagCard key={t.spot.id} tagged={t} />
             ))}
@@ -142,7 +167,7 @@ export function EntityTagPanels({ tags }: { tags: GuideEntityTags }) {
       {tags.makers.length > 0 && (
         <section>
           <h2 className="text-sm font-bold text-ink">이 글에 등장한 브랜드</h2>
-          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <div className={grid}>
             {tags.makers.map((t) => (
               <MakerTagCard key={t.maker.id} tagged={t} />
             ))}

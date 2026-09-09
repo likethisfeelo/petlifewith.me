@@ -1,10 +1,12 @@
 "use client";
 
-// 미디어 라이브러리 — 업로드 + 숏코드 복사.
+// 미디어 라이브러리 — 업로드(영상은 길이 상한 안으로 자르기) + 숏코드 복사.
 import { useRef, useState } from "react";
 import { assetUrl } from "@/lib/assets";
 import { formatBytes } from "@/lib/media";
-import { uploadMediaFile } from "@/lib/media-upload";
+import type { UploadPolicy } from "@/lib/settings";
+import { formatSeconds } from "@/lib/video-tools";
+import { useMediaUploader } from "@/components/media/use-media-uploader";
 import { deleteMediaAction } from "../../media-actions";
 
 export interface MediaRow {
@@ -16,9 +18,13 @@ export interface MediaRow {
   width: number | null;
   height: number | null;
   originalName: string | null;
+  posterKey: string | null;
+  durationSec: number | null;
+  uploaderName: string | null;
 }
 
-export function MediaManager({ assets }: { assets: MediaRow[] }) {
+export function MediaManager({ assets, policy }: { assets: MediaRow[]; policy: UploadPolicy }) {
+  const uploader = useMediaUploader(policy);
   const [busy, setBusy] = useState(false);
   const [messages, setMessages] = useState<string[]>([]);
   const [copied, setCopied] = useState<number | null>(null);
@@ -30,10 +36,11 @@ export function MediaManager({ assets }: { assets: MediaRow[] }) {
     const logs: string[] = [];
     for (const file of Array.from(files)) {
       try {
-        await uploadMediaFile(file);
+        await uploader.upload(file);
         logs.push(`업로드 완료: ${file.name}`);
       } catch (e) {
-        logs.push(`실패: ${file.name} — ${e instanceof Error ? e.message : "알 수 없는 오류"}`);
+        const msg = e instanceof Error ? e.message : "알 수 없는 오류";
+        logs.push(msg === "취소" ? `취소: ${file.name}` : `실패: ${file.name} — ${msg}`);
       }
     }
     setMessages(logs);
@@ -69,8 +76,13 @@ export function MediaManager({ assets }: { assets: MediaRow[] }) {
             onChange={(e) => onFiles(e.target.files)}
           />
         </label>
-        <p className="mt-2 text-xs text-ink-faint">이미지 최대 15MB · 영상(mp4/webm) 최대 300MB</p>
+        <p className="mt-2 text-xs text-ink-faint">
+          이미지 최대 {formatBytes(policy.maxImageBytes)} · 영상(mp4/webm) 최대 {formatBytes(policy.maxVideoBytes)}
+          {policy.maxVideoSeconds > 0 ? ` · ${formatSeconds(policy.maxVideoSeconds)} 이내 (길면 자르기 창이 뜹니다)` : ""}
+        </p>
+        {uploader.status && <p className="mt-2 text-xs text-sea">{uploader.status}</p>}
       </div>
+      {uploader.dialog}
 
       {messages.length > 0 && (
         <ul className="mt-3 space-y-1 text-xs">
@@ -94,6 +106,9 @@ export function MediaManager({ assets }: { assets: MediaRow[] }) {
                 {url && a.kind === "image" ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={url} alt={a.originalName ?? a.objectKey} className="h-full w-full object-cover" loading="lazy" />
+                ) : url && a.kind === "video" && assetUrl(a.posterKey) ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={assetUrl(a.posterKey)} alt="" className="h-full w-full object-cover" loading="lazy" />
                 ) : url && a.kind === "video" ? (
                   <video src={url} className="h-full w-full object-cover" preload="metadata" muted />
                 ) : (
@@ -106,6 +121,9 @@ export function MediaManager({ assets }: { assets: MediaRow[] }) {
               <p className="text-[11px] text-ink-faint">
                 {a.kind === "image" ? "이미지" : "영상"} · {formatBytes(a.sizeBytes)}
                 {a.width && a.height ? ` · ${a.width}×${a.height}` : ""}
+                {a.durationSec ? ` · ${formatSeconds(a.durationSec)}` : ""}
+                {a.kind === "video" ? (a.posterKey ? " · 포스터 있음" : " · 포스터 없음") : ""}
+                {a.uploaderName ? ` · 회원 ${a.uploaderName}` : ""}
               </p>
               <div className="mt-2 flex items-center gap-2">
                 <button

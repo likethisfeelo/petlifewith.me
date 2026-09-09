@@ -7,3 +7,5 @@ export const POST_BODY_MAX = 20_000;
 export const COMMENT_MAX = 1000;
 export const MAX_PENDING_POSTS = 5;
 export const MAX_COMMENTS_PER_HOUR = 20;
+/** 회원 한 사람이 한 시간에 올릴 수 있는 파일 수 (스팸·저장소 남용 방지 — 글당 개수 한도는 관리자 설정 member_media) */
+export const MAX_UPLOADS_PER_HOUR = 40;

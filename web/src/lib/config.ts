@@ -6,6 +6,8 @@
 // process.env 를 코드 곳곳에서 직접 읽지 않는다.
 // ============================================================
 
+import { taglineForTopic } from "./tagline";
+
 export async function getSecret(name: string): Promise<string> {
   // 전환 시: Secrets Manager GetSecretValue 로 교체 (캐시 포함)
   const v = process.env[name];
@@ -28,9 +30,12 @@ export function siteName(): string {
   return getOptionalEnv("NEXT_PUBLIC_SITE_NAME") ?? "펫라이프위드미";
 }
 
-/** 브랜드 태그라인 */
-export function siteTagline(): string {
-  return getOptionalEnv("NEXT_PUBLIC_SITE_TAGLINE") ?? "나와 함께한 행복한 인생, pet life with me";
+/**
+ * 브랜드 태그라인 — 기본 "반려동물의 행복한 삶, 나와 함께 - pet life with me", 놀이 토픽은 "즐거운 삶" (lib/tagline.ts).
+ * env 가 있으면 토픽과 무관하게 그 문구 하나만 쓴다.
+ */
+export function siteTagline(topic?: string | null): string {
+  return getOptionalEnv("NEXT_PUBLIC_SITE_TAGLINE") ?? taglineForTopic(topic);
 }
 
 /** 배포 URL. 미설정이면 로컬로 간주하고 전역 noindex 가드가 걸린다 (lib/seo.ts). */

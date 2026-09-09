@@ -1,7 +1,10 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useRef, useState } from "react";
 import { categoriesForTopic } from "@app/data";
+import type { UploadPolicy } from "@/lib/settings";
+import { HeroMediaSelect } from "@/components/media/hero-media-select";
+import { MediaToolbar } from "@/components/media/media-toolbar";
 import { saveGuideAction, type ActionState } from "../../../actions";
 import { SeoFields } from "../../../_components/seo-fields";
 import { UploadField } from "../../../_components/upload-field";
@@ -24,6 +27,7 @@ interface GuideValues {
   vetReviewerName: string | null;
   vetReviewedAt: string | null;
   heroImageKey: string | null;
+  heroMedia: string | null;
   seoTitle: string | null;
   seoDescription: string | null;
   ogImageKey: string | null;
@@ -36,6 +40,7 @@ export function GuideEditor({
   topicSlug,
   authorName,
   spotTypes,
+  policy,
 }: {
   guide: GuideValues;
   topicSlug: string;
@@ -43,9 +48,14 @@ export function GuideEditor({
   authorName?: string | null;
   /** 상단 디렉토리 배너로 고를 수 있는 공개 스팟 유형 */
   spotTypes: Array<{ slug: string; name: string }>;
+  /** 업로드 상한 (관리자: 시스템 상한 + 영상 길이 상한) */
+  policy: UploadPolicy;
 }) {
   const [state, formAction, pending] = useActionState<ActionState, FormData>(saveGuideAction, {});
   const categories = categoriesForTopic(topicSlug);
+  // 본문은 제어 컴포넌트 — 툴바가 커서 자리에 숏코드를 끼워 넣고, 대표 영상 목록이 본문을 따라간다
+  const [body, setBody] = useState(guide.bodyMd);
+  const bodyRef = useRef<HTMLTextAreaElement>(null);
 
   return (
     <form action={formAction} className="space-y-4">
@@ -137,7 +147,7 @@ export function GuideEditor({
         <p className="text-sm font-medium text-ink">큐레이션 콘텐츠</p>
         <p className="mt-0.5 text-xs text-ink-faint">
           토픽 페이지 맨 위 카드 그리드와 "큐레이션 전체 보기"에 나오는 글입니다. 운영진 글은 기본으로 켜져 있고, 회원 글은 여기서 켜야
-          올라갑니다(도전 게시판에는 그대로 남습니다). 순서를 준 글이 먼저, 나머지는 최신순 — 토픽당 순번 하나에 글 하나.
+          올라갑니다(일반 게시판에는 그대로 남습니다). 순서를 준 글이 먼저, 나머지는 최신순 — 토픽당 순번 하나에 글 하나.
         </p>
         <div className="mt-2 grid gap-3 sm:grid-cols-2">
           <label className="flex items-center gap-2 text-sm text-ink">
@@ -196,9 +206,21 @@ export function GuideEditor({
 
       <div>
         <label className="block text-sm font-medium text-ink" htmlFor="bodyMd">
-          본문 (마크다운 · 이미지는 {"{{image:키|대체텍스트|캡션}}"} — 미디어 탭에서 업로드 후 복사 · 외부 임베드는 {"{{youtube:ID|창작자|원본URL}}"})
+          본문 (마크다운 · 사진·영상은 아래 툴바로 올리면 커서 자리에 숏코드가 들어갑니다 · 미디어 탭의 숏코드를 붙여 넣어도 됩니다)
         </label>
-        <textarea id="bodyMd" name="bodyMd" rows={24} defaultValue={guide.bodyMd} className={`${input} font-mono text-xs leading-relaxed`} />
+        <div className="mt-2">
+          <MediaToolbar policy={policy} textareaRef={bodyRef} value={body} onChange={setBody} disabled={pending} />
+        </div>
+        <textarea
+          ref={bodyRef}
+          id="bodyMd"
+          name="bodyMd"
+          rows={24}
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+          className={`${input} font-mono text-xs leading-relaxed`}
+        />
+        <HeroMediaSelect body={body} defaultValue={guide.heroMedia} className="mt-3" />
       </div>
 
       {state.error && (

@@ -7,7 +7,9 @@ import { GuideCard } from "@/components/cards";
 import { CareEntryBanner } from "@/components/care/care-entry-banner";
 import { JsonLd } from "@/components/jsonld";
 import { MedicalNotice } from "@/components/notices";
+import { PlayFeed } from "@/components/play-feed";
 import { SeniorBodyMap, type MapPost } from "@/components/senior-body-map";
+import { memberBoardLabel } from "@/lib/boards";
 import { TOPIC_PHASE_LABEL } from "@/lib/format";
 import { getTopicBySlug, listGuidesForTopic } from "@/lib/queries/guides";
 import { buildMeta, itemListLd, robotsMeta } from "@/lib/seo";
@@ -44,12 +46,14 @@ export default async function TopicPage({ params }: Props) {
   const topic = await getTopicBySlug(decodeURIComponent(cluster));
   if (!topic) notFound();
 
-  const { hub, curated, challenge, byCategory, all } = await listGuidesForTopic(topic.id);
+  const { hub, curated, feed, byCategory, all } = await listGuidesForTopic(topic.id);
   const style = topicStyle(topic.slug);
   const categories = categoriesForTopic(topic.slug);
   const categoryName = (slug: string | null) => categories.find((c) => c.slug === slug)?.name ?? null;
   // 정렬은 쿼리가 끝냈다 (lib/guide-order.ts): 큐레이션은 지정 순번 → 최신순.
   const isSenior = topic.slug === "senior-life";
+  // 놀이: 운영진·회원 글 전체를 영상 카드 피드로 (섬네일 + 호버 미리보기). 큐레이션·일반 게시판 페이지는 그대로 있다.
+  const isPlay = topic.slug === "play";
   const postsByCategory: Record<string, MapPost[]> = {};
   for (const [slug, list] of byCategory) {
     postsByCategory[slug] = list.map((i) => ({ slug: i.guide.slug, title: i.guide.title, summary: i.guide.summary, authorName: i.authorName }));
@@ -64,13 +68,42 @@ export default async function TopicPage({ params }: Props) {
           {TOPIC_PHASE_LABEL[topic.phase] ?? topic.phase}
         </span>
         <p className="mt-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-faint">
-          Long Live Petlifewithme · Curated Content
+          {isPlay ? "Long Live Petlifewithme · Play Feed" : "Long Live Petlifewithme · Curated Content"}
         </p>
         <h1 className={`mt-1 text-3xl font-extrabold tracking-tight ${style.heading}`}>{topic.name}</h1>
         <p className="mt-3 text-ink-soft">{topic.description}</p>
       </header>
 
+      {isPlay && (
+        <section className="mt-8" aria-labelledby="feed-heading">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p id="feed-heading" className="text-xs text-ink-faint">
+              운영진과 회원이 올린 영상·글 {feed.length}편 · 마우스를 올리면 미리 보이고, 누르면 글로 갑니다
+            </p>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+              <Link href={`/write?topic=${encodeURIComponent(topic.slug)}`} className="rounded-full bg-ink px-4 py-1.5 text-xs font-medium text-cream hover:opacity-90">
+                + 영상·글 올리기
+              </Link>
+              <Link href={`/topic/${topic.slug}/curated`} className="font-medium text-sea hover:underline">
+                큐레이션 →
+              </Link>
+              <Link href={`/topic/${topic.slug}/challenge`} className="font-medium text-sea hover:underline">
+                {memberBoardLabel(topic.slug, topic.name)} →
+              </Link>
+            </div>
+          </div>
+          <div className="mt-4">
+            {feed.length === 0 ? (
+              <p className="rounded-xl border border-dashed border-line p-8 text-center text-sm text-ink-faint">아직 글이 없습니다. 첫 영상을 올려 주세요.</p>
+            ) : (
+              <PlayFeed posts={feed} />
+            )}
+          </div>
+        </section>
+      )}
+
       {/* 큐레이션 콘텐츠 — 운영진이 발행하거나 골라 올린 글. 지정 순번 → 최신순, 넘치는 글은 전체 목록으로 (LATEST_ON_TOPIC) */}
+      {!isPlay && (
       <section className="mt-8" aria-labelledby="curated-heading">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <p id="curated-heading" className="text-xs text-ink-faint">
@@ -99,6 +132,7 @@ export default async function TopicPage({ params }: Props) {
           </div>
         )}
       </section>
+      )}
 
       {/* 신체 지도 — 노견생활 전용. 카테고리 정의는 data/src/guides/categories.ts */}
       {isSenior && categories.length > 0 && (
@@ -110,18 +144,6 @@ export default async function TopicPage({ params }: Props) {
           <SeniorBodyMap areas={categories} postsByCategory={postsByCategory} topicSlug={topic.slug} />
         </section>
       )}
-
-      {/* 도전 게시판 — 회원이 쓴 글만 모아 보는 별도 게시판 (큐레이션과 다른 곳) */}
-      <Link
-        href={`/topic/${topic.slug}/challenge`}
-        className="mt-8 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-line bg-surface px-5 py-4 transition-shadow hover:shadow-md"
-      >
-        <span>
-          <span className="block text-base font-bold text-ink">도전 게시판</span>
-          <span className="mt-0.5 block text-xs text-ink-soft">보호자들이 직접 쓴 글 {challenge.length}편 · 회원이면 누구나 씁니다</span>
-        </span>
-        <span className="text-sm font-medium text-sea">보러 가기 →</span>
-      </Link>
 
       {isSenior && categories.length > 0 && (
         <nav aria-label="부위별 게시판" className="mt-5 flex flex-wrap items-center gap-1.5 text-xs">

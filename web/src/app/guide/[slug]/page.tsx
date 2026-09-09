@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Breadcrumbs } from "@/components/breadcrumbs";
+import { TopicTagline } from "@/components/site-tagline";
 import { GuideCard } from "@/components/cards";
-import { EntityTagPanels } from "@/components/entity-panels";
+import { EntityTagPanels, hasEntityTags } from "@/components/entity-panels";
 import { InstagramEmbedScript } from "@/components/instagram-script";
 import { JsonLd } from "@/components/jsonld";
 import { CommentSection } from "@/components/comments";
@@ -78,9 +79,14 @@ export default async function GuidePage({ params }: Props) {
   const showDisclosure = rendered.hasAffiliateLinks || tags.hasAffiliateOffers;
   const style = topicStyle(topic.slug);
   const hub = topicGuides.hub && topicGuides.hub.id !== guide.id ? topicGuides.hub : null;
+  // 놀이 글: 태그된 상품·브랜드(제품 링크·홈페이지)·장소·기기를 본문 오른쪽 고정 패널로 (모바일은 본문 아래)
+  const sideTags = topic.slug === "play" && hasEntityTags(tags);
 
   return (
-    <article className="mx-auto max-w-3xl px-4 py-10">
+    <div className={sideTags ? "mx-auto grid max-w-6xl gap-8 px-4 py-10 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start" : ""}>
+    <article className={sideTags ? "min-w-0 max-w-3xl" : "mx-auto max-w-3xl px-4 py-10"}>
+      {/* 머리글·푸터 태그라인에 이 글의 토픽을 알린다 (놀이 → "즐거운 삶") */}
+      <TopicTagline topic={topic.slug} />
       <Breadcrumbs
         crumbs={[
           { name: "홈", path: "/" },
@@ -155,7 +161,7 @@ export default async function GuidePage({ params }: Props) {
         </div>
       )}
 
-      {(tags.items.length > 0 || tags.spots.length > 0 || tags.makers.length > 0 || tags.devices.length > 0) && (
+      {hasEntityTags(tags) && !sideTags && (
         <div className="mt-10 border-t border-line pt-8">
           <EntityTagPanels tags={tags} />
         </div>
@@ -201,5 +207,14 @@ export default async function GuidePage({ params }: Props) {
       />
       {rendered.hasInstagramEmbed && <InstagramEmbedScript />}
     </article>
+    {sideTags && (
+      <aside aria-label="이 글의 상품·브랜드·장소" className="lg:sticky lg:top-20">
+        <div className="rounded-2xl border border-line bg-cream/60 p-4">
+          <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint">In this post</p>
+          <EntityTagPanels tags={tags} compact />
+        </div>
+      </aside>
+    )}
+    </div>
   );
 }

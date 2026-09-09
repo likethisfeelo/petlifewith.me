@@ -20,7 +20,7 @@ export async function guideRelatedPaths(guideId: number): Promise<string[]> {
   return paths;
 }
 
-// 돌봄 파트너 하나가 바뀌면(노출 ON/OFF·지역 변경) 유형 허브·지역 페이지·개별 페이지를 다시 만든다.
+// 돌봄 파트너 하나가 바뀌면(노출 ON/OFF·지역 변경) 유형 허브·시도·지역 허브·지역x유형·개별 페이지를 다시 만든다.
 const { spots, spotTypes, regions, spotServiceAreas } = schema;
 
 export async function careRelatedPaths(spotId: number): Promise<string[]> {
@@ -39,9 +39,16 @@ export async function careRelatedPaths(spotId: number): Promise<string[]> {
     .from(spotServiceAreas)
     .innerJoin(regions, eq(spotServiceAreas.regionId, regions.id))
     .where(eq(spotServiceAreas.spotId, spotId));
+  // 시도 페이지(유형 칩 배지)와 지역 허브(유형 분포)도 서비스 지역 기준으로 돌봄 수를 보여 준다
   return [
-    `/spot/type/${row.typeSlug}`,
-    `/place/${row.id}-${row.slug}`,
-    ...areas.map((a) => `/spot/${a.sidoSlug}/${a.sigunguSlug}/${row.typeSlug}`),
+    ...new Set([
+      `/spot/type/${row.typeSlug}`,
+      `/place/${row.id}-${row.slug}`,
+      ...areas.flatMap((a) => [
+        `/spot/${a.sidoSlug}`,
+        `/spot/${a.sidoSlug}/${a.sigunguSlug}`,
+        `/spot/${a.sidoSlug}/${a.sigunguSlug}/${row.typeSlug}`,
+      ]),
+    ]),
   ];
 }

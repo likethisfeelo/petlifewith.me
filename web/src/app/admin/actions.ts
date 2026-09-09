@@ -8,11 +8,22 @@ import { getDb, isDbConfigured, schema } from "@/lib/db";
 import { getSession, loginWithToken, logout } from "@/lib/auth";
 import { MAX_EXPOSED_PER_AREA, categoriesForTopic, slugify } from "@app/data";
 import { isValidObjectKey } from "@/lib/assets";
+import { parseMediaRef, sameRef, videoEmbeds } from "@/lib/media-ref";
 import { parseAreaOrder, parseCuratedOrder } from "@/lib/guide-order";
 import { careRelatedPaths, guideRelatedPaths } from "@/lib/revalidate-paths";
 import { countExposedInArea } from "@/lib/queries/care";
 
 const { guides, topics, users, comments, claims, spots, spotTypes, guideItemTags, guideSpotTags, guideMakerTags, promotions, spotServiceAreas, bookingRequests } = schema;
+
+/** 대표 영상(hero_media) — 형식이 맞고 본문에 있는 영상만. 비우면 자동(본문 첫 영상) */
+function readHeroMedia(formData: FormData, bodyMd: string): { error?: string; heroMedia: string | null } {
+  const raw = String(formData.get("heroMedia") ?? "").trim();
+  if (!raw) return { heroMedia: null };
+  const ref = parseMediaRef(raw);
+  if (!ref) return { error: "대표 영상 값이 올바르지 않습니다.", heroMedia: null };
+  if (!videoEmbeds(bodyMd).some((e) => sameRef(e.ref, ref))) return { error: "대표 영상은 본문에 넣은 영상 가운데 골라야 합니다.", heroMedia: null };
+  return { heroMedia: raw };
+}
 
 type GuideStatus = "draft" | "review_pending" | "published" | "archived" | "pending";
 const GUIDE_STATUSES: readonly GuideStatus[] = ["draft", "review_pending", "published", "archived", "pending"];
@@ -144,6 +155,10 @@ export async function saveGuideAction(_prev: ActionState, formData: FormData): P
   if (ogImageKey && !isValidObjectKey(ogImageKey)) return { error: "OG 이미지 키가 올바르지 않습니다." };
   if (heroImageKey && !isValidObjectKey(heroImageKey)) return { error: "대표 이미지 키가 올바르지 않습니다." };
 
+  const bodyMd = String(formData.get("bodyMd") ?? existing.bodyMd);
+  const hero = readHeroMedia(formData, bodyMd);
+  if (hero.error) return { error: hero.error };
+
   const publishedAt = status === "published" ? (existing.publishedAt ?? new Date()) : existing.publishedAt;
 
   await db
@@ -151,7 +166,8 @@ export async function saveGuideAction(_prev: ActionState, formData: FormData): P
     .set({
       title: String(formData.get("title") ?? existing.title).trim() || existing.title,
       summary: String(formData.get("summary") ?? "").trim() || null,
-      bodyMd: String(formData.get("bodyMd") ?? existing.bodyMd),
+      bodyMd,
+      heroMedia: hero.heroMedia,
       spokeGroup: String(formData.get("spokeGroup") ?? "").trim() || null,
       role: formData.get("role") === "hub" ? "hub" : "spoke",
       category: cat.category,
@@ -229,6 +245,9 @@ export async function createGuideAction(_prev: ActionState, formData: FormData):
   }
   const cat = await readCategory(db, formData, topicId);
   if (cat.error) return { error: cat.error };
+  const bodyMd = String(formData.get("bodyMd") ?? "");
+  const hero = readHeroMedia(formData, bodyMd);
+  if (hero.error) return { error: hero.error };
 
   const inserted = await db
     .insert(guides)
@@ -236,7 +255,8 @@ export async function createGuideAction(_prev: ActionState, formData: FormData):
       slug,
       title,
       summary: String(formData.get("summary") ?? "").trim() || null,
-      bodyMd: String(formData.get("bodyMd") ?? ""),
+      bodyMd,
+      heroMedia: hero.heroMedia,
       topicId,
       // 운영진이 쓴 글은 큐레이션 콘텐츠가 기본 (편집 화면에서 끌 수 있다)
       curated: true,

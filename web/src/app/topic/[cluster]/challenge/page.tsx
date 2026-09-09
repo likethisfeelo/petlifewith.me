@@ -1,15 +1,16 @@
-// 도전 게시판 — 회원이 직접 쓴 글만 모아 보는 별도 게시판.
+// 일반 게시판(노견생활은 "일반 - 노령견 생활 공유 게시판") — 회원이 직접 쓴 글만 모아 보는 별도 게시판.
 // 별도 테이블이 아니라 "글쓴이가 회원인가"(guides.author_user_id) 로 가른다. 글은 카테고리(부위)로 분류되지만
 // 노출은 큐레이션 콘텐츠·부위별 게시판과 다른 게시판처럼 한다. 운영진이 골라 큐레이션에 올려도 여기에는 그대로 남는다.
-// 순위·추천 없이 최신순. 회원 글은 승인(published) 뒤에만 보인다.
+// 순위·추천 없이 최신순. 회원 글은 승인(published) 뒤에만 보인다. 주소(/challenge)는 처음 이름(도전 게시판) 그대로다.
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Breadcrumbs } from "@/components/breadcrumbs";
+import { ChallengeBoardList } from "@/components/challenge-board";
 import { JsonLd } from "@/components/jsonld";
 import { MedicalNotice } from "@/components/notices";
 import { categoriesForTopic } from "@app/data";
-import { formatDate } from "@/lib/format";
+import { MEMBER_BOARD_KIND, memberBoardLabel, memberBoardName } from "@/lib/boards";
 import { countCommentsByGuides } from "@/lib/queries/comments";
 import { getTopicBySlug, listGuidesForTopic } from "@/lib/queries/guides";
 import { buildMeta, itemListLd, robotsMeta, shouldIndexBoard } from "@/lib/seo";
@@ -38,8 +39,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!found) return { robots: robotsMeta(false) };
   const { topic, posts } = found;
   return buildMeta({
-    title: `${topic.name} 도전 게시판 — 보호자들이 직접 쓴 글`,
-    description: `${topic.name} 클러스터의 회원 글 ${posts.length}편. 보호자들이 직접 해 본 것과 물어보는 것.`,
+    title: memberBoardLabel(topic.slug, topic.name),
+    description: `${topic.name} 보호자들이 직접 쓴 글 ${posts.length}편. 해 본 것과 물어보는 것을 나누는 회원 게시판.`,
     path: `/topic/${topic.slug}/challenge`,
     indexable: shouldIndexBoard(posts.length),
   });
@@ -51,6 +52,8 @@ export default async function TopicChallengePage({ params }: Props) {
   if (!found) notFound();
   const { topic, posts } = found;
   const style = topicStyle(topic.slug);
+  const boardName = memberBoardName(topic.slug, topic.name);
+  const boardLabel = memberBoardLabel(topic.slug, topic.name);
   const categories = categoriesForTopic(topic.slug);
   const categoryName = (slug: string | null) => categories.find((c) => c.slug === slug)?.name ?? null;
   const commentCounts = await countCommentsByGuides(posts.map((p) => p.guide.id));
@@ -62,15 +65,17 @@ export default async function TopicChallengePage({ params }: Props) {
         crumbs={[
           { name: "홈", path: "/" },
           { name: topic.name, path: `/topic/${topic.slug}` },
-          { name: "도전 게시판", path: `/topic/${topic.slug}/challenge` },
+          { name: boardLabel, path: `/topic/${topic.slug}/challenge` },
         ]}
       />
 
       <header className="mt-6 flex flex-wrap items-end justify-between gap-4">
         <div className="max-w-3xl">
           <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${style.chip}`}>{topic.name}</span>
-          <h1 className={`mt-3 text-3xl font-extrabold tracking-tight ${style.heading}`}>
-            도전 게시판 <span className="text-lg font-bold text-ink-soft">보호자들이 직접 쓴 글</span>
+          <h1 className={`mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-3xl font-extrabold tracking-tight ${style.heading}`}>
+            <span className="rounded-md bg-ink px-2 py-0.5 text-base font-bold text-cream">{MEMBER_BOARD_KIND}</span>
+            <span>{boardName}</span>
+            <span className="text-lg font-bold text-ink-soft">보호자들이 직접 쓴 글</span>
           </h1>
           <p className="mt-3 text-ink-soft">
             회원이면 누구나 씁니다. 해 본 것, 잘 안 된 것, 물어보고 싶은 것을 남겨 주세요. 운영진이 확인한 뒤 공개되고, 좋은 글은
@@ -86,34 +91,9 @@ export default async function TopicChallengePage({ params }: Props) {
         <p className="text-xs text-ink-faint">
           {posts.length > 0 ? `${posts.length}편 · 최신순` : ""} 진단·처방 단정과 광고는 숨김 처리됩니다. 댓글은 각 글에서 남깁니다.
         </p>
-        {posts.length === 0 ? (
-          <div className="mt-4 rounded-xl border border-dashed border-line p-8 text-center text-sm text-ink-faint">
-            아직 글이 없습니다. 첫 글을 남겨 주세요.
-          </div>
-        ) : (
-          <ul className="mt-3 divide-y divide-line rounded-2xl border border-line bg-surface">
-            {posts.map(({ guide, authorName }) => {
-              const comments = commentCounts.get(guide.id) ?? 0;
-              const category = categoryName(guide.category);
-              return (
-                <li key={guide.id}>
-                  <Link href={`/guide/${guide.slug}`} className="group flex flex-col gap-1 px-5 py-4 hover:bg-sand/50">
-                    <div className="flex flex-wrap items-center gap-2 text-xs">
-                      {category && <span className="rounded-full bg-sand px-2 py-0.5 font-medium text-ink-soft">{category}</span>}
-                      {guide.curated && <span className="rounded-full bg-sea-soft px-2 py-0.5 font-medium text-sea">큐레이션 선정</span>}
-                      <span className="text-ink-faint">{authorName ?? "회원"}</span>
-                    </div>
-                    <h2 className="text-base font-bold leading-snug text-ink group-hover:underline">{guide.title}</h2>
-                    {guide.summary && <p className="line-clamp-2 text-sm text-ink-soft">{guide.summary}</p>}
-                    <p className="text-xs text-ink-faint">
-                      {formatDate(guide.publishedAt)} · 댓글 {comments}
-                    </p>
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        )}
+        <div className="mt-3">
+          <ChallengeBoardList posts={posts} commentCounts={commentCounts} categoryName={categoryName} />
+        </div>
       </section>
 
       <p className="mt-8 flex flex-wrap gap-x-4 gap-y-1 text-sm">
@@ -134,7 +114,7 @@ export default async function TopicChallengePage({ params }: Props) {
       {posts.length > 0 && (
         <JsonLd
           data={itemListLd({
-            name: `${topic.name} 도전 게시판`,
+            name: `${topic.name} ${boardLabel}`,
             items: posts.map((p) => ({ name: p.guide.title, path: `/guide/${p.guide.slug}` })),
           })}
         />

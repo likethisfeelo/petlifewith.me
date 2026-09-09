@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { getDb, isDbConfigured, schema } from "@/lib/db";
 import { getGuideEntityTags } from "@/lib/queries/guides";
+import { getMemberMediaSettings } from "@/lib/queries/settings";
+import { uploadPolicyFor } from "@/lib/settings";
 import { GuideEditor } from "./guide-editor";
 import { TagManager, type ExistingTag, type TagOption } from "./tag-manager";
 
@@ -82,6 +84,7 @@ export default async function AdminGuideEditPage({ params, searchParams }: Props
       <div className="mt-5 grid gap-6 lg:grid-cols-[1fr_20rem]">
         <div className="rounded-xl border border-line bg-surface p-4">
           <GuideEditor
+            policy={uploadPolicyFor("admin", await getMemberMediaSettings())}
             topicSlug={topicSlug}
             authorName={authorName}
             spotTypes={typeRows}
@@ -103,6 +106,7 @@ export default async function AdminGuideEditPage({ params, searchParams }: Props
               vetReviewerName: guide.vetReviewerName,
               vetReviewedAt: guide.vetReviewedAt,
               heroImageKey: guide.heroImageKey,
+              heroMedia: guide.heroMedia,
               seoTitle: guide.seoTitle,
               seoDescription: guide.seoDescription,
               ogImageKey: guide.ogImageKey,
