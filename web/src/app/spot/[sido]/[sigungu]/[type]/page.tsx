@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { carePersonLabel, isCareType } from "@app/data";
-import Link from "next/link";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { SpotCard } from "@/components/cards";
 import { CareAreaSlots } from "@/components/care/care-slots";
 import { SpotDirectory } from "@/components/spot/spot-directory";
-import { countIndexableCareProviders, listCareProvidersInArea, listCareRegions } from "@/lib/queries/care";
+import { CARE_INTRO, countProvidersByRegion, countProvidersBySido, providersInArea } from "@/lib/care";
+import { countIndexableCareProviders, listCareProviders, listCareRegions } from "@/lib/queries/care";
 import { JsonLd } from "@/components/jsonld";
 import { RememberRegion } from "@/components/region-banner";
 import { B2BNote, PharmacyNote } from "@/components/notices";
@@ -67,15 +67,22 @@ export default async function RegionTypePage({ params }: Props) {
   ]);
   if (!region || !spotType) notFound();
   const basePath = `/spot/${region.sidoSlug}/${region.sigunguSlug}`;
+  const remember = { sidoSlug: region.sidoSlug, sigunguSlug: region.sigunguSlug, label: `${region.sidoName} ${region.sigunguName}` };
 
-  // 돌봄 파트너: 주소가 아니라 서비스 지역 기준 — 이 지역의 5자리
+  // 돌봄 파트너: 주소가 아니라 서비스 지역 기준 — 이 지역의 5자리. 시설과 같은 셸(좌측 지도, 이 지역 강조)이고
+  // 지도 배지는 유형 전체의 노출 중 파트너 수라 다른 구를 누르면 그 지역 페이지로 간다 (SEO 페이지 = 지도 페이지).
   if (isCareType(spotType.slug)) {
     const person = carePersonLabel(spotType.slug);
-    const [providers, regions] = await Promise.all([listCareProvidersInArea(spotType.id, region.id), listCareRegions()]);
+    const [providers, regions] = await Promise.all([listCareProviders(spotType.id), listCareRegions()]);
+    const inArea = providersInArea(providers, region.id);
+    const countsByRegion = countProvidersByRegion(providers);
+    const countsBySido = countProvidersBySido(providers, regions);
     const regionNameById = Object.fromEntries(regions.map((r) => [r.id, r.sigunguName]));
+    // 구조화 데이터에는 가상의 예시를 넣지 않는다
+    const realProviders = inArea.filter((p) => p.source !== "sample");
     return (
-      <div className="mx-auto max-w-3xl px-4 py-10">
-        <RememberRegion region={{ sidoSlug: region.sidoSlug, sigunguSlug: region.sigunguSlug, label: `${region.sidoName} ${region.sigunguName}` }} />
+      <div className="mx-auto max-w-6xl px-4 py-10">
+        <RememberRegion region={remember} />
         <Breadcrumbs
           crumbs={[
             { name: "홈", path: "/" },
@@ -85,14 +92,44 @@ export default async function RegionTypePage({ params }: Props) {
             { name: spotType.name, path: `${basePath}/${spotType.slug}` },
           ]}
         />
-        <div className="mt-6">
-          <CareAreaSlots personLabel={person} region={region} providers={providers} regionNameById={regionNameById} />
-        </div>
-        <p className="mt-6 text-sm">
-          <Link href={`/spot/type/${spotType.slug}#${region.sidoSlug}/${region.sigunguSlug}`} className="font-medium text-sea hover:underline">
-            ← 지도에서 다른 지역 보기
-          </Link>
+
+        <h1 className="mt-6 text-3xl font-extrabold tracking-tight text-ink">
+          {region.sigunguName} <span className="text-sea">{person}</span>
+        </h1>
+        <p className="mt-2 max-w-3xl text-sm leading-relaxed text-ink-soft">
+          {CARE_INTRO[spotType.slug] ?? `${person}를 지역별로 찾습니다.`} 지역마다 5자리. 예약 신청을 남기면 운영자가 확인해 연결하고,
+          카카오톡 채널이 있는 파트너는 바로 상담할 수 있습니다.
         </p>
+
+        <div className="mt-8">
+          <SpotDirectory
+            regions={regions}
+            countsByRegion={countsByRegion}
+            countsBySido={countsBySido}
+            total={providers.length}
+            unit="명"
+            selectedSido={region.sidoSlug}
+            selectedRegionId={region.id}
+            typeSlug={spotType.slug}
+            mapTitle={`${person} 지역 지도`}
+          >
+            <CareAreaSlots personLabel={person} region={region} providers={inArea} regionNameById={regionNameById} />
+          </SpotDirectory>
+        </div>
+
+        <p className="mt-6 text-xs text-ink-faint">
+          파트너 정보는 직접 확인과 등록 신청을 바탕으로 하며, 순위·평점을 매기지 않습니다. 개인 사업자의 상세 주소는 싣지 않고 활동
+          지역(시군구)만 표기합니다.
+        </p>
+
+        {realProviders.length > 0 && (
+          <JsonLd
+            data={itemListLd({
+              name: `${region.sigunguName} ${person}`,
+              items: realProviders.map((p) => ({ name: p.name, path: idSlugPath("place", p.id, p.slug) })),
+            })}
+          />
+        )}
       </div>
     );
   }
@@ -106,13 +143,7 @@ export default async function RegionTypePage({ params }: Props) {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10">
-      <RememberRegion
-        region={{
-          sidoSlug: region.sidoSlug,
-          sigunguSlug: region.sigunguSlug,
-          label: `${region.sidoName} ${region.sigunguName}`,
-        }}
-      />
+      <RememberRegion region={remember} />
       <Breadcrumbs
         crumbs={[
           { name: "홈", path: "/" },

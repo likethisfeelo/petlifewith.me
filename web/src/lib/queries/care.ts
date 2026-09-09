@@ -6,9 +6,10 @@
 // 지역 x 유형당 자리는 MAX_EXPOSED_PER_AREA(5) — 관리자 액션이 강제한다.
 // ============================================================
 import { and, asc, eq, inArray, ne, sql } from "drizzle-orm";
+import { CARE_TYPE_SLUGS } from "@app/data";
 import { getDb, isDbConfigured, schema } from "../db";
 import { plainExcerpt, providersInArea, type CareArea, type CareProvider, type CareRegion } from "../care";
-import { listRegionTiles } from "./spots";
+import { listRegionTiles, type RegionTypeCount } from "./spots";
 
 const { spots, spotTypes, regions, spotLinks, spotServiceAreas } = schema;
 
@@ -93,6 +94,61 @@ export async function listCareProviders(typeId: number, opts?: { includeHidden?:
 
 export async function listCareProvidersInArea(typeId: number, regionId: number): Promise<CareProvider[]> {
   return providersInArea(await listCareProviders(typeId), regionId);
+}
+
+export interface CareRegionCount extends RegionTypeCount {
+  regionId: number;
+  sortOrder: number;
+}
+
+/**
+ * 시군구 x 돌봄 유형별 노출 중 파트너 수 — 주소가 아니라 서비스 지역(spot_service_areas) 기준.
+ * 시설 집계(spots.region_id)는 돌봄 유형을 빼므로(queries/spots.ts) 시도 페이지 칩·지역 허브 분포는 이 결과를 합친다.
+ * sidoSlug 를 주면 그 시도만, regionId 를 주면 그 지역만. 영업 중 + 노출 ON 만 센다 (예시 포함 — 화면용).
+ */
+export async function listCareCountsByRegion(filter?: { sidoSlug?: string; regionId?: number }): Promise<CareRegionCount[]> {
+  if (!isDbConfigured()) return [];
+  const conds = [eq(spots.status, "operating"), eq(spotServiceAreas.exposed, true), inArray(spotTypes.slug, [...CARE_TYPE_SLUGS])];
+  if (filter?.sidoSlug) conds.push(eq(regions.sidoSlug, filter.sidoSlug));
+  if (filter?.regionId) conds.push(eq(spotServiceAreas.regionId, filter.regionId));
+  return getDb()
+    .select({
+      regionId: spotServiceAreas.regionId,
+      typeId: spotTypes.id,
+      typeName: spotTypes.name,
+      typeSlug: spotTypes.slug,
+      listed: spotTypes.listed,
+      sortOrder: spotTypes.sortOrder,
+      count: sql<number>`count(*)`.mapWith(Number),
+    })
+    .from(spotServiceAreas)
+    .innerJoin(spots, eq(spotServiceAreas.spotId, spots.id))
+    .innerJoin(spotTypes, eq(spots.typeId, spotTypes.id))
+    .innerJoin(regions, eq(spotServiceAreas.regionId, regions.id))
+    .where(and(...conds))
+    .groupBy(spotServiceAreas.regionId, spotTypes.id, spotTypes.name, spotTypes.slug, spotTypes.listed, spotTypes.sortOrder)
+    .orderBy(asc(spotTypes.sortOrder));
+}
+
+/** 한 시도의 돌봄 유형별 노출 중 파트너 수 — 사람 수 기준 (여러 구를 맡아도 1). 시도 페이지 칩의 시도 배지·요약용 */
+export async function listCareSidoTotals(sidoSlug: string): Promise<Record<string, number>> {
+  if (!isDbConfigured()) return {};
+  const rows = await getDb()
+    .select({ typeSlug: spotTypes.slug, count: sql<number>`count(distinct ${spots.id})`.mapWith(Number) })
+    .from(spotServiceAreas)
+    .innerJoin(spots, eq(spotServiceAreas.spotId, spots.id))
+    .innerJoin(spotTypes, eq(spots.typeId, spotTypes.id))
+    .innerJoin(regions, eq(spotServiceAreas.regionId, regions.id))
+    .where(
+      and(
+        eq(regions.sidoSlug, sidoSlug),
+        eq(spots.status, "operating"),
+        eq(spotServiceAreas.exposed, true),
+        inArray(spotTypes.slug, [...CARE_TYPE_SLUGS]),
+      ),
+    )
+    .groupBy(spotTypes.slug);
+  return Object.fromEntries(rows.map((r) => [r.typeSlug, r.count]));
 }
 
 /** 지역 x 유형의 노출 중인 파트너 수 (관리자 자리 검사 — excludeSpotId 로 자기 자신은 뺀다) */

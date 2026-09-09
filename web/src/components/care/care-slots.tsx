@@ -2,6 +2,7 @@
 
 // 한 지역의 돌봄 파트너 자리 — 지역마다 MAX_EXPOSED_PER_AREA(5) 칸. 채워진 칸은 파트너 카드,
 // 빈 칸은 "비어있습니다" 로 두어 등록 여지를 보여 준다. 순위·평점 없음 — 순서는 운영자 정렬값.
+// 지역x유형 페이지(/spot/시도/시군구/pet-sitter 등)가 스팟 디렉토리 셸의 우측 패널로 그린다.
 import Link from "next/link";
 import { MAX_EXPOSED_PER_AREA } from "@app/data";
 import type { CareProvider, CareRegion } from "@/lib/care";
@@ -71,14 +72,11 @@ export function CareAreaSlots({
   region,
   providers,
   regionNameById,
-  areaHref,
 }: {
   personLabel: string;
   region: CareRegion;
   providers: CareProvider[];
   regionNameById: Record<number, string>;
-  /** 이 지역만 보는 페이지 주소 (허브에서 공유용 링크로 쓴다) */
-  areaHref?: string;
 }) {
   const slots = Array.from({ length: MAX_EXPOSED_PER_AREA }, (_, i) => providers[i] ?? null);
   return (
@@ -90,11 +88,6 @@ export function CareAreaSlots({
         <span className="text-xs font-medium text-ink-faint">
           {providers.length}/{MAX_EXPOSED_PER_AREA} 자리
         </span>
-        {areaHref && (
-          <Link href={areaHref} className="ml-auto text-xs font-medium text-sea hover:underline">
-            이 지역 페이지 →
-          </Link>
-        )}
       </header>
       <ol className="mt-3 space-y-3">
         {slots.map((p, i) =>

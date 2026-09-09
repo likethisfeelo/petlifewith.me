@@ -3,11 +3,13 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { carePersonLabel, isCareType } from "@app/data";
 import { Breadcrumbs } from "@/components/breadcrumbs";
-import { CareDirectory } from "@/components/care/care-directory";
+import { RegionSuggestBanner } from "@/components/region-banner";
 import { SpotDirectory } from "@/components/spot/spot-directory";
 import { B2BNote, PharmacyNote } from "@/components/notices";
+import { CARE_INTRO, countProvidersByRegion, countProvidersBySido, primaryArea, type CareRegion } from "@/lib/care";
 import { countIndexableCareProviders, listCareProviders, listCareRegions } from "@/lib/queries/care";
 import { countIndexableSpotsForType, getSpotTypeBySlug, listRegionCountsForType, listRegionTiles } from "@/lib/queries/spots";
+import { regionHref } from "@/lib/regions";
 import { buildMeta, robotsMeta, shouldIndexRegionPage } from "@/lib/seo";
 import { formatNumber } from "@/lib/format";
 
@@ -156,17 +158,31 @@ export default async function SpotTypeHubPage({ params }: Props) {
   );
 }
 
-/** 돌봄 유형별 첫 문장 — 무엇을 하는 사람인지 한 줄로 */
-const CARE_INTRO: Record<string, string> = {
-  "pet-sitter": "보호자 집으로 와서 돌보는 방문 펫시터를 지역별로 찾습니다.",
-  "hourly-sitter": "몇 시간 자리를 비울 때 시터 집에 아이를 맡기는 시간제 시터를 지역별로 찾습니다.",
-  "dog-walk": "산책 대행·동행 도그워커를 지역별로 찾습니다.",
-};
-
-// 돌봄 파트너(펫시터·시간제 시터·펫산책): 주소가 아니라 서비스 지역으로 노출 — 좌측 지도, 우측 지역별 5자리
+// 돌봄 파트너(펫시터·시간제 시터·도그워커): 주소가 아니라 서비스 지역으로 노출.
+// 시설 디렉토리와 같은 셸 — 좌측 지도(배지는 노출 중 파트너 수), 시군구 타일은 지역x유형 페이지(5자리)로 가는 진짜 링크.
+// 우측은 파트너가 있는 시도·시군구 현황. 최근 본 지역이 있으면 그 지역 페이지로 가는 제안 배너를 띄운다.
 async function CareTypeHub({ spotType }: { spotType: NonNullable<Awaited<ReturnType<typeof getSpotTypeBySlug>>> }) {
   const person = carePersonLabel(spotType.slug);
   const [regions, providers] = await Promise.all([listCareRegions(), listCareProviders(spotType.id)]);
+  const countsByRegion = countProvidersByRegion(providers);
+  const countsBySido = countProvidersBySido(providers, regions);
+  const areaCount = Object.keys(countsByRegion).length;
+
+  // 우측 패널: 파트너가 있는 시도 → 시군구 칩 (지역x유형 페이지 링크). 시도는 사람 수 순
+  const groups = new Map<string, { sidoName: string; sidoSlug: string; areas: Array<{ region: CareRegion; n: number }> }>();
+  for (const r of regions) {
+    const n = countsByRegion[r.id] ?? 0;
+    if (n <= 0) continue;
+    const g = groups.get(r.sidoSlug) ?? { sidoName: r.sidoName, sidoSlug: r.sidoSlug, areas: [] };
+    g.areas.push({ region: r, n });
+    groups.set(r.sidoSlug, g);
+  }
+  const sidoGroups = [...groups.values()].sort((a, b) => (countsBySido[b.sidoSlug] ?? 0) - (countsBySido[a.sidoSlug] ?? 0));
+
+  // 처음 펼쳐 둘 시도: 첫 파트너의 1순위 지역이 있는 시도 (없으면 서울)
+  const first = primaryArea(providers[0]);
+  const openSido = (first && regions.find((r) => r.id === first.regionId)?.sidoSlug) || "seoul";
+
   return (
     <div className="mx-auto max-w-6xl px-4 py-10">
       <Breadcrumbs
@@ -181,7 +197,8 @@ async function CareTypeHub({ spotType }: { spotType: NonNullable<Awaited<ReturnT
       </h1>
       <p className="mt-2 max-w-3xl text-sm leading-relaxed text-ink-soft">
         {CARE_INTRO[spotType.slug] ?? `${person}를 지역별로 찾습니다.`} 서울·경기·광역시는 구 단위, 그 밖은 시·군 단위로 지역마다 5자리를 둡니다.{" "}
-        예약 신청을 남기면 운영자가 확인해 연결하고, 카카오톡 채널이 있는 파트너는 바로 상담할 수 있습니다.
+        지도에서 구·시·군을 누르면 그 지역의 {person} 페이지로 갑니다. 예약 신청을 남기면 운영자가 확인해 연결하고, 카카오톡 채널이 있는
+        파트너는 바로 상담할 수 있습니다.
       </p>
       <p className="mt-3 rounded-lg border border-line bg-sand/60 px-4 py-2.5 text-sm text-ink-soft">
         {person}로 활동하시나요? 지역별 자리는 무료이고 운영자 확인 후 노출됩니다 —{" "}
@@ -189,9 +206,61 @@ async function CareTypeHub({ spotType }: { spotType: NonNullable<Awaited<ReturnT
           등록·관리 안내
         </Link>
       </p>
+      <div className="mt-4">
+        <RegionSuggestBanner typeSlug={spotType.slug} />
+      </div>
 
       <div className="mt-8">
-        <CareDirectory typeSlug={spotType.slug} personLabel={person} regions={regions} providers={providers} />
+        <SpotDirectory
+          regions={regions}
+          countsByRegion={countsByRegion}
+          countsBySido={countsBySido}
+          total={providers.length}
+          unit="명"
+          selectedSido={openSido}
+          selectedRegionId={null}
+          typeSlug={spotType.slug}
+          mapTitle={`${person} 지역 지도`}
+        >
+          {sidoGroups.length === 0 ? (
+            <p className="rounded-xl border border-dashed border-line p-8 text-center text-sm text-ink-faint">
+              아직 노출 중인 {person}가 없습니다. 등록 신청을 받는 중입니다.
+            </p>
+          ) : (
+            <section aria-labelledby="care-areas-heading" className="rounded-2xl border border-line bg-surface p-5">
+              <h2 id="care-areas-heading" className="text-lg font-bold text-ink">
+                지역별 현황{" "}
+                <span className="text-sm font-medium text-ink-faint">
+                  {person} {providers.length}명 · 지역 {areaCount}곳 · 지역마다 5자리
+                </span>
+              </h2>
+              <p className="mt-1 text-xs text-ink-faint">지역을 누르면 그 지역의 {person} 자리(예약 신청·카카오톡 상담) 페이지로 갑니다.</p>
+              <ul className="mt-4 divide-y divide-line">
+                {sidoGroups.map((g) => (
+                  <li key={g.sidoSlug} className="py-3">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="font-semibold text-ink">{g.sidoName}</span>
+                      <span className="text-ink-faint">
+                        {countsBySido[g.sidoSlug] ?? 0}명 · {g.areas.length}개 지역
+                      </span>
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {g.areas.map(({ region, n }) => (
+                        <Link
+                          key={region.id}
+                          href={regionHref(region, spotType.slug)}
+                          className="rounded-full bg-sea-soft px-3 py-1 text-xs font-medium text-sea hover:bg-sea hover:text-white"
+                        >
+                          {region.sigunguName} {n}
+                        </Link>
+                      ))}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+        </SpotDirectory>
       </div>
 
       <p className="mt-10 text-xs text-ink-faint">

@@ -6,6 +6,7 @@ import { notFound } from "next/navigation";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { SpotDirectory, type TypeChip } from "@/components/spot/spot-directory";
 import { formatNumber } from "@/lib/format";
+import { listCareCountsByRegion, listCareSidoTotals } from "@/lib/queries/care";
 import { listRegionTiles, listSigunguSummaries, listSigunguTypeCounts } from "@/lib/queries/spots";
 import { buildMeta, robotsMeta } from "@/lib/seo";
 
@@ -36,10 +37,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function SidoPage({ params }: Props) {
   const { sido } = await params;
   const sidoSlug = decodeURIComponent(sido);
-  const [rows, regionTiles, typeCounts] = await Promise.all([
+  const [rows, regionTiles, typeCounts, careCounts, careSidoTotals] = await Promise.all([
     listSigunguSummaries(sidoSlug),
     listRegionTiles(),
     listSigunguTypeCounts(sidoSlug),
+    listCareCountsByRegion({ sidoSlug }), // 돌봄 파트너는 주소가 아니라 서비스 지역 기준
+    listCareSidoTotals(sidoSlug), // 시도 배지·요약은 사람 수 기준
   ]);
   if (rows.length === 0) notFound();
   const sidoName = rows[0]!.region.sidoName;
@@ -48,9 +51,10 @@ export default async function SidoPage({ params }: Props) {
   // 지도 배지("전체"): 이 시도의 시군구별 영업 중 스팟 수 (소비자 유형)
   const countsByRegion = Object.fromEntries(rows.map((r) => [r.region.id, r.spotCount]));
   // 유형 칩: 이 시도에 하나라도 있는 유형만, 유형 정렬 순서대로. 칩을 고르면 배지·타일 링크가 그 유형으로 바뀐다.
+  // 돌봄 유형(펫시터·시간제 시터·도그워커)의 배지는 노출 중 파트너 수 — 타일 링크는 그 지역의 5자리 페이지.
   const typeMap = new Map<string, TypeChip & { sortOrder: number; total: number }>();
   const countsByType: Record<string, Record<number, number>> = {};
-  for (const t of typeCounts) {
+  for (const t of [...typeCounts, ...careCounts]) {
     const entry = typeMap.get(t.typeSlug) ?? { slug: t.typeSlug, name: t.typeName, sortOrder: t.sortOrder, total: 0 };
     entry.total += t.count;
     typeMap.set(t.typeSlug, entry);
@@ -77,7 +81,12 @@ export default async function SidoPage({ params }: Props) {
         <SpotDirectory
           regions={regionTiles}
           countsByRegion={countsByRegion}
-          typeFilter={{ types: types.map(({ slug, name }) => ({ slug, name })), countsByType }}
+          typeFilter={{
+            types: types.map(({ slug, name }) => ({ slug, name })),
+            countsByType,
+            sidoTotals: careSidoTotals,
+            units: Object.fromEntries(Object.keys(careSidoTotals).map((slug) => [slug, "명"])),
+          }}
           selectedSido={sidoSlug}
           selectedRegionId={null}
           typeSlug={null}
@@ -116,7 +125,7 @@ export default async function SidoPage({ params }: Props) {
                     href={`/spot/type/${t.slug}`}
                     className="rounded-full bg-sea-soft px-3 py-1 text-sm font-medium text-sea hover:bg-sea hover:text-white"
                   >
-                    {t.name} <span className="opacity-80">{formatNumber(t.total)}</span>
+                    {t.name} <span className="opacity-80">{formatNumber(careSidoTotals[t.slug] ?? t.total)}</span>
                   </Link>
                 ))}
               </div>

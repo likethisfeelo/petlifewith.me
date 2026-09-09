@@ -6,6 +6,7 @@
 // 모든 지역 링크를 보고, 사람은 타일을 누르면 주소만 바뀌며 지도는 그대로 남는다(같은 라우트 사이의
 // 소프트 내비게이션은 이 컴포넌트를 다시 만들지 않는다). 브라우저에는 선택한 지역의 목록만 내려간다.
 // 시도 타일은 펼치기(클라이언트 상태)만 한다 — 시도x유형 페이지는 두지 않는다.
+// 돌봄 파트너(펫시터·시간제 시터·도그워커)도 같은 셸을 쓴다 — 배지는 서비스 지역 기준 사람 수("명").
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { CareMap } from "@/components/care/care-map";
 import { regionHref, sumBySido, type RegionTile } from "@/lib/regions";
@@ -20,11 +21,18 @@ export interface TypeFilter {
   types: TypeChip[];
   /** 유형 슬러그 → (지역 id → 수) */
   countsByType: Record<string, Record<number, number>>;
+  /** 유형 슬러그 → 이 시도의 합계를 직접 줄 때 (돌봄 파트너: 여러 구를 맡아도 1명). 없으면 시군구 수를 더한다 */
+  sidoTotals?: Record<string, number>;
+  /** 유형 슬러그 → 단위 (돌봄 파트너 "명"). 없으면 셸의 unit */
+  units?: Record<string, string>;
 }
 
 export function SpotDirectory({
   regions,
   countsByRegion,
+  countsBySido: sidoOverride,
+  total: totalOverride,
+  unit = "곳",
   typeFilter,
   selectedSido,
   selectedRegionId,
@@ -35,6 +43,14 @@ export function SpotDirectory({
   regions: RegionTile[];
   /** 지역별 배지 수 — 유형 페이지면 그 유형, 지역 허브면 전체 */
   countsByRegion: Record<number, number>;
+  /**
+   * 시도 배지·합계를 직접 줄 때 (돌봄 파트너: 한 사람이 여러 구를 맡아도 1명으로 센다).
+   * 없으면 시군구 배지를 더한다. typeFilter 와는 같이 쓰지 않는다.
+   */
+  countsBySido?: Record<string, number>;
+  total?: number;
+  /** 수 뒤에 붙는 단위 — 시설은 "곳", 돌봄 파트너는 "명" */
+  unit?: string;
   /** 시도 페이지의 유형 필터 — 칩을 고르면 배지와 타일 링크가 그 유형으로 바뀐다 */
   typeFilter?: TypeFilter;
   /** 처음 펼쳐 둘 시도 (지역 페이지는 그 지역의 시도) */
@@ -60,11 +76,22 @@ export function SpotDirectory({
     if (typeFilter && activeType && typeFilter.countsByType[activeType]) return typeFilter.countsByType[activeType]!;
     return countsByRegion;
   }, [typeFilter, activeType, countsByRegion]);
-  const countsBySido = useMemo(() => sumBySido(regions, counts), [regions, counts]);
+  // 유형 칩이 시도 합계를 따로 주면(돌봄 파트너) 그 시도의 배지·요약은 그 수를 쓴다
+  const chipSidoTotal = typeFilter && activeType ? typeFilter.sidoTotals?.[activeType] : undefined;
+  const countsBySido = useMemo(() => {
+    if (chipSidoTotal !== undefined && selectedSido) return { ...sumBySido(regions, counts), [selectedSido]: chipSidoTotal };
+    return sidoOverride ?? sumBySido(regions, counts);
+  }, [chipSidoTotal, selectedSido, sidoOverride, regions, counts]);
   const linkType = typeFilter ? activeType : typeSlug;
-  const total = useMemo(() => Object.values(counts).reduce((a, n) => a + n, 0), [counts]);
+  const activeUnit = (typeFilter && activeType ? typeFilter.units?.[activeType] : undefined) ?? unit;
   const openSidoName = openSido ? regions.find((r) => r.sidoSlug === openSido)?.sidoName ?? null : null;
   const openSidoTotal = openSido ? countsBySido[openSido] ?? 0 : 0;
+  const total = useMemo(() => {
+    if (totalOverride !== undefined) return totalOverride;
+    // 시도 페이지의 유형 칩은 그 시도만 세므로 "전국" 줄을 만들지 않는다
+    if (chipSidoTotal !== undefined) return openSidoTotal;
+    return Object.values(counts).reduce((a, n) => a + n, 0);
+  }, [totalOverride, chipSidoTotal, openSidoTotal, counts]);
 
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)] lg:items-start">
@@ -105,11 +132,20 @@ export function SpotDirectory({
           <p className="mb-3 text-xs text-ink-soft">
             {openSidoName ? (
               <>
-                <strong className="text-ink">{openSidoName}</strong> {openSidoTotal.toLocaleString("ko-KR")}곳
-                {total > openSidoTotal && <> · 전국 {total.toLocaleString("ko-KR")}곳</>}
+                <strong className="text-ink">{openSidoName}</strong> {openSidoTotal.toLocaleString("ko-KR")}
+                {activeUnit}
+                {total > openSidoTotal && (
+                  <>
+                    {" "}· 전국 {total.toLocaleString("ko-KR")}
+                    {activeUnit}
+                  </>
+                )}
               </>
             ) : (
-              <>전국 {total.toLocaleString("ko-KR")}곳 · 시도를 누르면 구·시·군이 펼쳐집니다</>
+              <>
+                전국 {total.toLocaleString("ko-KR")}
+                {activeUnit} · 시도를 누르면 구·시·군이 펼쳐집니다
+              </>
             )}
           </p>
           <CareMap
