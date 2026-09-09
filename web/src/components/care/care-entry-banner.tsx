@@ -1,6 +1,8 @@
 // 토픽 페이지 하단 돌봄 서비스 입구 — 두 줄: "직접 강아지와 함께 방문해요" / "집으로 오거나 집 근처에서".
 // 각 항목은 스팟 유형 디렉토리(/spot/type/[slug])로 간다. 커뮤니티 게시판이 아니라 업체·파트너 검색 입구다.
 // 유치원·데이케어는 같은 인허가 유형(동물위탁관리업 → boarding)이라 목적지가 같고, 문구만 다르다.
+// 두 줄을 가르는 기준은 "누가 이동하나" — 첫 줄은 아이가 가는 곳(시간제 시터는 시터 집에 맡긴다),
+// 둘째 줄은 사람이 오는 서비스(펫시터는 보호자 집으로 방문).
 import Link from "next/link";
 import { isCareType } from "@app/data";
 import { countIndexableCareProviders } from "@/lib/queries/care";
@@ -29,14 +31,14 @@ const GROUPS: EntryGroup[] = [
     items: [
       { key: "kindergarten", label: "유치원", typeSlug: "boarding", icon: "boarding", blurb: "정기 등원 · 낮 시간 프로그램" },
       { key: "daycare", label: "데이케어", typeSlug: "boarding", icon: "daycare", blurb: "당일 맡김 · 조용한 휴식 위주" },
-      { key: "hourly-sitter", label: "시간제 시터", typeSlug: "hourly-sitter", icon: "hourly-sitter", blurb: "주인 집으로 와서 시간 단위로 봐주는 사람", isNew: true },
+      { key: "hourly-sitter", label: "시간제 시터", typeSlug: "hourly-sitter", icon: "hourly-sitter", blurb: "시터 집에 맡기는 시간 단위 돌봄", isNew: true },
     ],
   },
   {
     heading: "집으로 오거나 집 근처에서",
     sub: "아이는 익숙한 곳에 두고, 사람이 움직이는 서비스",
     items: [
-      { key: "pet-sitter", label: "펫시터", typeSlug: "pet-sitter", icon: "pet-sitter", blurb: "종일·1박 돌봄 · 집 또는 근처 시터 집" },
+      { key: "pet-sitter", label: "펫시터", typeSlug: "pet-sitter", icon: "pet-sitter", blurb: "집으로 와서 돌보는 방문 돌봄" },
       { key: "dog-walk", label: "산책", typeSlug: "dog-walk", icon: "dog-walk", blurb: "산책 대행·동행 · 노견 맞춤 코스" },
     ],
   },

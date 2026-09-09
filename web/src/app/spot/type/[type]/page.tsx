@@ -151,8 +151,8 @@ export default async function SpotTypeHubPage({ params }: Props) {
 
 /** 돌봄 유형별 첫 문장 — 무엇을 하는 사람인지 한 줄로 */
 const CARE_INTRO: Record<string, string> = {
-  "pet-sitter": "집으로 오거나 집 근처 시터 집에서 종일·1박으로 돌보는 펫시터를 지역별로 찾습니다.",
-  "hourly-sitter": "보호자가 자리를 비우는 몇 시간, 집으로 와서 밥·약·짧은 산책을 챙기는 시간제 시터를 지역별로 찾습니다.",
+  "pet-sitter": "보호자 집으로 와서 돌보는 방문 펫시터를 지역별로 찾습니다.",
+  "hourly-sitter": "몇 시간 자리를 비울 때 시터 집에 아이를 맡기는 시간제 시터를 지역별로 찾습니다.",
   "dog-walk": "산책 대행·동행 도그워커를 지역별로 찾습니다.",
 };
 
