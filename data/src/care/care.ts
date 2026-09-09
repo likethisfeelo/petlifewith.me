@@ -6,7 +6,9 @@
 // 지역 단위는 regions 테이블(시도/시군구, 일반구는 시로 합침)을 그대로 쓴다.
 // ============================================================
 
-// 순서 = 관리자 탭·목록 순서. hourly-sitter(시간제 시터, 2026-09 신설)는 주인 집 방문·시간 단위 — 종일·1박 펫시터와 구분.
+// 순서 = 관리자 탭·목록 순서. 두 시터는 돌봄 장소로 갈린다 —
+// pet-sitter(펫시터)는 보호자 집으로 가는 방문 돌봄, hourly-sitter(시간제 시터, 2026-09 신설)는
+// 시터 집에 아이를 맡기는 시간 단위 돌봄.
 export const CARE_TYPE_SLUGS = ["pet-sitter", "hourly-sitter", "dog-walk"] as const;
 export type CareTypeSlug = (typeof CARE_TYPE_SLUGS)[number];
 

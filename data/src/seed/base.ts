@@ -50,9 +50,9 @@ const SPOT_TYPES = [
   { slug: "playground", name: "놀이터", description: "직접 발굴·재분류로 채운다", monetizable: true, listed: true, sortOrder: 4 },
   { slug: "boarding", name: "유치원·위탁", description: "동물위탁관리업 인허가 기반 시딩", monetizable: true, listed: true, sortOrder: 5 },
   // 돌봄 서비스 (2026-09) — 공공데이터에 없다. 직접 발굴 + 사장님 포털 등록. 주소는 지역까지만 싣는 경우가 많다 (5-6)
-  { slug: "pet-sitter", name: "펫시터", description: "집으로 오거나 집 근처 시터 집에서 맡는 종일·1박 돌봄 — 직접 발굴·업체 등록", monetizable: true, listed: true, sortOrder: 6 },
-  // 신설(2026-09): 주인 집으로 와서 시간 단위로 봐주는 시터 — 종일·1박 펫시터와 구분
-  { slug: "hourly-sitter", name: "시간제 시터", description: "주인 집으로 와서 시간 단위로 봐주는 시터 — 직접 발굴·업체 등록", monetizable: true, listed: true, sortOrder: 7 },
+  { slug: "pet-sitter", name: "펫시터", description: "보호자 집으로 와서 돌보는 방문 돌봄 — 직접 발굴·업체 등록", monetizable: true, listed: true, sortOrder: 6 },
+  // 신설(2026-09): 시터 집에 아이를 맡기는 시간 단위 돌봄 — 보호자 집으로 가는 방문 펫시터와 구분
+  { slug: "hourly-sitter", name: "시간제 시터", description: "시터 집에 맡기는 시간 단위 돌봄 — 직접 발굴·업체 등록", monetizable: true, listed: true, sortOrder: 7 },
   { slug: "dog-walk", name: "펫산책", description: "산책 대행·동행 — 직접 발굴·업체 등록", monetizable: true, listed: true, sortOrder: 8 },
   { slug: "visiting-bath", name: "방문목욕", description: "등록 형태가 제각각 — 부분 시딩 + 직접 발굴", monetizable: true, listed: true, sortOrder: 9 },
   { slug: "visiting-groom", name: "방문미용", description: "직접 발굴", monetizable: true, listed: true, sortOrder: 10 },
