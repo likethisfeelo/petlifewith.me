@@ -19,6 +19,7 @@ const NAV = [
   { href: "/admin/care", label: "돌봄 파트너" },
   { href: "/admin/requests", label: "요청함" },
   { href: "/admin/bookings", label: "예약 신청" },
+  { href: "/admin/meetups", label: "펫모임" },
   { href: "/admin/curations", label: "큐레이션" },
   { href: "/admin/media", label: "미디어" },
   { href: "/admin/members", label: "회원" },

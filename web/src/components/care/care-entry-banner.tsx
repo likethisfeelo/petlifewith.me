@@ -6,6 +6,7 @@
 import Link from "next/link";
 import { isCareType } from "@app/data";
 import { countIndexableCareProviders } from "@/lib/queries/care";
+import { countOpenMeetups } from "@/lib/queries/meetups";
 import { countIndexableSpotsForType, listSpotTypesBySlugs } from "@/lib/queries/spots";
 import { SpotTypeIcon } from "@/components/spot-type-banners";
 
@@ -77,7 +78,7 @@ const PLAY_GROUPS: EntryGroup[] = [
     items: [
       { key: "pet-sitter", label: "펫시터", typeSlug: "pet-sitter", icon: "pet-sitter", blurb: "집으로 와서 돌보는 방문 돌봄" },
       { key: "dog-walk", label: "펫산책", typeSlug: "dog-walk", icon: "dog-walk", blurb: "산책 대행·동행 · 산책 친구" },
-      { key: "meetup", label: "펫모임", href: "/meetup", status: "준비 중", icon: "meetup", blurb: "내 지역 3곳에서 모임에 참여하거나 직접 만들기", isNew: true, cta: "자세히 →" },
+      { key: "meetup", label: "펫모임", href: "/meetup", icon: "meetup", blurb: "내 지역 3곳에서 모임에 참여하거나 직접 만들기", isNew: true, cta: "모임 보기 →" },
     ],
   },
 ];
@@ -93,6 +94,8 @@ async function EntryBanner({ groups, directoryHref = "/spot" }: { groups: EntryG
     }),
   );
   const available = new Set(types.map((t) => t.slug));
+  // 펫모임 카드 — 열린 모임 수 (비회원에게도 보이는 집계)
+  const meetupTotal = groups.some((g) => g.items.some((i) => i.key === "meetup")) ? await countOpenMeetups() : 0;
 
   return (
     <div className="space-y-5">
@@ -118,7 +121,15 @@ async function EntryBanner({ groups, directoryHref = "/spot" }: { groups: EntryG
               .map((item) => {
                 const n = item.typeSlug ? (countBySlug.get(item.typeSlug) ?? 0) : 0;
                 const href = item.href ?? `/spot/type/${item.typeSlug}`;
-                const statusText = item.typeSlug ? (n > 0 ? `전국 ${n.toLocaleString("ko-KR")}곳` : "등록 받는 중") : (item.status ?? "");
+                const statusText = item.typeSlug
+                  ? n > 0
+                    ? `전국 ${n.toLocaleString("ko-KR")}곳`
+                    : "등록 받는 중"
+                  : item.key === "meetup"
+                    ? meetupTotal > 0
+                      ? `열린 모임 ${meetupTotal.toLocaleString("ko-KR")}개`
+                      : "첫 모임을 열어 보세요"
+                    : (item.status ?? "");
                 return (
                   <Link
                     key={item.key}

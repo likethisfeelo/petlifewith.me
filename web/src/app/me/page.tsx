@@ -1,7 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { deleteMemberPostAction } from "@/app/member-actions";
+import { MeetupCard } from "@/components/meetup/meetup-card";
+import { MyRegionsForm } from "@/components/meetup/my-regions-form";
+import { MEETUP_LIMITS } from "@/lib/meetups";
+import { listMeetupsForUser } from "@/lib/queries/meetups";
 import { listMyPosts } from "@/lib/queries/members";
+import { listRegionOptions } from "@/lib/queries/requests";
 import { GUIDE_STATUS_LABEL, formatDate } from "@/lib/format";
 import { requireMember } from "@/lib/member";
 import { PasswordForm, ProfileForm } from "./profile-forms";
@@ -21,7 +26,7 @@ const STATUS_STYLE: Record<string, string> = {
 export default async function MePage({ searchParams }: { searchParams: Promise<{ submitted?: string; deleted?: string; published?: string }> }) {
   const member = await requireMember("/me");
   const { submitted, deleted, published } = await searchParams;
-  const posts = await listMyPosts(member.id);
+  const [posts, mine, regionOptions] = await Promise.all([listMyPosts(member.id), listMeetupsForUser(member.id), listRegionOptions()]);
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">
@@ -79,6 +84,36 @@ export default async function MePage({ searchParams }: { searchParams: Promise<{
                   )}
                 </span>
               </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section id="regions" className="mt-10 rounded-xl border border-line bg-surface p-4">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 className="text-sm font-bold text-ink">내 지역 (펫모임, 최대 {MEETUP_LIMITS.regions}곳)</h2>
+          <Link href="/meetup" className="text-xs font-medium text-sea hover:underline">
+            펫모임으로 →
+          </Link>
+        </div>
+        <div className="mt-3">
+          <MyRegionsForm regions={regionOptions} current={mine.regionIds} />
+        </div>
+      </section>
+
+      <section className="mt-6">
+        <h2 className="text-lg font-bold text-ink">참여 중인 모임 {mine.joined.length > 0 ? `${mine.joined.length}개` : ""}</h2>
+        {mine.joined.length === 0 ? (
+          <p className="mt-3 text-sm text-ink-faint">
+            아직 참여한 모임이 없어요.{" "}
+            <Link href="/meetup" className="font-medium text-sea hover:underline">
+              내 지역의 모임 보기 →
+            </Link>
+          </p>
+        ) : (
+          <ul className="mt-3 space-y-3">
+            {mine.joined.map((m) => (
+              <MeetupCard key={m.id} m={m} />
             ))}
           </ul>
         )}

@@ -1,8 +1,8 @@
 import Link from "next/link";
-import { sql, eq, isNull } from "drizzle-orm";
+import { and, sql, eq, isNull } from "drizzle-orm";
 import { getDb, isDbConfigured, schema } from "@/lib/db";
 
-const { guides, serviceRequests, spots, makers, items, deviceModels, curations, rehabSites, users, comments, spotServiceAreas, bookingRequests } = schema;
+const { guides, serviceRequests, meetups, spots, makers, items, deviceModels, curations, rehabSites, users, comments, spotServiceAreas, bookingRequests } = schema;
 
 export default async function AdminDashboardPage() {
   if (!isDbConfigured()) {
@@ -10,7 +10,7 @@ export default async function AdminDashboardPage() {
   }
   const db = getDb();
 
-  const [guideCounts, newRequests, spotCount, makerCount, itemCount, deviceCount, curationCount, rehabCount, memberCount, commentCount, careCount, openBookings] = await Promise.all([
+  const [guideCounts, newRequests, spotCount, makerCount, itemCount, deviceCount, curationCount, rehabCount, memberCount, commentCount, careCount, openBookings, openMeetups] = await Promise.all([
     db
       .select({ status: guides.status, count: sql<number>`count(*)`.mapWith(Number) })
       .from(guides)
@@ -26,6 +26,7 @@ export default async function AdminDashboardPage() {
     db.select({ count: sql<number>`count(*)`.mapWith(Number) }).from(comments),
     db.select({ count: sql<number>`count(distinct ${spotServiceAreas.spotId})`.mapWith(Number) }).from(spotServiceAreas).where(eq(spotServiceAreas.exposed, true)),
     db.select({ count: sql<number>`count(*)`.mapWith(Number) }).from(bookingRequests).where(isNull(bookingRequests.handledAt)),
+    db.select({ count: sql<number>`count(*)`.mapWith(Number) }).from(meetups).where(and(eq(meetups.status, "open"), isNull(meetups.hiddenAt))),
   ]);
 
   const byStatus = Object.fromEntries(guideCounts.map((g) => [g.status, g.count]));
@@ -46,6 +47,7 @@ export default async function AdminDashboardPage() {
     { label: "댓글", value: commentCount[0]?.count ?? 0, href: "/admin/comments" },
     { label: "돌봄 파트너 (노출 중)", value: careCount[0]?.count ?? 0, href: "/admin/care" },
     { label: "미처리 예약 신청", value: openBookings[0]?.count ?? 0, href: "/admin/bookings", alert: (openBookings[0]?.count ?? 0) > 0 },
+    { label: "펫모임 (열림)", value: openMeetups[0]?.count ?? 0, href: "/admin/meetups" },
   ];
 
   return (

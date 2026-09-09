@@ -61,6 +61,8 @@ export const makerStatus = pgEnum("maker_status", ["draft", "published"]);
 // 요청함 (0012) — 업체 등록·정보 관리·유료 노출·돌봄 파트너 등록이 한 표에 쌓인다. 옛 claims 는 여기로 옮겼다.
 export const requestKind = pgEnum("request_kind", ["spot_register", "spot_claim", "maker_claim", "promo_slot", "care_partner"]);
 export const requestStatus = pgEnum("request_status", ["new", "in_progress", "done", "rejected"]);
+// 펫모임 (0013) — 열림 / 마감 (주최자가 정한다). 숨김은 관리자 hidden_at
+export const meetupStatus = pgEnum("meetup_status", ["open", "closed"]);
 export const embedSource = pgEnum("embed_source", ["youtube", "instagram", "none"]);
 export const offerVendor = pgEnum("offer_vendor", ["coupang", "brand_store", "other"]);
 export const promotionKind = pgEnum("promotion_kind", ["region_top", "content_card"]);
@@ -543,6 +545,87 @@ export const serviceRequests = pgTable(
     updatedAt: updatedAt(),
   },
   (t) => [index("service_requests_status_idx").on(t.status, t.createdAt), index("service_requests_kind_idx").on(t.kind)],
+);
+
+
+// ---------- 펫모임 (0013) ----------
+// 회원이 고른 지역(최대 3곳, 상한은 코드)에서 모임에 참여하거나 직접 만든다. 승인 없이 바로 열리고 관리자는 숨길 수만 있다.
+// 비회원에게는 지역별 "모임 n개 · m명 참여 중" 집계만 보인다. 모임 게시판(meetup_posts)은 참여 회원에게만 보인다.
+// 장소는 짧은 문구(공원·카페 이름)만 — 집 주소를 싣지 않는다 (claude.md 5-6).
+
+export const userRegions = pgTable(
+  "user_regions",
+  {
+    id: bigint("id", { mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    regionId: integer("region_id")
+      .notNull()
+      .references(() => regions.id, { onDelete: "cascade" }),
+    sortOrder: integer("sort_order").notNull().default(0),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("user_regions_user_region_uq").on(t.userId, t.regionId), index("user_regions_region_idx").on(t.regionId)],
+);
+
+export const meetups = pgTable(
+  "meetups",
+  {
+    id: bigint("id", { mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
+    slug: text("slug").notNull().unique(),
+    title: text("title").notNull(),
+    regionId: integer("region_id")
+      .notNull()
+      .references(() => regions.id),
+    // 주최 회원 — 탈퇴하면 비워지고 모임은 남는다
+    hostUserId: uuid("host_user_id").references(() => users.id, { onDelete: "set null" }),
+    descriptionMd: text("description_md"),
+    // 만나는 곳 — 공원·카페 이름 정도의 짧은 문구 (주소 아님)
+    placeText: text("place_text"),
+    // 다음 모임 일시 (선택)
+    meetingAt: timestamp("meeting_at", { withTimezone: true }),
+    // 정원 (선택, NULL = 제한 없음)
+    capacity: integer("capacity"),
+    status: meetupStatus("status").notNull().default("open"),
+    hiddenAt: timestamp("hidden_at", { withTimezone: true }), // 관리자 숨김
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index("meetups_region_idx").on(t.regionId, t.createdAt), index("meetups_host_idx").on(t.hostUserId)],
+);
+
+export const meetupMembers = pgTable(
+  "meetup_members",
+  {
+    id: bigint("id", { mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
+    meetupId: bigint("meetup_id", { mode: "number" })
+      .notNull()
+      .references(() => meetups.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    joinedAt: timestamp("joined_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("meetup_members_meetup_user_uq").on(t.meetupId, t.userId), index("meetup_members_user_idx").on(t.userId)],
+);
+
+export const meetupPosts = pgTable(
+  "meetup_posts",
+  {
+    id: bigint("id", { mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
+    meetupId: bigint("meetup_id", { mode: "number" })
+      .notNull()
+      .references(() => meetups.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    body: text("body").notNull(),
+    hiddenAt: timestamp("hidden_at", { withTimezone: true }), // 관리자 숨김
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index("meetup_posts_meetup_idx").on(t.meetupId, t.createdAt), index("meetup_posts_user_idx").on(t.userId, t.createdAt)],
 );
 
 // ---------- 개체 단위 태깅 (claude.md 5-4) ----------
