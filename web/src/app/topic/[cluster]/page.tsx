@@ -44,7 +44,7 @@ export default async function TopicPage({ params }: Props) {
   const topic = await getTopicBySlug(decodeURIComponent(cluster));
   if (!topic) notFound();
 
-  const { hub, curated, challenge, byCategory, all } = await listGuidesForTopic(topic.id);
+  const { hub, curated, byCategory, all } = await listGuidesForTopic(topic.id);
   const style = topicStyle(topic.slug);
   const categories = categoriesForTopic(topic.slug);
   const categoryName = (slug: string | null) => categories.find((c) => c.slug === slug)?.name ?? null;
@@ -110,18 +110,6 @@ export default async function TopicPage({ params }: Props) {
           <SeniorBodyMap areas={categories} postsByCategory={postsByCategory} topicSlug={topic.slug} />
         </section>
       )}
-
-      {/* 도전 게시판 — 회원이 쓴 글만 모아 보는 별도 게시판 (큐레이션과 다른 곳) */}
-      <Link
-        href={`/topic/${topic.slug}/challenge`}
-        className="mt-8 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-line bg-surface px-5 py-4 transition-shadow hover:shadow-md"
-      >
-        <span>
-          <span className="block text-base font-bold text-ink">도전 게시판</span>
-          <span className="mt-0.5 block text-xs text-ink-soft">보호자들이 직접 쓴 글 {challenge.length}편 · 회원이면 누구나 씁니다</span>
-        </span>
-        <span className="text-sm font-medium text-sea">보러 가기 →</span>
-      </Link>
 
       {isSenior && categories.length > 0 && (
         <nav aria-label="부위별 게시판" className="mt-5 flex flex-wrap items-center gap-1.5 text-xs">

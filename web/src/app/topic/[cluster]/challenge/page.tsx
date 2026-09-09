@@ -6,10 +6,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Breadcrumbs } from "@/components/breadcrumbs";
+import { ChallengeBoardList } from "@/components/challenge-board";
 import { JsonLd } from "@/components/jsonld";
 import { MedicalNotice } from "@/components/notices";
 import { categoriesForTopic } from "@app/data";
-import { formatDate } from "@/lib/format";
 import { countCommentsByGuides } from "@/lib/queries/comments";
 import { getTopicBySlug, listGuidesForTopic } from "@/lib/queries/guides";
 import { buildMeta, itemListLd, robotsMeta, shouldIndexBoard } from "@/lib/seo";
@@ -86,34 +86,9 @@ export default async function TopicChallengePage({ params }: Props) {
         <p className="text-xs text-ink-faint">
           {posts.length > 0 ? `${posts.length}편 · 최신순` : ""} 진단·처방 단정과 광고는 숨김 처리됩니다. 댓글은 각 글에서 남깁니다.
         </p>
-        {posts.length === 0 ? (
-          <div className="mt-4 rounded-xl border border-dashed border-line p-8 text-center text-sm text-ink-faint">
-            아직 글이 없습니다. 첫 글을 남겨 주세요.
-          </div>
-        ) : (
-          <ul className="mt-3 divide-y divide-line rounded-2xl border border-line bg-surface">
-            {posts.map(({ guide, authorName }) => {
-              const comments = commentCounts.get(guide.id) ?? 0;
-              const category = categoryName(guide.category);
-              return (
-                <li key={guide.id}>
-                  <Link href={`/guide/${guide.slug}`} className="group flex flex-col gap-1 px-5 py-4 hover:bg-sand/50">
-                    <div className="flex flex-wrap items-center gap-2 text-xs">
-                      {category && <span className="rounded-full bg-sand px-2 py-0.5 font-medium text-ink-soft">{category}</span>}
-                      {guide.curated && <span className="rounded-full bg-sea-soft px-2 py-0.5 font-medium text-sea">큐레이션 선정</span>}
-                      <span className="text-ink-faint">{authorName ?? "회원"}</span>
-                    </div>
-                    <h2 className="text-base font-bold leading-snug text-ink group-hover:underline">{guide.title}</h2>
-                    {guide.summary && <p className="line-clamp-2 text-sm text-ink-soft">{guide.summary}</p>}
-                    <p className="text-xs text-ink-faint">
-                      {formatDate(guide.publishedAt)} · 댓글 {comments}
-                    </p>
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        )}
+        <div className="mt-3">
+          <ChallengeBoardList posts={posts} commentCounts={commentCounts} categoryName={categoryName} />
+        </div>
       </section>
 
       <p className="mt-8 flex flex-wrap gap-x-4 gap-y-1 text-sm">

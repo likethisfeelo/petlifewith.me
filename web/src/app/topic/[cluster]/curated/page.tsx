@@ -1,14 +1,17 @@
 // 큐레이션 콘텐츠 전체 — 토픽 페이지 상단 그리드는 9편만 보여 주므로 "큐레이션 전체 보기 →" 가 여기로 온다.
-// 운영진이 발행한 글과 운영진이 골라 올린 회원 글만 (guides.curated). 정렬은 지정 순번 → 최신순.
-// 부위별 게시판·도전 게시판과는 다른 묶음이라 여기에는 카테고리 칩을 두지 않는다.
+// 위: 운영진이 발행한 글과 운영진이 골라 올린 회원 글 (guides.curated), 지정 순번 → 최신순.
+// 아래: 도전 게시판 전체 — 큐레이션은 이 게시판에서 대표를 골라 위에 세워 둔 것이라 같은 페이지에 붙인다.
+// 부위 분류 칩은 부위별 게시판의 것이라 여기에는 두지 않는다.
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { GuideCard } from "@/components/cards";
+import { ChallengeBoardList } from "@/components/challenge-board";
 import { JsonLd } from "@/components/jsonld";
 import { MedicalNotice } from "@/components/notices";
 import { categoriesForTopic } from "@app/data";
+import { countCommentsByGuides } from "@/lib/queries/comments";
 import { getTopicBySlug, listGuidesForTopic } from "@/lib/queries/guides";
 import { buildMeta, itemListLd, robotsMeta, shouldIndexBoard } from "@/lib/seo";
 import { topicStyle } from "@/lib/topic-style";
@@ -26,8 +29,8 @@ interface Props {
 async function load(cluster: string) {
   const topic = await getTopicBySlug(decodeURIComponent(cluster));
   if (!topic) return null;
-  const { curated } = await listGuidesForTopic(topic.id);
-  return { topic, items: curated };
+  const { curated, challenge } = await listGuidesForTopic(topic.id);
+  return { topic, items: curated, challenge };
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -47,10 +50,12 @@ export default async function TopicCuratedPage({ params }: Props) {
   const { cluster } = await params;
   const found = await load(cluster);
   if (!found) notFound();
-  const { topic, items } = found;
+  const { topic, items, challenge } = found;
   const style = topicStyle(topic.slug);
   const categories = categoriesForTopic(topic.slug);
   const categoryName = (slug: string | null) => categories.find((c) => c.slug === slug)?.name ?? null;
+  const commentCounts = await countCommentsByGuides(challenge.map((p) => p.guide.id));
+  const writeHref = `/write?topic=${encodeURIComponent(topic.slug)}`;
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-10">
@@ -93,12 +98,31 @@ export default async function TopicCuratedPage({ params }: Props) {
         )}
       </section>
 
-      <p className="mt-8 flex flex-wrap gap-x-4 gap-y-1 text-sm">
+      {/* 도전 게시판 전체 — 큐레이션의 바탕. 회원이면 누구나 쓰고, 운영진이 여기서 골라 위에 올린다 */}
+      <section aria-labelledby="challenge-heading" className="mt-12 border-t border-line pt-8">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div className="max-w-3xl">
+            <h2 id="challenge-heading" className="text-2xl font-extrabold tracking-tight text-ink">
+              도전 게시판 <span className="text-base font-bold text-ink-soft">보호자들이 직접 쓴 글 {challenge.length}편</span>
+            </h2>
+            <p className="mt-2 text-sm text-ink-soft">
+              해 본 것, 잘 안 된 것, 물어보고 싶은 것. 회원이면 누구나 쓰고, 운영진이 확인한 뒤 공개됩니다. 위 큐레이션은 이 글들 가운데
+              운영진이 대표로 골라 세워 둔 것입니다.
+            </p>
+          </div>
+          <Link href={writeHref} className="rounded-full bg-ink px-5 py-2.5 text-sm font-medium text-cream hover:opacity-90">
+            + 글쓰기
+          </Link>
+        </div>
+        <div className="mt-5">
+          <ChallengeBoardList posts={challenge} commentCounts={commentCounts} categoryName={categoryName} />
+        </div>
+        <p className="mt-3 text-xs text-ink-faint">최신순 · 진단·처방 단정과 광고는 숨김 처리됩니다. 댓글은 각 글에서 남깁니다.</p>
+      </section>
+
+      <p className="mt-8 text-sm">
         <Link href={`/topic/${topic.slug}`} className="font-medium text-sea hover:underline">
           ← {topic.name} 페이지로
-        </Link>
-        <Link href={`/topic/${topic.slug}/challenge`} className="font-medium text-sea hover:underline">
-          도전 게시판 (회원 글) →
         </Link>
       </p>
 
