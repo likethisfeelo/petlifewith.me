@@ -80,3 +80,40 @@ export function uploadPolicyFor(actor: "admin" | "member", s: MemberMediaSetting
     maxVideoSeconds: s.maxVideoSeconds,
   };
 }
+
+// ---------- 유료 노출(지역 상단 노출) 형 안내 ----------
+// 상품은 지역 상단 노출 하나뿐이고 A·B·C 형으로만 구분한다 (내용·가격은 뒤에 구체화).
+// 여기 값은 /portal/promo 안내문에만 쓰인다 — 결제는 수동(운영자가 안내·확인)이라 금액 계산에 쓰지 않는다.
+
+export const PROMO_PLANS_KEY = "promo_plans";
+
+export interface PromoPlanInfo {
+  /** 형 설명 한 줄 (비우면 "요청 후 안내") */
+  description: string;
+  /** 요금 문구 — "월 30,000원" 처럼 자유 텍스트 (비우면 "요청 후 안내") */
+  priceText: string;
+}
+
+export type PromoPlanSettings = Record<"a" | "b" | "c", PromoPlanInfo>;
+
+export const DEFAULT_PROMO_PLANS: PromoPlanSettings = {
+  a: { description: "", priceText: "" },
+  b: { description: "", priceText: "" },
+  c: { description: "", priceText: "" },
+};
+
+const PROMO_TEXT_MAX = 200;
+
+function shortText(v: unknown): string {
+  return typeof v === "string" ? v.trim().slice(0, PROMO_TEXT_MAX) : "";
+}
+
+/** 저장된 JSON(부분·불량 허용) → 완전한 설정 */
+export function normalizePromoPlans(raw: unknown): PromoPlanSettings {
+  const o = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  const plan = (k: "a" | "b" | "c"): PromoPlanInfo => {
+    const p = (o[k] && typeof o[k] === "object" ? o[k] : {}) as Record<string, unknown>;
+    return { description: shortText(p.description), priceText: shortText(p.priceText) };
+  };
+  return { a: plan("a"), b: plan("b"), c: plan("c") };
+}

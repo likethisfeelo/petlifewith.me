@@ -65,6 +65,7 @@ export function SpotEditor({
   careTypeIds = [],
   areaOptions = [],
   serviceAreas = [],
+  fromRequestId,
 }: {
   mode: "create" | "edit";
   spot: SpotFormValues;
@@ -75,6 +76,8 @@ export function SpotEditor({
   careTypeIds?: number[];
   areaOptions?: AreaOption[];
   serviceAreas?: ServiceAreaRow[];
+  /** 요청함에서 넘어온 등록 — 등록되면 그 요청에 스팟을 연결한다 */
+  fromRequestId?: number;
 }) {
   const action = mode === "create" ? createSpotAction : saveSpotAction;
   const [state, formAction, pending] = useActionState<ActionState, FormData>(action, {});
@@ -84,6 +87,7 @@ export function SpotEditor({
   return (
     <form action={formAction} className="space-y-5">
       {spot.id !== undefined && <input type="hidden" name="id" value={spot.id} />}
+      {fromRequestId !== undefined && <input type="hidden" name="fromRequestId" value={fromRequestId} />}
 
       <section className="space-y-4 rounded-xl border border-line bg-surface p-4">
         <div className="grid gap-4 sm:grid-cols-2">

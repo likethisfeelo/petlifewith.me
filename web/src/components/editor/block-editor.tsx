@@ -320,7 +320,22 @@ function TextBlockRow({ block, disabled, focus, onFocused, onUpdate, controls }:
   return (
     <div className="group/block rounded-lg border border-transparent bg-surface px-3 py-2 focus-within:border-line hover:border-line">
       <div className="mb-1 flex flex-wrap items-center gap-2 text-[11px]">
-        <select value={block.kind} disabled={disabled} onChange={(e) => onUpdate(block.id, { kind: e.target.value as TextBlock["kind"] })} aria-label="블록 종류" className="rounded border border-line bg-cream px-1.5 py-0.5 text-[11px] text-ink-soft">
+        {/* 블록 종류 — 넓은 화면은 버튼을 옆으로, 모바일은 드롭다운 */}
+        <div role="group" aria-label="블록 종류" className="hidden items-center gap-0.5 rounded-full border border-line bg-cream p-0.5 sm:flex">
+          {(Object.keys(KIND_LABEL) as TextBlock["kind"][]).map((k) => (
+            <button
+              key={k}
+              type="button"
+              disabled={disabled}
+              aria-pressed={k === block.kind}
+              onClick={() => onUpdate(block.id, { kind: k })}
+              className={`rounded-full px-2 py-0.5 text-[11px] font-medium transition-colors ${k === block.kind ? "bg-ink text-cream" : "text-ink-soft hover:bg-sand hover:text-ink"}`}
+            >
+              {KIND_LABEL[k]}
+            </button>
+          ))}
+        </div>
+        <select value={block.kind} disabled={disabled} onChange={(e) => onUpdate(block.id, { kind: e.target.value as TextBlock["kind"] })} aria-label="블록 종류 (모바일)" className="rounded border border-line bg-cream px-1.5 py-0.5 text-[11px] text-ink-soft sm:hidden">
           {(Object.keys(KIND_LABEL) as TextBlock["kind"][]).map((k) => (
             <option key={k} value={k}>{KIND_LABEL[k]}</option>
           ))}

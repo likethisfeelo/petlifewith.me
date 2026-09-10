@@ -113,7 +113,7 @@ export default async function RegionTypePage({ params }: Props) {
             typeSlug={spotType.slug}
             mapTitle={`${person} 지역 지도`}
           >
-            <CareAreaSlots personLabel={person} region={region} providers={inArea} regionNameById={regionNameById} />
+            <CareAreaSlots personLabel={person} typeSlug={spotType.slug} region={region} providers={inArea} regionNameById={regionNameById} />
           </SpotDirectory>
         </div>
 

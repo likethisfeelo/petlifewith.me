@@ -298,7 +298,7 @@ users
 
 이렇게 두면 지금 인증 없이 개발하다가 나중에 Cognito를 붙일 때 컬럼 하나만 채우면 된다. `sub`를 PK로 쓰면 인증 공급자를 바꾸거나 풀을 재생성할 때 전체 FK가 무너진다.
 
-**런칭 시점에 인증이 필요한 범위**는 좁다. 대부분의 콘텐츠는 비로그인으로 읽힌다. 실제로 필요한 건 스팟·메이커 **클레임**과 관리자다. 그래도 `users` 테이블은 지금 만든다.
+**런칭 시점에 인증이 필요한 범위**는 좁다. 대부분의 콘텐츠는 비로그인으로 읽힌다. 실제로 필요한 건 관리자뿐이다 — 사장님·파트너 쪽은 로그인 없는 **요청함**(요청 → 슬랙 → 관리자 처리)으로 받는다. 그래도 `users` 테이블은 지금 만든다.
 
 **2026-09 갱신 — 회원 글·댓글을 켰다.** Cognito 앞에 자체 이메일·비밀번호 회원(`users.password_hash`, scrypt)과 서명 쿠키 세션을 넣었다. 원칙은 그대로다: PK 는 내부 `id`, `cognito_sub` 는 비어 있고, 인증 호출은 `lib/auth.ts`·`lib/member.ts`·`lib/password.ts` 에만 있다. Cognito 로 바꿀 때 회원 세션 발급부와 로그인 액션만 갈아 끼운다. 회원 글은 승인(pending → published) 후에만 공개된다 (`docs/운영.md` 5-7).
 
@@ -330,14 +330,16 @@ VPC/RDS Proxy. 쓰지 않는 리소스를 미리 세우면 비용만 나간다.
 
 플랫폼 1차 구축이 끝났다. 상세는 `docs/스키마.md`(스키마·강제 규칙·가정), `docs/운영.md`(실행·ETL·콘텐츠 워크플로).
 
-- **DB**: 22개 테이블 최종형 (Drizzle, `data/src/db/schema.ts`, 마이그레이션 `data/drizzle/`). 의료 감수 게이트·클레임 단일 대상·출처 표기 필수를 CHECK/NOT NULL 로 강제.
-- **web**: 기획서의 URL 구조 전체 (홈 / guide / topic / item / spot 4단 / place / maker / curation) + 클레임 접수. AWS 전환 제약 준수 — config/db/auth/storage 단일 진입점, revalidate 상수 모듈(+일치 테스트), presigned URL 스토리지.
-- **관리자**: 게시글(작성·편집·개체 태깅) / 스팟 / 메이커 / 상품 / 기기 / 큐레이션 등록·편집 + 클레임 승인 + 미디어 라이브러리. 외부 링크는 `spot_links`·`maker_links` 로 필요한 것만 선택(홈페이지·카카오톡·예약·스마트스토어 등), 상품 구매 링크는 쿠팡 파트너스 제휴 플래그와 고지 자동 연동.
+- **DB**: 22개 테이블 최종형 (Drizzle, `data/src/db/schema.ts`, 마이그레이션 `data/drizzle/`). 의료 감수 게이트·출처 표기 필수를 CHECK/NOT NULL 로 강제.
+- **web**: 기획서의 URL 구조 전체 (홈 / guide / topic / item / spot 4단 / place / maker / curation) + 요청함 공개 폼(업체 등록·정보 관리·상단 노출·돌봄 파트너). AWS 전환 제약 준수 — config/db/auth/storage 단일 진입점, revalidate 상수 모듈(+일치 테스트), presigned URL 스토리지.
+- **관리자**: 게시글(작성·편집·개체 태깅) / 스팟 / 메이커 / 상품 / 기기 / 큐레이션 등록·편집 + 요청함 처리 + 미디어 라이브러리. 외부 링크는 `spot_links`·`maker_links` 로 필요한 것만 선택(홈페이지·카카오톡·예약·스마트스토어 등), 상품 구매 링크는 쿠팡 파트너스 제휴 플래그와 고지 자동 연동.
 - **미디어·SEO**: 이미지·영상 업로드는 presigned URL(로컬 MinIO, `docker compose up -d minio` 로 버킷 자동 생성) — DB 에는 오브젝트 키만, 본문 삽입은 `{{image:키|alt}}` 숏코드. 전 공개 페이지에 OG/Twitter 메타 자동 + 페이지별 오버라이드(seo_title/seo_description/og_image_key, 게시글·스팟·메이커·상품·큐레이션).
 - **SEO**: noindex 게이트(스팟 3곳·정보 3항목·언급 0건) 코드 강제 + 사이트맵 분할 + JSON-LD + 로컬 전면 noindex 가드.
 - **ETL**: 인허가 CSV 헤더 기반 정규화(미매핑은 실패·리포트, 추측 없음), 관리번호 upsert, 상세주소 제거, 동물등록 통계 → 노령견 비율.
 - **실데이터 (2026-08-25)**: 행안부 인허가 5종 46,208건 적재 — 미용업·운송업·동물약국(공개, 약국은 광고 금지+수의사 안내) / 의약품 도매·의료용구 판매(`spot_types.listed=false` 비공개, 지역 인프라 집계·어드민 전용). 전 페이지에 출처(행안부)·기준일·관리번호 표기. 지역 페이지 목록 48곳 상한(전체는 유형 페이지). 어드민 스팟 검색·필터·페이지네이션. 2026 행정구역 개편 반영(전남광주 통합 귀속 + 인천 신설 4구, 지역 233).
 - **회원·커뮤니티 (2026-09)**: 자체 이메일·비밀번호 회원 + 서명 쿠키(0005: users 컬럼·comments·guides.author_user_id·status pending). `/signup /login /me /write`, 헤더 메뉴는 `/api/me`(ISR 유지). 회원 글은 승인 후 공개(외부 링크 nofollow ugc, 회원 글 안내문), 댓글은 즉시(평문·시간당 20건), 관리자 `/admin/members`(차단) `/admin/comments`(숨김·삭제).
+- **요청함 (2026-09, 0012)**: 사장님·파트너 쪽 절차는 전부 **요청 → 슬랙 → 관리자 처리** 하나로. `service_requests`(예전 `claims` 흡수, `kind` = 업체 등록 / 정보 관리(업체·메이커) / 지역 상단 노출(유료, A·B·C 형) / 돌봄 파트너 등록). 공개 폼 `/portal/spot`(업체 등록) · `/portal/promo?spot=`(상단 노출) · `/portal/care?type=&region=`(파트너, 주소 없이 활동 지역만) · `/claim/<대상>/<id>`(정보 관리) — 로그인 없음, 연락처는 요청함·슬랙에만, IP 해시로 시간당 5건. 관리자 `/admin/requests`: 종류·상태 필터, 바로가기(스팟 등록 `?from=` 값 채움 → 등록 시 요청에 연결·"처리 중", 편집기, 입금 확인 토글 → 노출 토글, 업체 연결), 메모. **결제는 수동**(계좌·결제 링크 안내 → 입금 확인 → 노출 켜기; PG 는 뒤로). 형별 안내문은 `/admin/settings` (`site_settings.promo_plans`). 슬랙 `SLACK_REQUESTS_WEBHOOK_URL`(없으면 예약 웹훅). `docs/운영.md` 5-12.
+- **펫모임 (2026-09, 0013)**: 회원이 내 지역(시군구 최대 3곳, `user_regions`)을 골라 그 지역 모임에 참여하거나 직접 만든다(`meetups`, 승인 없음, 관리자는 숨김만, 새 모임 슬랙 알림). **비회원에게는 지역별 "모임 n개 · m명 참여 중" 집계만** — 이름·소개는 회원, 게시판(`meetup_posts`)은 참여 회원만. `/meetup`(지도 셸 + 패널) · `/meetup/new` · `/meetup/<슬러그>`(참여·나가기·주최자 마감·수정) · `/me` 내 지역·참여 모임 · `/admin/meetups`. 장소는 짧은 문구만(주소 금지). 전부 noindex·광고 제외. `docs/운영.md` 5-13.
 - **돌봄 파트너 디렉토리 (2026-09)**: 펫시터(보호자 집 방문)·시간제 시터(`hourly-sitter`, 시터 집에 맡기는 시간 단위, 신설)·펫산책은 주소 대신 `spot_service_areas`(0008)로 노출 — `/spot/type/pet-sitter|hourly-sitter|dog-walk` 는 시설과 같은 디렉토리 셸(좌측 타일 지도 — 배지는 서비스 지역 기준 사람 수, 시군구 타일은 `/spot/시도/시군구/pet-sitter` 지역x유형 페이지 링크), 지역x유형 페이지 우측이 **5자리**(빈 자리 "비어있습니다", `MAX_EXPOSED_PER_AREA`, `components/care/care-slots.tsx`). 카드 버튼 예약 신청(`booking_requests` + 슬랙 웹훅 `SLACK_BOOKING_WEBHOOK_URL`, `app/booking-actions.ts`)·카카오톡 상담(`spot_links.kakao`). 관리자 `/admin/care`(지역별 노출 ON/OFF, 상한 검사)·`/admin/bookings`·스팟 편집기 서비스 지역. 가상 예시 2건은 `source=sample`("예시" 배지, noindex). 통칭 "돌봄 파트너", 호칭 펫시터/시간제 시터/도그워커 (`data/src/care/care.ts`). `/topic/senior-life` 하단 돌봄 배너(`components/care/care-entry-banner.tsx`: 직접 방문 유치원·데이케어·시간제 시터 / 집으로 오는 펫시터·산책). `docs/운영.md` 5-8.
 - **디렉토리 배너·돌봄 유형 (2026-09)**: 스팟 유형 `pet-sitter`·`dog-walk` 추가(직접 발굴·업체 등록). `guides.banner_spot_types`(0006·0007)로 글 상단 3열 배너(관리자 체크, 시드 `banners:`) → `/spot/type/[유형]` 디렉토리 링크. 커뮤니티 게시판이 아니라 업체 검색·등록 입구다.
 - **부위별 게시판 (2026-09)**: `/topic/[토픽]/[카테고리]` — 카테고리 필터가 곧 게시판(별도 테이블 없음). 지도 패널은 글 3편 + "○○ 영역별 정보 더 보기", 패널 질문은 실제 게시글(`data/src/guides/seed-posts.ts` 시드, 본문 400자 미만 → noindex `shouldIndexGuide`). 글쓰기는 `/write?topic=&category=` 로 미리 채움.
@@ -346,7 +348,7 @@ VPC/RDS Proxy. 쓰지 않는 리소스를 미리 세우면 비용만 나간다.
 - **스팟 디렉토리 셸 (2026-09)**: 유형 허브·시도·지역 허브·지역x유형이 `components/spot/spot-directory.tsx`(좌측 시도→시군구 타일 지도, 우측 서버 목록) 하나로 렌더. 시군구 타일은 지역x유형 페이지로 가는 진짜 링크 — SEO 페이지가 곧 지도 페이지, 주소·사이트맵 불변. 시도 페이지는 유형 칩으로 배지·링크 전환. 돌봄 파트너 허브·지역x유형도 같은 셸(배지 단위 "명", `countsBySido`·`total`·`unit`), 시도 칩·지역 허브 분포의 돌봄 수는 서비스 지역 기준(`listCareCountsByRegion`)이고 주소 기준 유형 집계는 돌봄 유형을 뺀다. `docs/운영.md` 5-9.
 - **게시판 3분할 (2026-09)**: 큐레이션 콘텐츠(`guides.curated` + `curated_order` 1~9, 토픽 상단 9편·`/topic/[t]/curated`) / 일반 게시판(회원 글 전체, 노견생활 이름 "일반 - 노령견 생활 공유 게시판" — `lib/boards.ts`, 주소 `/topic/[t]/challenge` 유지) / 부위별 게시판(`category` + `area_order` 대표 1~3, 신체 지도 패널·`/topic/[t]/[category]`). 0009 에서 `pinned_order`→`curated_order`. 규칙·테스트 `lib/guide-order.ts`, 문서 `docs/운영.md` 5-6.
 - **노견생활 신체 지도·정렬 (2026-09)**: `guides.category`(토픽별 정의 `data/src/guides/categories.ts`, 미지정 = 부위별 게시판 제외). `/topic/senior-life` 상단 SVG 신체 지도(`components/senior-body-map.tsx`) — 부위 호버·클릭 → Q&A + 관련 글.
-- **AdSense (2026-09)**: `ca-pub-…` 기본값 + `NEXT_PUBLIC_ADSENSE_CLIENT`(off 가능), `web/public/ads.txt`. 운영 전용, 관리자·포털·클레임·`/rehab` 경로 제외, 장묘·약국·B2B·의료 인접 편은 `buildMeta({ ads:false })` 메타로 제외 (`docs/운영.md` 4-4).
+- **AdSense (2026-09)**: `ca-pub-…` 기본값 + `NEXT_PUBLIC_ADSENSE_CLIENT`(off 가능), `web/public/ads.txt`. 운영 전용, 관리자·포털·요청 폼(`/claim`)·`/rehab` 경로 제외, 장묘·약국·B2B·의료 인접 편은 `buildMeta({ ads:false })` 메타로 제외 (`docs/운영.md` 4-4).
 - **직접 발굴·의료 인접 (2026-09)**: 큐레이션 CSV 로더 2종(`etl:direct`/`etl:rehab`, `#`=미확인·외부키 upsert) + `spots.external_ref`·`rehab_sites`(0004). 숨고 정리본 48행 적재, 재활·한방·특수치료 123행 → `/rehab`·`/rehab/[치료법]`(치료법이 주어, 가나다순, 확인수준·개인명 미노출, MedicalNotice) + `/admin/rehab`. 주소 정규화가 동·호수·층·건물명까지 제거.
 - **배포 도구**: `sst.config.ts`(SST v4/OpenNext — prod 별칭 4개·dev 스테이지·미디어 버킷·Lambda 역할 스토리지) + `scripts/aws-profile.ps1`(프로필 확인·전환), `aws-db.ps1`(RDS+env+마이그레이션·시드), `deploy.ps1`(프리플라이트→검사→배포), `aws-destroy.ps1`. 전부 무프롬프트. 런북 `docs/배포.md`.
 - **콘텐츠**: 노견 13편(발행 4·감수 대기 3·초안 6) + 놀이 5편(전부 발행) 시드. 의료 인접 편은 감수 전 발행 불가가 3중(시드·관리자·DB)으로 막혀 있다.
@@ -360,7 +362,7 @@ VPC/RDS Proxy. 쓰지 않는 리소스를 미리 세우면 비용만 나간다.
 4. 직접 발굴 보강: 숨고 정리본의 `#`(이름·유형 미확인 8행) 채워 재적재, 재활 시행처 확인 전화 후 확인수준·기준일 갱신 (`docs/운영.md` 4-3)
 5. 메이커 1차 발굴 10+10, 큐레이션 첫 테마 (샘플 픽스처 교체)
 6. GSC·네이버 서치어드바이저 등록, 쿠팡 파트너스 실링크 연동 (배포 후)
-7. 첫 배포 실행: `.\scripts\aws-db.ps1 -DevFixtures` → `.\scripts\deploy.ps1 -Stage dev` → 검증 → `-Stage prod` (`docs/배포.md`). 사장님 포털(service./product.)은 랜딩+클레임 연결 상태 — 업주 셀프 편집은 Cognito 이후
+7. 첫 배포 실행: `.\scripts\aws-db.ps1 -DevFixtures` → `.\scripts\deploy.ps1 -Stage dev` → 검증 → `-Stage prod` (`docs/배포.md`). 사장님 포털(service./product.)은 요청함 폼 — 업주 셀프 편집은 Cognito 이후
 
 확정: 브랜드 펫라이프위드미(pet life with me), 도메인·서브도메인 구조(`docs/배포준비.md`),
 배포 방식 SST v4(OpenNext)·RDS db.t4g.micro 퍼블릭(강화 경로 문서화, `docs/배포.md` 6장).

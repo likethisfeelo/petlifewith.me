@@ -63,6 +63,39 @@ export function SpotTypeIcon({ slug, className = "h-6 w-6" }: { slug: string; cl
           <path d="M16.2 10.8c-1.7 0-2.7 1.4-2.2 2.6.5 1.1 3.9 1.1 4.4 0 .5-1.2-.5-2.6-2.2-2.6Z" />
         </svg>
       );
+    case "pool": // 물결
+      return (
+        <svg {...common}>
+          <path d="M3 9c2 0 2-1.5 4-1.5S9 9 11 9s2-1.5 4-1.5S17 9 19 9s2-1.5 2-1.5" />
+          <path d="M3 14c2 0 2-1.5 4-1.5S9 14 11 14s2-1.5 4-1.5S17 14 19 14s2-1.5 2-1.5" />
+          <path d="M3 19c2 0 2-1.5 4-1.5S9 19 11 19s2-1.5 4-1.5S17 19 19 19s2-1.5 2-1.5" />
+        </svg>
+      );
+    case "playground": // 공 + 잔디
+      return (
+        <svg {...common}>
+          <circle cx="14" cy="9" r="4.5" />
+          <path d="M11 6.5c2 1 4 3.5 4.5 6M3 20c2-1.5 3-1.5 5 0s3 1.5 5 0 3-1.5 5 0 3 1.5 3 0" />
+        </svg>
+      );
+    case "cafe": // 컵 + 김
+      return (
+        <svg {...common}>
+          <path d="M5 10h11v5a5 5 0 0 1-5 5H10a5 5 0 0 1-5-5v-5Z" />
+          <path d="M16 11h1.5a2.5 2.5 0 0 1 0 5H16" />
+          <path d="M9 3.5c-.8 1 .8 2 0 3M12.5 3.5c-.8 1 .8 2 0 3" />
+        </svg>
+      );
+    case "meetup": // 사람 셋
+      return (
+        <svg {...common}>
+          <circle cx="12" cy="7" r="2.6" />
+          <circle cx="5.5" cy="9" r="2" />
+          <circle cx="18.5" cy="9" r="2" />
+          <path d="M7.5 20c0-2.8 2-4.6 4.5-4.6s4.5 1.8 4.5 4.6" />
+          <path d="M2 18c0-2 1.4-3.5 3.5-3.5M22 18c0-2-1.4-3.5-3.5-3.5" />
+        </svg>
+      );
     default: // 핀
       return (
         <svg {...common}>

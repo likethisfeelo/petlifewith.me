@@ -48,6 +48,8 @@ const SPOT_TYPES = [
   { slug: "self-wash", name: "셀프목욕", description: "공공데이터에 없어 직접 발굴한다", monetizable: true, listed: true, sortOrder: 2 },
   { slug: "pool", name: "수영장", description: "직접 발굴·재분류로 채운다", monetizable: true, listed: true, sortOrder: 3 },
   { slug: "playground", name: "놀이터", description: "직접 발굴·재분류로 채운다", monetizable: true, listed: true, sortOrder: 4 },
+  // 반려동물 동반 카페 — 인허가 데이터에 따로 없어(휴게음식점) 직접 발굴·업체 등록으로 채운다 (놀이 하단 배너, 2026-09 신설)
+  { slug: "cafe", name: "반려동물 동반 카페", description: "직접 발굴·업체 등록", monetizable: true, listed: true, sortOrder: 17 },
   { slug: "boarding", name: "유치원·위탁", description: "동물위탁관리업 인허가 기반 시딩", monetizable: true, listed: true, sortOrder: 5 },
   // 돌봄 서비스 (2026-09) — 공공데이터에 없다. 직접 발굴 + 사장님 포털 등록. 주소는 지역까지만 싣는 경우가 많다 (5-6)
   { slug: "pet-sitter", name: "펫시터", description: "보호자 집으로 와서 돌보는 방문 돌봄 — 직접 발굴·업체 등록", monetizable: true, listed: true, sortOrder: 6 },

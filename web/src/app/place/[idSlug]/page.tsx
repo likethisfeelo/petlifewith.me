@@ -228,6 +228,14 @@ export default async function PlacePage({ params }: Props) {
           >
             정보 관리 요청 (무료)
           </Link>
+          {typeMonetizable && !isCare && (
+            <Link
+              href={`/portal/promo?spot=${spot.id}`}
+              className="rounded-full border border-line bg-surface px-4 py-2 text-xs font-medium text-ink hover:bg-sand"
+            >
+              지역 상단 노출 신청 (유료)
+            </Link>
+          )}
           {email && (
             <a
               href={`mailto:${email}?subject=${encodeURIComponent(`[정정] ${spot.name} (place/${spot.id})`)}`}

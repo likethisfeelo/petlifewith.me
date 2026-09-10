@@ -49,7 +49,7 @@ export const SPOT_STATUS_LABEL: Record<string, string> = {
 export const SPOT_SOURCE_LABEL: Record<string, string> = {
   public_data: "공공데이터 (행안부 인허가)",
   direct: "직접 발굴",
-  claimed: "클레임 보강",
+  claimed: "요청 반영",
   sample: "개발용 샘플",
 };
 
@@ -59,12 +59,6 @@ export const GUIDE_STATUS_LABEL: Record<string, string> = {
   published: "발행됨",
   archived: "보관",
   pending: "승인 대기 (회원 글)",
-};
-
-export const CLAIM_STATUS_LABEL: Record<string, string> = {
-  pending: "대기",
-  approved: "승인",
-  rejected: "반려",
 };
 
 export const MAKER_CATEGORY_LABEL: Record<string, string> = {
