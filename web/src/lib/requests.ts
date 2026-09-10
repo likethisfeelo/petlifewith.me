@@ -5,7 +5,7 @@
 // 신청자 이름·연락처·사업자번호는 관리자 화면과 슬랙에만 간다 (claude.md 5-6). 결제는 수동 — 운영자가 안내·확인한다.
 // ============================================================
 
-export const REQUEST_KINDS = ["spot_register", "spot_claim", "maker_claim", "promo_slot", "care_partner", "expert_partner"] as const;
+export const REQUEST_KINDS = ["spot_register", "spot_claim", "maker_claim", "promo_slot", "care_partner"] as const;
 export type RequestKind = (typeof REQUEST_KINDS)[number];
 export const REQUEST_STATUSES = ["new", "in_progress", "done", "rejected"] as const;
 export type RequestStatus = (typeof REQUEST_STATUSES)[number];
@@ -16,7 +16,6 @@ export const REQUEST_KIND_LABEL: Record<RequestKind, string> = {
   maker_claim: "정보 관리 (메이커)",
   promo_slot: "지역 상단 노출",
   care_partner: "돌봄 파트너 등록",
-  expert_partner: "상담 전문가 등록",
 };
 
 export const REQUEST_STATUS_LABEL: Record<RequestStatus, string> = {
@@ -117,17 +116,7 @@ export interface PromoSlotPayload {
   businessName: string | null;
 }
 
-export interface ExpertPartnerPayload {
-  kind: string; // trainer / vet / vet_tech / mentor
-  displayName: string;
-  credentialsText: string | null;
-  topics: string[];
-  modes: string[];
-  priceText: string | null;
-  intro: string;
-}
-
-export type RequestPayload = SpotRegisterPayload | CarePartnerPayload | PromoSlotPayload | ExpertPartnerPayload | Record<string, never>;
+export type RequestPayload = SpotRegisterPayload | CarePartnerPayload | PromoSlotPayload | Record<string, never>;
 
 function url(raw: Record<string, unknown>, key: string, label: string): string | null | { error: string } {
   const v = field(raw, key);
@@ -181,24 +170,6 @@ export function validateCarePartner(raw: Record<string, unknown>, careTypes: str
   const kakaoUrl = url(raw, "kakaoUrl", "카카오톡 채널");
   if (kakaoUrl && typeof kakaoUrl === "object") return { ok: false, error: kakaoUrl.error };
   return { ok: true, value: { typeSlug, displayName, regionIds, intro, priceText, hoursText, kakaoUrl } };
-}
-
-/** 상담 전문가 등록 — 훈련사·수의사·수의 테크니션·멘토. 병원명·주소는 받지 않는다 (6-2) */
-export function validateExpertPartner(raw: Record<string, unknown>, kinds: readonly string[], modes: readonly string[]): Validation<ExpertPartnerPayload> {
-  const kind = field(raw, "expertKind");
-  if (!kinds.includes(kind)) return { ok: false, error: "어떤 전문가인지 골라 주세요." };
-  const displayName = field(raw, "displayName");
-  if (displayName.length < 2 || displayName.length > REQUEST_LIMITS.businessName) return { ok: false, error: "활동명(표시 이름)을 2자 이상 적어 주세요." };
-  const credentialsText = optional(raw, "credentialsText", REQUEST_LIMITS.short, "자격·경력");
-  if (credentialsText && typeof credentialsText === "object") return { ok: false, error: credentialsText.error };
-  const topics = [...new Set(field(raw, "topics").split(/[,\n]/).map((s) => s.trim()).filter(Boolean))].slice(0, 10);
-  const modeList = [...new Set(String(raw.modes ?? "").split(",").map((s) => s.trim()).filter((m) => modes.includes(m)))];
-  if (modeList.length === 0) return { ok: false, error: "상담 방식(화상·전화·채팅)을 하나 이상 골라 주세요." };
-  const priceText = optional(raw, "priceText", REQUEST_LIMITS.short, "요금");
-  if (priceText && typeof priceText === "object") return { ok: false, error: priceText.error };
-  const intro = field(raw, "intro");
-  if (intro.length < 10 || intro.length > REQUEST_LIMITS.intro) return { ok: false, error: `소개를 10자 이상 ${REQUEST_LIMITS.intro}자 이내로 적어 주세요.` };
-  return { ok: true, value: { kind, displayName, credentialsText, topics, modes: modeList, priceText, intro } };
 }
 
 export function validatePromoSlot(raw: Record<string, unknown>, hasSpot: boolean): Validation<PromoSlotPayload> {

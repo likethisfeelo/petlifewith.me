@@ -1,11 +1,14 @@
-// 토픽 페이지 하단 디렉토리 입구 배너 — 섹션 두 개, 섹션마다 큰 카드 버튼이 가로로.
-// 노견생활: "직접 강아지와 함께 방문해요" / "집으로 오거나 집 근처에서" (돌봄 서비스).
+// 토픽 페이지 하단 디렉토리 입구 배너 — 섹션마다 큰 카드 버튼이 가로로.
+// 노견생활: "직접 강아지와 함께 방문해요" / "집으로 오거나 집 근처에서" (돌봄 서비스) / "노견 생활 상담하기" (훈련사·멘토, 지역별)
+//          / "운동 및 재활" (장비 보유처 지도 + 치료법 기준 시행처) / "관리·재활 도구" (기기 → 본사 → 대리점 → 체험 가능 업체).
 // 놀이: "함께 가서 놀아요" (수영장·운동장·카페) / "사람과 함께" (펫시터·펫산책·펫모임).
-// 각 항목은 스팟 유형 디렉토리(/spot/type/[slug])로 가고, 펫모임처럼 디렉토리가 아닌 항목은 href 를 따로 준다.
+// 각 항목은 스팟 유형 디렉토리(/spot/type/[slug])로 가고, 펫모임·상담·기기처럼 디렉토리가 아닌 항목은 href 를 따로 준다.
 // 커뮤니티 게시판이 아니라 업체·파트너·모임 검색 입구다. 유치원·데이케어는 같은 인허가 유형(boarding)이라 목적지가 같다.
 import Link from "next/link";
 import { isCareType } from "@app/data";
+import { DEVICE_CATEGORY_BLURB, DEVICE_CATEGORY_LABEL } from "@/lib/devices";
 import { countIndexableCareProviders } from "@/lib/queries/care";
+import { countPublishedDevicesByCategory } from "@/lib/queries/devices";
 import { countPublishedExpertsByKind } from "@/lib/queries/experts";
 import { countOpenMeetups } from "@/lib/queries/meetups";
 import { countIndexableSpotsForType, listSpotTypesBySlugs } from "@/lib/queries/spots";
@@ -18,6 +21,8 @@ interface EntryItem {
   typeSlug?: string;
   /** 상담 전문가 종류 — 공개 전문가 수를 상태 문구로 */
   expertKind?: string;
+  /** 기기 분류 — 공개 기기 수를 상태 문구로 ("all" 은 전체) */
+  deviceCategory?: string;
   /** 디렉토리가 아닌 목적지 (예: 펫모임 /meetup) */
   href?: string;
   /** typeSlug 가 없을 때 수 자리에 보여 줄 문구 */
@@ -62,13 +67,33 @@ const SENIOR_GROUPS: EntryGroup[] = [
   {
     id: "care-entry-consult",
     heading: "노견 생활 상담하기",
-    sub: "온라인으로 묻고 답하는 생활 상담 — 진단·처방이 아닌 일상의 이야기",
+    sub: "지역에서 활동하는 훈련사와 먼저 노견을 돌본 멘토 — 온라인 상담 시간을 예약하거나 연락을 받습니다",
+    cols: "sm:grid-cols-2",
+    items: [
+      { key: "consult-trainer", label: "훈련사", href: "/consult?kind=trainer", expertKind: "trainer", icon: "consult", blurb: "행동·훈련·산책·분리불안 — 자격을 확인한 훈련사의 온라인 상담", cta: "지역별로 찾기 →" },
+      { key: "consult-mentor", label: "멘토", href: "/consult?kind=mentor", expertKind: "mentor", icon: "consult", blurb: "먼저 노견을 돌본 보호자의 경험 — 회원 누구나 멘토로 참여할 수 있습니다", cta: "지역별로 찾기 →", isNew: true },
+    ],
+  },
+  {
+    id: "care-entry-rehab",
+    heading: "운동 및 재활",
+    sub: "관절·근력을 지키는 운동과 재활 — 장비를 갖춘 곳만 지도로, 치료법은 시행처 기준으로",
+    cols: "sm:grid-cols-2",
+    items: [
+      { key: "rehab", label: "운동·재활", typeSlug: "rehab", icon: "rehab", blurb: "수중 러닝머신·밸런스 기구 등 재활·특수 훈련 장비를 갖춘 곳 — 장비를 등록한 곳만 소개", isNew: true },
+      { key: "rehab-modality", label: "재활·한방 시행처", href: "/rehab", icon: "rehab-site", status: "치료법 기준 · 광고·순위 없음", blurb: "침치료·한방재활·체외충격파 등 치료법 기준으로, 시행한다고 공개된 동물병원을 지역별 가나다순으로", cta: "치료법으로 찾기 →" },
+    ],
+  },
+  {
+    id: "care-entry-device",
+    heading: "관리·재활 도구",
+    sub: "기기 → 본사 → 대리점 → 지역별 체험 가능 업체까지 한 번에 — 집에서 쓰는 관리 도구부터 재활 장비까지",
     cols: "sm:grid-cols-4",
     items: [
-      { key: "consult-trainer", label: "훈련사", href: "/consult?kind=trainer", expertKind: "trainer", icon: "consult", blurb: "행동·훈련·산책·분리불안 온라인 상담", cta: "상담 보기 →" },
-      { key: "consult-vet", label: "수의사", href: "/consult?kind=vet", expertKind: "vet", icon: "consult", blurb: "돌봄 루틴·식이·생활 관리 — 생활 상담", cta: "상담 보기 →" },
-      { key: "consult-vet-tech", label: "수의 테크니션", href: "/consult?kind=vet_tech", expertKind: "vet_tech", icon: "consult", blurb: "투약·간호·재활 보조 등 집에서의 돌봄", cta: "상담 보기 →" },
-      { key: "consult-mentor", label: "멘토", href: "/consult?kind=mentor", expertKind: "mentor", icon: "consult", blurb: "먼저 노견을 돌본 보호자의 경험", cta: "상담 보기 →", isNew: true },
+      { key: "device-all", label: "도구 전체", href: "/device", deviceCategory: "all", icon: "device", blurb: "어떤 기기가 있고, 어디서 사고, 어디서 써 볼 수 있는지", cta: "기기 보기 →", isNew: true },
+      { key: "device-rehab", label: DEVICE_CATEGORY_LABEL.rehab_equipment, href: "/device?category=rehab_equipment", deviceCategory: "rehab_equipment", icon: "rehab", blurb: DEVICE_CATEGORY_BLURB.rehab_equipment, cta: "기기 보기 →" },
+      { key: "device-laser", label: DEVICE_CATEGORY_LABEL.laser, href: "/device?category=laser", deviceCategory: "laser", icon: "device", blurb: DEVICE_CATEGORY_BLURB.laser, cta: "기기 보기 →" },
+      { key: "device-monitor", label: DEVICE_CATEGORY_LABEL.monitor, href: "/device?category=monitor", deviceCategory: "monitor", icon: "monitor", blurb: DEVICE_CATEGORY_BLURB.monitor, cta: "기기 보기 →" },
     ],
   },
 ];
@@ -112,6 +137,8 @@ async function EntryBanner({ groups, directoryHref = "/spot" }: { groups: EntryG
   // 펫모임 카드 — 열린 모임 수 (비회원에게도 보이는 집계)
   const meetupTotal = groups.some((g) => g.items.some((i) => i.key === "meetup")) ? await countOpenMeetups() : 0;
   const expertCounts = groups.some((g) => g.items.some((i) => i.expertKind)) ? await countPublishedExpertsByKind() : {};
+  const deviceCounts = groups.some((g) => g.items.some((i) => i.deviceCategory)) ? await countPublishedDevicesByCategory() : {};
+  const deviceTotal = Object.values(deviceCounts).reduce((a, b) => a + b, 0);
 
   return (
     <div className="space-y-5">
@@ -147,9 +174,13 @@ async function EntryBanner({ groups, directoryHref = "/spot" }: { groups: EntryG
                       : "첫 모임을 열어 보세요"
                     : item.expertKind
                       ? (expertCounts[item.expertKind] ?? 0) > 0
-                        ? `전문가 ${expertCounts[item.expertKind]}명`
+                        ? `${expertCounts[item.expertKind]}명 활동 중`
                         : "모집 중"
-                      : (item.status ?? "");
+                      : item.deviceCategory
+                        ? (item.deviceCategory === "all" ? deviceTotal : (deviceCounts[item.deviceCategory] ?? 0)) > 0
+                          ? `기기 ${item.deviceCategory === "all" ? deviceTotal : deviceCounts[item.deviceCategory]}개`
+                          : "정리 중"
+                        : (item.status ?? "");
                 return (
                   <Link
                     key={item.key}

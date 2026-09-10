@@ -1,8 +1,9 @@
 "use client";
 
-// 예약·상담 채팅 — 결제 확인 뒤 열린다. 서버리스라 웹소켓 대신 5초 폴링(서버 액션 RPC). 참여자: 신청 회원·제공자·관리자.
+// 상담 채팅 — 대화(conversation) 기준. 예약 대화는 결제 확인 뒤, 상담 프로필에서 바로 연 대화는 즉시 열린다.
+// 서버리스라 웹소켓 대신 5초 폴링(서버 액션 RPC). 참여자: 신청 회원·제공자·관리자.
 import { useActionState, useEffect, useRef, useState } from "react";
-import { fetchMessagesAction, sendMessageAction, type ChatState } from "@/app/reservation-actions";
+import { fetchChatMessagesAction, sendChatMessageAction, type ChatState } from "@/app/chat-actions";
 import type { MessageRow } from "@/lib/queries/reservations";
 import { RESERVATION_LIMITS } from "@/lib/reservations";
 
@@ -14,9 +15,9 @@ function stamp(d: Date | string): string {
   return `${k.getUTCMonth() + 1}/${k.getUTCDate()} ${String(k.getUTCHours()).padStart(2, "0")}:${String(k.getUTCMinutes()).padStart(2, "0")}`;
 }
 
-export function ChatPanel({ reservationId, initial, myRole }: { reservationId: number; initial: MessageRow[]; myRole: string }) {
+export function ChatPanel({ conversationId, initial, myRole, placeholder }: { conversationId: number; initial: MessageRow[]; myRole: string; placeholder?: string }) {
   const [rows, setRows] = useState<MessageRow[]>(initial);
-  const [state, formAction, pending] = useActionState<ChatState, FormData>(sendMessageAction, {});
+  const [state, formAction, pending] = useActionState<ChatState, FormData>(sendChatMessageAction, {});
   const lastId = rows.length > 0 ? rows[rows.length - 1]!.id : 0;
   const lastRef = useRef(lastId);
   lastRef.current = lastId;
@@ -24,7 +25,7 @@ export function ChatPanel({ reservationId, initial, myRole }: { reservationId: n
 
   const pull = async () => {
     try {
-      const more = await fetchMessagesAction(reservationId, lastRef.current);
+      const more = await fetchChatMessagesAction(conversationId, lastRef.current);
       if (more.length > 0) setRows((prev) => [...prev, ...more.filter((m) => !prev.some((p) => p.id === m.id))]);
     } catch {
       /* 다음 폴링에서 다시 */
@@ -35,7 +36,7 @@ export function ChatPanel({ reservationId, initial, myRole }: { reservationId: n
     const t = setInterval(pull, 5000);
     return () => clearInterval(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reservationId]);
+  }, [conversationId]);
 
   // 보낸 뒤 바로 당겨온다
   useEffect(() => {
@@ -75,8 +76,8 @@ export function ChatPanel({ reservationId, initial, myRole }: { reservationId: n
           if (ta) setTimeout(() => (ta.value = ""), 0);
         }}
       >
-        <input type="hidden" name="reservationId" value={reservationId} />
-        <textarea name="body" rows={2} required maxLength={RESERVATION_LIMITS.messageMax} placeholder="메시지 (전화번호·주소 같은 개인정보는 필요한 만큼만)" className="w-full rounded-lg border border-line bg-cream/60 px-3 py-2 text-sm outline-none focus:border-ink" />
+        <input type="hidden" name="conversationId" value={conversationId} />
+        <textarea name="body" rows={2} required maxLength={RESERVATION_LIMITS.messageMax} placeholder={placeholder ?? "메시지 (전화번호·주소 같은 개인정보는 필요한 만큼만)"} className="w-full rounded-lg border border-line bg-cream/60 px-3 py-2 text-sm outline-none focus:border-ink" />
         <button type="submit" disabled={pending} className="rounded-full bg-ink px-4 py-2 text-xs font-semibold text-cream disabled:opacity-50">
           보내기
         </button>

@@ -25,20 +25,29 @@ export function chatOpen(status: ReservationStatus): boolean {
   return status === "paid" || status === "done";
 }
 
-export const EXPERT_KINDS = ["trainer", "vet", "vet_tech", "mentor"] as const;
+export const EXPERT_KINDS = ["trainer", "mentor"] as const;
 export type ExpertKind = (typeof EXPERT_KINDS)[number];
-export const EXPERT_KIND_LABEL: Record<ExpertKind, string> = { trainer: "훈련사", vet: "수의사", vet_tech: "수의 테크니션", mentor: "멘토 (선배 보호자)" };
+export const EXPERT_KIND_LABEL: Record<ExpertKind, string> = { trainer: "훈련사", mentor: "멘토 (선배 보호자)" };
 export const EXPERT_KIND_BLURB: Record<ExpertKind, string> = {
-  trainer: "행동·훈련·산책·분리불안 — 온라인 상담",
-  vet: "노견 돌봄 루틴·식이·생활 관리 — 생활 상담 (진단·처방 아님)",
-  vet_tech: "투약·간호·재활 보조 등 집에서의 돌봄 — 생활 상담",
-  mentor: "먼저 노견을 돌본 보호자의 경험 나누기",
+  trainer: "행동·훈련·산책·분리불안 — 지역 방문 또는 온라인 상담",
+  mentor: "먼저 노견을 돌본 보호자의 경험 나누기 — 회원 누구나 프로필을 만들 수 있어요",
 };
-/** 의료 인접 — 생활 상담 한정 고지를 붙이는 종류 */
-export const MEDICAL_ADJACENT_KINDS: readonly ExpertKind[] = ["vet", "vet_tech"];
 export function isExpertKind(v: unknown): v is ExpertKind {
   return typeof v === "string" && (EXPERT_KINDS as readonly string[]).includes(v);
 }
+/** 훈련사는 자격 확인 뒤 운영자가 공개, 멘토는 저장 즉시 공개(운영자는 내릴 수 있다) */
+export function selfPublishes(kind: ExpertKind): boolean {
+  return kind === "mentor";
+}
+export const EXPERT_LIMITS = {
+  /** 활동 지역 최대 수 (돌봄 파트너와 같은 단위) */
+  regions: 5,
+  topics: 10,
+  slots: 21,
+  intro: 3000,
+  name: 40,
+  short: 120,
+} as const;
 
 export const CONSULT_MODES = ["video", "phone", "chat"] as const;
 export type ConsultMode = (typeof CONSULT_MODES)[number];
@@ -58,6 +67,8 @@ export const RESERVATION_LIMITS = {
   /** 채팅 메시지 */
   messageMax: 2000,
   messagesPerHour: 60,
+  /** 상담 프로필에서 바로 여는 대화 — 회원 한 사람이 하루에 새로 열 수 있는 수 */
+  chatsPerDay: 10,
 } as const;
 
 export type Validation<T> = { ok: true; value: T } | { ok: false; error: string };

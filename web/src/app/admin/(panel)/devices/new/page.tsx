@@ -10,11 +10,11 @@ export default async function AdminDeviceNewPage() {
 
   return (
     <div>
-      <AdminPageHeader title="기기 등록" description="치료·진단 기기를 기기 자체를 주어로 정리합니다." />
+      <AdminPageHeader title="기기 등록" description="관리·재활 도구를 기기 자체를 주어로 정리합니다. 본사·대리점·체험 가능 업체로 이어집니다." />
       <div className="mt-5">
         <DeviceEditor
           mode="create"
-          device={{ name: "", makerName: null, category: "other", summaryMd: null, specsMd: null }}
+          device={{ name: "", makerName: null, category: "rehab_equipment", summaryMd: null, specsMd: null, makerUrl: null, makerContactUrl: null, imageKey: null, priceText: null, published: false, homeUse: false, featuredOrder: null }}
           regions={regionRows.map((r) => ({ id: r.id, label: `${r.sidoName} ${r.sigunguName}` }))}
           sites={[]}
         />

@@ -6,6 +6,7 @@ import { SPOT_SOURCE_LABEL, idSlugPath } from "@/lib/format";
 import { isCareType } from "@app/data";
 import { listServiceAreasForSpot } from "@/lib/queries/care";
 import { getSpotLinks } from "@/lib/queries/spots";
+import { listDeviceOptions, listDevicesForSpot } from "@/lib/queries/devices";
 import { AdminPageHeader } from "../../../_components/fields";
 import { detachOwnerAction } from "../../../request-actions";
 import { SpotEditor } from "./spot-editor";
@@ -35,7 +36,7 @@ export default async function AdminSpotEditPage({ params, searchParams }: Props)
   )[0];
   if (!row) notFound();
 
-  const [types, links, serviceAreas, regionRows] = await Promise.all([
+  const [types, links, serviceAreas, regionRows, deviceOptions, spotDevices] = await Promise.all([
     db
       .select({ id: spotTypes.id, slug: spotTypes.slug, name: spotTypes.name, listed: spotTypes.listed })
       .from(spotTypes)
@@ -46,6 +47,8 @@ export default async function AdminSpotEditPage({ params, searchParams }: Props)
       .select({ id: regions.id, sidoName: regions.sidoName, sidoSlug: regions.sidoSlug, sigunguName: regions.sigunguName })
       .from(regions)
       .orderBy(regions.id),
+    listDeviceOptions(),
+    listDevicesForSpot(spotId),
   ]);
 
   const { spot } = row;
@@ -142,6 +145,7 @@ export default async function AdminSpotEditPage({ params, searchParams }: Props)
             parkingText: spot.parkingText,
             descriptionMd: spot.descriptionMd,
             heroImageKey: spot.heroImageKey,
+            isHospital: spot.isHospital,
             seo: { seoTitle: spot.seoTitle, seoDescription: spot.seoDescription, ogImageKey: spot.ogImageKey },
           }}
           types={types.map((t) => ({ id: t.id, label: t.listed ? t.name : `${t.name} (B2B 참고)` }))}
@@ -149,6 +153,9 @@ export default async function AdminSpotEditPage({ params, searchParams }: Props)
           careTypeIds={types.filter((t) => isCareType(t.slug)).map((t) => t.id)}
           areaOptions={regionRows}
           serviceAreas={serviceAreas.map((a) => ({ regionId: a.regionId, exposed: a.exposed }))}
+          rehabTypeId={types.find((t) => t.slug === "rehab")?.id}
+          deviceOptions={deviceOptions.map((d) => ({ id: d.id, label: d.makerName ? `${d.name} · ${d.makerName}` : d.name }))}
+          spotDeviceIds={spotDevices.map((d) => d.id)}
         />
       </div>
     </div>

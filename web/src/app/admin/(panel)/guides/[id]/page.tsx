@@ -106,6 +106,7 @@ export default async function AdminGuideEditPage({ params, searchParams }: Props
               medicalAdjacent: guide.medicalAdjacent,
               vetReviewed: guide.vetReviewed,
               vetReviewerName: guide.vetReviewerName,
+              sponsorName: guide.sponsorName,
               vetReviewedAt: guide.vetReviewedAt,
               heroImageKey: guide.heroImageKey,
               heroMedia: guide.heroMedia,

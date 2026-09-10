@@ -11,7 +11,7 @@ import { getDb, isDbConfigured, schema } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { siteUrl, slackRequestsWebhookUrl } from "@/lib/config";
 import { getCurrentMember } from "@/lib/member";
-import { getReservationFor, getConversationId, listMessages, slotTaken, type MessageRow } from "@/lib/queries/reservations";
+import { getReservationFor, getConversationId, slotTaken } from "@/lib/queries/reservations";
 import { bookedSlotStarts, getExpertById } from "@/lib/queries/experts";
 import {
   CONSULT_MODE_LABEL,
@@ -19,10 +19,8 @@ import {
   RESERVATION_KIND_LABEL,
   RESERVATION_LIMITS,
   RESERVATION_STATUS_LABEL,
-  chatOpen,
   slotLabel,
   slotWindows,
-  validateMessageBody,
   validateReservationInput,
   type ReservationStatus,
 } from "@/lib/reservations";
@@ -212,48 +210,4 @@ export async function saveReservationNoteAction(formData: FormData): Promise<voi
   const note = String(formData.get("adminNote") ?? "").trim().slice(0, 2000);
   await getDb().update(reservations).set({ adminNote: note || null, updatedAt: new Date() }).where(eq(reservations.id, id));
   revalidatePath("/admin/reservations");
-}
-
-// ---------- 채팅 ----------
-
-export interface ChatState {
-  error?: string;
-}
-
-export async function sendMessageAction(_prev: ChatState, formData: FormData): Promise<ChatState> {
-  const id = num(formData.get("reservationId"));
-  if (!id || !isDbConfigured()) return { error: "잘못된 요청" };
-  const who = await actor();
-  const found = await getReservationFor(id, who);
-  if (!found) return { error: "권한이 없습니다." };
-  if (!chatOpen(found.r.status)) return { error: "결제 확인 뒤에 채팅이 열립니다." };
-  const body = validateMessageBody(formData.get("body"));
-  if (!body.ok) return { error: body.error };
-  const db = getDb();
-  const convId = await getConversationId(id);
-  if (!convId) return { error: "대화가 아직 열리지 않았습니다." };
-  if (who.userId) {
-    const recent = (
-      await db
-        .select({ n: sql<number>`count(*)`.mapWith(Number) })
-        .from(messages)
-        .where(and(eq(messages.senderUserId, who.userId), gt(messages.createdAt, new Date(Date.now() - 60 * 60 * 1000))))
-    )[0]?.n;
-    if ((recent ?? 0) >= RESERVATION_LIMITS.messagesPerHour) return { error: "메시지를 너무 자주 보내고 있습니다. 잠시 후 다시 시도해 주세요." };
-  }
-  await db.insert(messages).values({ conversationId: convId, senderUserId: who.userId, senderRole: found.role, body: body.value });
-  await db.update(conversations).set({ lastMessageAt: new Date() }).where(eq(conversations.id, convId));
-  await db.update(reservations).set({ updatedAt: new Date() }).where(eq(reservations.id, id));
-  return {};
-}
-
-/** 폴링 — afterId 뒤의 메시지. 권한 없으면 빈 배열 */
-export async function fetchMessagesAction(reservationId: number, afterId: number): Promise<MessageRow[]> {
-  if (!isDbConfigured()) return [];
-  const who = await actor();
-  const found = await getReservationFor(reservationId, who);
-  if (!found) return [];
-  const convId = await getConversationId(reservationId);
-  if (!convId) return [];
-  return listMessages(convId, afterId);
 }

@@ -59,7 +59,7 @@ export const spotSource = pgEnum("spot_source", [
 ]);
 export const makerStatus = pgEnum("maker_status", ["draft", "published"]);
 // 요청함 (0012) — 업체 등록·정보 관리·유료 노출·돌봄 파트너 등록이 한 표에 쌓인다. 옛 claims 는 여기로 옮겼다.
-export const requestKind = pgEnum("request_kind", ["spot_register", "spot_claim", "maker_claim", "promo_slot", "care_partner", "expert_partner"]);
+export const requestKind = pgEnum("request_kind", ["spot_register", "spot_claim", "maker_claim", "promo_slot", "care_partner"]);
 export const requestStatus = pgEnum("request_status", ["new", "in_progress", "done", "rejected"]);
 // 펫모임 (0013) — 열림 / 마감 (주최자가 정한다). 숨김은 관리자 hidden_at
 export const meetupStatus = pgEnum("meetup_status", ["open", "closed"]);
@@ -70,8 +70,8 @@ export const reactionKind = pgEnum("reaction_kind", ["save", "like"]);
 // 흐름: 요청(new) → 확인(confirmed) → 결제 확인(paid, 제공자 또는 관리자가 수동 확인 — PG 는 뒤에) → 채팅 → 완료(done) / 취소(cancelled)
 export const reservationKind = pgEnum("reservation_kind", ["care", "spot", "consult"]);
 export const reservationStatus = pgEnum("reservation_status", ["new", "confirmed", "paid", "done", "cancelled"]);
-// 노견 생활 상담 전문가 — 훈련사 / 수의사 / 수의 테크니션 / 멘토(경험 많은 보호자). 수의사·수의 테크니션은 "생활 상담"으로 한정 (claude.md 6-2)
-export const expertKind = pgEnum("expert_kind", ["trainer", "vet", "vet_tech", "mentor"]);
+// 노견 생활 상담 — 훈련사 / 멘토(경험 많은 보호자, 회원 누구나 프로필을 만든다). 의료인 상담은 두지 않는다 (claude.md 6-2)
+export const expertKind = pgEnum("expert_kind", ["trainer", "mentor"]);
 export const expertStatus = pgEnum("expert_status", ["draft", "published"]);
 export const embedSource = pgEnum("embed_source", ["youtube", "instagram", "none"]);
 export const offerVendor = pgEnum("offer_vendor", ["coupang", "brand_store", "other"]);
@@ -201,6 +201,8 @@ export const guides = pgTable(
     vetReviewed: boolean("vet_reviewed").notNull().default(false),
     vetReviewerName: text("vet_reviewer_name"), // "○○ 수의사 감수" 표기용
     vetReviewedAt: date("vet_reviewed_at"),
+    // 0016 — 협찬 콘텐츠: 제조사·브랜드가 의뢰한 글은 후원사 이름을 적어 "광고·협찬" 표기가 자동으로 붙는다 (표시광고법). 관리자만 쓴다
+    sponsorName: text("sponsor_name"),
     heroImageKey: text("hero_image_key"), // S3 오브젝트 키 (URL 아님)
     // 대표 영상 (0010, 놀이 영상 피드) — "video:<오브젝트 키>" | "youtube:<ID>" | "instagram:<URL>".
     // null 이면 본문의 첫 영상이 대표. 카드 섬네일은 대표 이미지 → 영상 포스터 → 유튜브 섬네일 순 (web/src/lib/media-ref.ts)
@@ -428,6 +430,8 @@ export const spots = pgTable(
     seoDescription: text("seo_description"),
     ogImageKey: text("og_image_key"),
     claimedBy: uuid("claimed_by").references(() => users.id),
+    // 동물병원 여부 — 운동·재활 유형에 장비 보유처로 등록될 수 있지만 유료 상단 노출에서는 제외 (claude.md 6-2)
+    isHospital: boolean("is_hospital").notNull().default(false),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -531,6 +535,23 @@ export const expertSlots = pgTable(
   (t) => [index("expert_slots_expert_idx").on(t.expertId, t.weekday)],
 );
 
+// 활동 지역 (0016) — 돌봄 파트너의 서비스 지역처럼, 전문가도 시군구 단위로 지역 노출된다 (최대 수는 코드 EXPERT_LIMITS.regions)
+export const expertRegions = pgTable(
+  "expert_regions",
+  {
+    id: bigint("id", { mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
+    expertId: bigint("expert_id", { mode: "number" })
+      .notNull()
+      .references(() => experts.id, { onDelete: "cascade" }),
+    regionId: integer("region_id")
+      .notNull()
+      .references(() => regions.id, { onDelete: "cascade" }),
+    sortOrder: integer("sort_order").notNull().default(0),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("expert_regions_expert_region_uq").on(t.expertId, t.regionId), index("expert_regions_region_idx").on(t.regionId)],
+);
+
 // ---------- 예약·상담 요청 (0015 — 옛 booking_requests 를 흡수) ----------
 // care: 돌봄 파트너 예약, spot: 업체 예약, consult: 전문가 상담. 신청은 로그인 회원(user_id) — 옛 비회원 신청 행은 NULL.
 // provider_user_id 는 신청 시점의 제공자 계정(스팟 소유자 또는 전문가 계정) 스냅샷 — 받은 요청 화면과 채팅 권한의 기준.
@@ -585,13 +606,18 @@ export const conversations = pgTable(
   "conversations",
   {
     id: bigint("id", { mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
+    // reservation: 예약·상담 요청에 딸린 대화 (결제 확인 뒤 열림) / direct: 상담 프로필에서 회원이 바로 연 대화
+    kind: text("kind").notNull().default("reservation"),
     reservationId: bigint("reservation_id", { mode: "number" })
-      .notNull()
       .unique()
       .references(() => reservations.id, { onDelete: "cascade" }),
+    // direct 대화의 두 사람 — 상담 프로필과 신청 회원 (한 쌍에 대화 하나)
+    expertId: bigint("expert_id", { mode: "number" }).references(() => experts.id, { onDelete: "cascade" }),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
     lastMessageAt: timestamp("last_message_at", { withTimezone: true }),
     createdAt: createdAt(),
   },
+  (t) => [uniqueIndex("conversations_direct_uq").on(t.expertId, t.userId)],
 );
 
 export const messages = pgTable(
@@ -910,6 +936,14 @@ export const deviceModels = pgTable("device_models", {
   name: text("name").notNull(),
   makerName: text("maker_name"),
   category: deviceCategory("category").notNull().default("other"),
+  // 0016 — 관리·재활 도구 허브(/device): 본사 링크·문의, 이미지, 공개 여부, 집에서 쓰는 기기인지, 가격대 문구, 주목 기기 슬롯(운영자 지정, 광고 표기)
+  makerUrl: text("maker_url"),
+  makerContactUrl: text("maker_contact_url"),
+  imageKey: text("image_key"),
+  published: boolean("published").notNull().default(false),
+  homeUse: boolean("home_use").notNull().default(false),
+  priceText: text("price_text"),
+  featuredOrder: integer("featured_order"),
   // 원리·스펙은 사실 서술. "효과적" 같은 단정 표현은 에디토리얼 규칙으로 금지.
   summaryMd: text("summary_md"),
   specsMd: text("specs_md"),
@@ -947,10 +981,33 @@ export const deviceSites = pgTable(
     regionId: integer("region_id").references(() => regions.id),
     verifiedAt: date("verified_at"), // 확인 전화 일자 — 표기용
     note: text("note"),
+    // 0016 — hospital(보유 병원, 무료 목록·순위 없음) / trial(체험 가능 업체 — 스팟에 연결돼 지도·예약 요청으로 이어진다)
+    kind: text("kind").notNull().default("hospital"),
+    spotId: bigint("spot_id", { mode: "number" }).references(() => spots.id, { onDelete: "set null" }),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
-  (t) => [index("device_sites_device_idx").on(t.deviceModelId)],
+  (t) => [index("device_sites_device_idx").on(t.deviceModelId), index("device_sites_spot_idx").on(t.spotId)],
+);
+
+// 대리점 (0016) — 기기 → 본사 → 대리점 → 지역별 체험 가능 업체 연결의 한 칸. 지역은 시군구, 링크·전화는 있는 것만
+export const deviceDealers = pgTable(
+  "device_dealers",
+  {
+    id: bigint("id", { mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
+    deviceModelId: bigint("device_model_id", { mode: "number" })
+      .notNull()
+      .references(() => deviceModels.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    regionId: integer("region_id").references(() => regions.id, { onDelete: "set null" }),
+    url: text("url"),
+    phone: text("phone"),
+    note: text("note"),
+    sortOrder: integer("sort_order").notNull().default(0),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index("device_dealers_device_idx").on(t.deviceModelId, t.sortOrder)],
 );
 
 // ---------- 재활·한방·특수치료 시행처 (주어는 병원이 아니라 치료법) ----------

@@ -44,6 +44,31 @@ export function AdLabel() {
   );
 }
 
+/** 협찬 표기 — 업체가 비용·제품을 지원한 글. 본문 앞에서 광고임을 밝힌다 (표시광고법) */
+export function SponsoredNote({ sponsorName }: { sponsorName: string }) {
+  return (
+    <div className="rounded-lg border border-accent/30 bg-accent-soft/50 px-4 py-3 text-sm text-ink">
+      <p className="flex flex-wrap items-center gap-2 font-semibold">
+        <AdLabel />
+        {sponsorName} 협찬 콘텐츠입니다
+      </p>
+      <p className="mt-1 text-[13px] leading-relaxed text-ink-soft">
+        제작비 또는 제품을 지원받고 쓴 글입니다. 지원 여부와 무관하게 확인한 사실만 적고, 효과를 단정하지 않습니다.
+      </p>
+    </div>
+  );
+}
+
+/** 협찬 배지 — 목록·머리글에 짧게 */
+export function SponsoredBadge({ sponsorName }: { sponsorName: string }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full bg-accent-soft px-2.5 py-1 text-xs font-medium text-accent-deep">
+      <AdLabel />
+      {sponsorName} 협찬
+    </span>
+  );
+}
+
 /** 배지 — "인증" 이 아니라 사실 진술. 기준일을 함께 표기한다 (claude.md 7) */
 export function FactBadge({ label, verifiedAt, note }: { label: string; verifiedAt?: string | null; note?: string | null }) {
   const title = [note, verifiedAt ? `기준일 ${verifiedAt}` : null].filter(Boolean).join(" · ");

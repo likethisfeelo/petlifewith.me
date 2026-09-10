@@ -113,6 +113,20 @@
       "when": 1789010543330,
       "tag": "0015_reservations_experts",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1789030224197,
+      "tag": "0016_consult_regions_devices",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1789030344197,
+      "tag": "0017_direct_chat_hospital_flag",
+      "breakpoints": true
     }
   ]
 }

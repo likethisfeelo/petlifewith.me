@@ -13,6 +13,7 @@ import { hashtagsIn, mergeTags, parseTagInput, tagHref } from "@/lib/tags";
 import { parseAreaOrder, parseCuratedOrder } from "@/lib/guide-order";
 import { careRelatedPaths, guideRelatedPaths } from "@/lib/revalidate-paths";
 import { countExposedInArea } from "@/lib/queries/care";
+import { canPromoteRehabSpot } from "@/lib/queries/devices";
 
 const { guides, topics, users, comments, spots, spotTypes, guideItemTags, guideSpotTags, guideMakerTags, promotions, spotServiceAreas } = schema;
 
@@ -184,6 +185,8 @@ export async function saveGuideAction(_prev: ActionState, formData: FormData): P
       vetReviewed,
       vetReviewerName,
       vetReviewedAt: String(formData.get("vetReviewedAt") ?? "").trim() || null,
+      // 협찬사 — 적혀 있으면 글과 기기 페이지에 "광고·협찬" 표기가 붙는다 (표시광고법)
+      sponsorName: String(formData.get("sponsorName") ?? "").trim().slice(0, 80) || null,
       heroImageKey,
       seoTitle,
       seoDescription,
@@ -338,13 +341,15 @@ export async function togglePromotionAction(formData: FormData): Promise<void> {
 
   const row = (
     await db
-      .select({ spot: spots, monetizable: spotTypes.monetizable })
+      .select({ spot: spots, monetizable: spotTypes.monetizable, typeSlug: spotTypes.slug })
       .from(spots)
       .innerJoin(spotTypes, eq(spots.typeId, spotTypes.id))
       .where(eq(spots.id, spotId))
       .limit(1)
   )[0];
   if (!row || !row.monetizable) return; // 장묘 등 비수익화 유형 — 무시
+  // 운동·재활: 재활·특수 훈련 장비를 등록한 곳만 유료 상단 노출. 동물병원은 제외 (claude.md 6-2)
+  if (row.typeSlug === "rehab" && !(await canPromoteRehabSpot(spotId))) return;
 
   const active = (
     await db

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { MedicalNotice, RehabListNote } from "@/components/notices";
 import { ModalityGrid, RehabSiteList, SidoJump } from "@/components/rehab-list";
@@ -46,6 +47,11 @@ export default async function RehabHubPage() {
         </p>
         <RehabListNote />
       </header>
+
+      <p className="mt-4 rounded-lg border border-line bg-sand px-4 py-3 text-sm text-ink-soft">
+        운동·재활 장비를 갖춘 곳(수중 러닝머신·밸런스 기구 등)은 <Link href="/spot/type/rehab" className="font-semibold text-sea underline">운동·재활 지도</Link>에서,
+        기기 자체는 <Link href="/device" className="font-semibold text-sea underline">관리·재활 도구</Link>에서 본사·대리점·체험 가능 업체까지 함께 봅니다.
+      </p>
 
       <section className="mt-10">
         <h2 className="text-lg font-extrabold text-ink">치료법으로 찾기</h2>

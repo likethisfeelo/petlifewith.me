@@ -1,22 +1,31 @@
 "use client";
 
-// 펫모임 셸 — 좌측 지역 지도(시도 → 시군구), 우측 서버가 그린 패널. 시군구 타일은 /meetup?region=<id> 링크.
-// 배지는 열린 모임 수. 스팟 디렉토리 셸(components/spot/spot-directory.tsx)과 같은 구조를 단순하게 쓴다.
+// 지역 지도 셸 (범용) — 좌측 시도→시군구 타일, 우측 서버가 그린 패널. 시군구 타일은 `${hrefPrefix}${regionId}` 링크.
+// 펫모임(/meetup?region=)·온라인 상담(/consult?region=)이 쓴다. 스팟 디렉토리 셸(spot-directory.tsx)의 단순판.
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { CareMap } from "@/components/care/care-map";
 import { sumBySido, type RegionTile } from "@/lib/regions";
 
-export function MeetupMapShell({
+export function RegionMapShell({
   regions,
   countsByRegion,
   selectedSido,
   selectedRegionId,
+  hrefPrefix,
+  noun,
+  unit,
   children,
 }: {
   regions: RegionTile[];
   countsByRegion: Record<number, number>;
   selectedSido: string | null;
   selectedRegionId: number | null;
+  /** 시군구 타일 링크 앞부분 — 뒤에 지역 id 가 붙는다 */
+  hrefPrefix: string;
+  /** 요약 문구의 명사 — "모임", "전문가" */
+  noun: string;
+  /** 단위 — "개", "명" */
+  unit: string;
   children: ReactNode;
 }) {
   const [openSido, setOpenSido] = useState<string | null>(selectedSido);
@@ -47,10 +56,15 @@ export function MeetupMapShell({
           <p className="mb-3 text-xs text-ink-soft">
             {openSidoName ? (
               <>
-                <strong className="text-ink">{openSidoName}</strong> 모임 {(countsBySido[openSido!] ?? 0).toLocaleString("ko-KR")}개 · 전국 {total.toLocaleString("ko-KR")}개
+                <strong className="text-ink">{openSidoName}</strong> {noun} {(countsBySido[openSido!] ?? 0).toLocaleString("ko-KR")}
+                {unit} · 전국 {total.toLocaleString("ko-KR")}
+                {unit}
               </>
             ) : (
-              <>전국 모임 {total.toLocaleString("ko-KR")}개 · 시도를 누르면 구·시·군이 펼쳐집니다</>
+              <>
+                전국 {noun} {total.toLocaleString("ko-KR")}
+                {unit} · 시도를 누르면 구·시·군이 펼쳐집니다
+              </>
             )}
           </p>
           <CareMap
@@ -60,7 +74,7 @@ export function MeetupMapShell({
             selectedSido={openSido}
             selectedRegionId={selectedRegionId}
             onSelectSido={setOpenSido}
-            hrefForRegion={(r) => `/meetup?region=${r.id}`}
+            hrefForRegion={(r) => `${hrefPrefix}${r.id}`}
           />
         </div>
       </aside>

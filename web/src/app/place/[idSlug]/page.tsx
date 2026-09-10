@@ -5,13 +5,14 @@ import { carePersonLabel, isCareType } from "@app/data";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { ReserveActions } from "@/components/reservation/reserve-actions";
 import { JsonLd } from "@/components/jsonld";
-import { B2BNote, DataReferenceNote, PharmacyNote } from "@/components/notices";
+import { B2BNote, DataReferenceNote, MedicalNotice, PharmacyNote } from "@/components/notices";
 import { RememberRegion } from "@/components/region-banner";
 import { contactEmail } from "@/lib/config";
 import { ContactRow } from "@/components/contact/contact-row";
 import { ReactionButtons } from "@/components/reactions/reaction-buttons";
 import { SPOT_STATUS_LABEL, formatDate, idSlugPath, parseIdSlug } from "@/lib/format";
 import { renderMarkdown } from "@/lib/markdown";
+import { listDevicesForSpot } from "@/lib/queries/devices";
 import { guidesMentioningSpot } from "@/lib/queries/guides";
 import { listServiceAreasForSpot } from "@/lib/queries/care";
 import { getPlace, getSpotLinks } from "@/lib/queries/spots";
@@ -58,10 +59,12 @@ export default async function PlacePage({ params }: Props) {
 
   const { spot, typeName, typeMonetizable, region } = found;
   const isCare = isCareType(found.typeSlug);
-  const [mentions, links, careAreas] = await Promise.all([
+  const isRehab = found.typeSlug === "rehab";
+  const [mentions, links, careAreas, devices] = await Promise.all([
     guidesMentioningSpot(spot.id),
     getSpotLinks(spot.id),
     isCare ? listServiceAreasForSpot(spot.id) : Promise.resolve([]),
+    isRehab ? listDevicesForSpot(spot.id) : Promise.resolve([]),
   ]);
   const exposedAreas = careAreas.filter((a) => a.exposed);
   const description = spot.descriptionMd ? renderMarkdown(spot.descriptionMd) : null;
@@ -162,6 +165,38 @@ export default async function PlacePage({ params }: Props) {
       )}
       {found.typeSlug === "pharmacy" && <PharmacyNote />}
       {!found.typeListed && <B2BNote />}
+
+      {/* 운동·재활: 주어는 기기다. 보유 장비를 사실로 적고, 효과·치료 표현은 쓰지 않는다 (claude.md 6-2) */}
+      {isRehab && (
+        <section className="mt-5 rounded-xl border border-line bg-surface p-4">
+          <h2 className="text-sm font-bold text-ink">보유 장비</h2>
+          {devices.length === 0 ? (
+            <p className="mt-1 text-xs text-ink-soft">
+              확인된 장비가 아직 없습니다. 장비를 보유하고 계시면 알려 주세요 — 기기 페이지의 체험 가능 업체로 함께 실립니다.
+            </p>
+          ) : (
+            <>
+              <ul className="mt-2 flex flex-wrap gap-1.5">
+                {devices.map((d) => (
+                  <li key={d.id}>
+                    {d.published ? (
+                      <Link href={`/device/${encodeURIComponent(d.slug)}`} className="rounded-full bg-sea-soft px-2.5 py-1 text-xs font-medium text-sea hover:bg-sea hover:text-white">
+                        {d.name}
+                      </Link>
+                    ) : (
+                      <span className="rounded-full bg-sand px-2.5 py-1 text-xs font-medium text-ink-soft">{d.name}</span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-2 text-xs text-ink-faint">직접 확인한 보유 장비입니다. 이용 조건·비용은 업체에 확인해 주세요.</p>
+            </>
+          )}
+          <div className="mt-3">
+            <MedicalNotice />
+          </div>
+        </section>
+      )}
 
       {infoRows.length > 0 && (
         <section className="mt-6 overflow-hidden rounded-xl border border-line bg-surface">

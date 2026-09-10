@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { slackRequestText, validateCarePartner, validateExpertPartner, validatePromoSlot, validateRequester, validateSpotRegister } from "./requests";
+import { slackRequestText, validateCarePartner, validatePromoSlot, validateRequester, validateSpotRegister } from "./requests";
 
 const base = { requesterName: "김사장", contact: "010-1234-5678", consent: "on" };
 
@@ -38,14 +38,5 @@ describe("슬랙 문구", () => {
   it("종류·요약·담당자·링크를 담고 내용은 한 줄로 자른다", () => {
     const text = slackRequestText({ id: 7, kind: "care_partner", requesterName: "지영", contact: "kakao:jy", summary: ["도그워커 · 산책하는 지영", "지역: 서울 마포구, 서대문구"], message: "아침\n\n산책", adminUrl: "https://x/admin/requests" });
     expect(text.split("\n")).toEqual(["📮 요청함 #7 · 돌봄 파트너 등록", "• 도그워커 · 산책하는 지영", "• 지역: 서울 마포구, 서대문구", "• 담당자: 지영 / kakao:jy", "• 내용: 아침 산책", "→ https://x/admin/requests"]);
-  });
-});
-
-describe("validateExpertPartner", () => {
-  it("종류·활동명·방식·소개", () => {
-    const ok = validateExpertPartner({ expertKind: "trainer", displayName: "행동교정 김훈련", topics: "분리불안, 산책", modes: "video,chat", intro: "10년째 노견 가정을 돕고 있습니다." }, ["trainer", "vet"], ["video", "phone", "chat"]);
-    expect(ok).toMatchObject({ ok: true, value: { kind: "trainer", topics: ["분리불안", "산책"], modes: ["video", "chat"] } });
-    expect(validateExpertPartner({ expertKind: "x", displayName: "aa", modes: "video", intro: "충분히 긴 소개입니다." }, ["trainer"], ["video"]).ok).toBe(false);
-    expect(validateExpertPartner({ expertKind: "trainer", displayName: "aa", modes: "", intro: "충분히 긴 소개입니다." }, ["trainer"], ["video"]).ok).toBe(false);
   });
 });

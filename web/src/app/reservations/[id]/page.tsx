@@ -131,7 +131,7 @@ export default async function ReservationPage({ params, searchParams }: { params
         <h2 className="text-lg font-bold text-ink">채팅</h2>
         {convId ? (
           <div className="mt-3">
-            <ChatPanel reservationId={r.id} initial={msgs} myRole={role} />
+            <ChatPanel conversationId={convId!} initial={msgs} myRole={role} />
           </div>
         ) : (
           <p className="mt-2 rounded-xl border border-dashed border-line p-5 text-sm text-ink-faint">{r.status === "cancelled" ? "취소된 요청입니다." : "결제가 확인되면 채팅이 열립니다. 그 전에는 카카오톡 등 업체 채널을 이용하거나 확인을 기다려 주세요."}</p>

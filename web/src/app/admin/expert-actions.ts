@@ -3,16 +3,16 @@
 // 상담 전문가 관리 액션 — 프로필 등록·수정·공개, 주간 슬롯, 회원 계정 연결(이메일).
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { and, eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { slugify } from "@app/data";
 import { getDb, isDbConfigured, schema } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { isValidObjectKey } from "@/lib/assets";
-import { CONSULT_MODES, EXPERT_KINDS, isExpertKind, parseWeeklySlots } from "@/lib/reservations";
+import { CONSULT_MODES, EXPERT_LIMITS, isExpertKind, parseWeeklySlots } from "@/lib/reservations";
 import { parseRows, rowString } from "./_components/parse-rows";
 import type { ActionState } from "./actions";
 
-const { experts, expertSlots, users, serviceRequests } = schema;
+const { experts, expertSlots, expertRegions, users, regions } = schema;
 
 async function requireDb() {
   if (!(await getSession())) redirect("/admin/login");
@@ -45,6 +45,12 @@ async function readExpert(db: ReturnType<typeof getDb>, formData: FormData) {
   if (!slots.ok) return { error: slots.error };
   const verified = str(formData, "credentialsVerifiedAt");
   if (verified && !/^\d{4}-\d{2}-\d{2}$/.test(verified)) return { error: "확인 기준일은 YYYY-MM-DD 형식입니다." };
+  const regionIds = [...new Set(str(formData, "regionIds").split(",").map((s) => Number(s.trim())).filter((n) => Number.isSafeInteger(n) && n > 0))];
+  if (regionIds.length > EXPERT_LIMITS.regions) return { error: `활동 지역은 ${EXPERT_LIMITS.regions}곳까지입니다.` };
+  if (regionIds.length > 0) {
+    const found = await db.select({ id: regions.id }).from(regions).where(inArray(regions.id, regionIds));
+    if (found.length !== regionIds.length) return { error: "활동 지역을 다시 골라 주세요." };
+  }
   return {
     values: {
       kind,
@@ -62,7 +68,13 @@ async function readExpert(db: ReturnType<typeof getDb>, formData: FormData) {
       sortOrder: Number(str(formData, "sortOrder") || 0) || 0,
     },
     slots: slots.value,
+    regionIds,
   };
+}
+
+async function writeRegions(db: ReturnType<typeof getDb>, expertId: number, regionIds: number[]) {
+  await db.delete(expertRegions).where(eq(expertRegions.expertId, expertId));
+  if (regionIds.length > 0) await db.insert(expertRegions).values(regionIds.map((regionId, i) => ({ expertId, regionId, sortOrder: i })));
 }
 
 async function writeSlots(db: ReturnType<typeof getDb>, expertId: number, slots: Array<{ weekday: number; startMin: number; endMin: number }>) {
@@ -84,11 +96,7 @@ export async function createExpertAction(_prev: ActionState, formData: FormData)
   const inserted = await db.insert(experts).values({ ...read.values, slug }).returning({ id: experts.id });
   const id = inserted[0]!.id;
   await writeSlots(db, id, read.slots);
-  const fromRequestId = Number(str(formData, "fromRequestId"));
-  if (Number.isSafeInteger(fromRequestId) && fromRequestId > 0) {
-    await db.update(serviceRequests).set({ status: "in_progress", updatedAt: new Date() }).where(and(eq(serviceRequests.id, fromRequestId), eq(serviceRequests.status, "new")));
-    revalidatePath("/admin/requests");
-  }
+  await writeRegions(db, id, read.regionIds);
   revalidatePath("/consult");
   redirect(`/admin/experts/${id}?created=1`);
 }
@@ -103,6 +111,7 @@ export async function saveExpertAction(_prev: ActionState, formData: FormData): 
   if ("error" in read) return { error: read.error };
   await db.update(experts).set({ ...read.values, updatedAt: new Date() }).where(eq(experts.id, id));
   await writeSlots(db, id, read.slots);
+  await writeRegions(db, id, read.regionIds);
   revalidatePath("/consult");
   revalidatePath(`/consult/${encodeURIComponent(existing.slug)}`);
   revalidatePath("/admin/experts");

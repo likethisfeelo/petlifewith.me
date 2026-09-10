@@ -5,7 +5,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { MeetupCard } from "@/components/meetup/meetup-card";
-import { MeetupMapShell } from "@/components/meetup/meetup-map-shell";
+import { RegionMapShell } from "@/components/region-map-shell";
 import { MyRegionsForm } from "@/components/meetup/my-regions-form";
 import { getCurrentMember } from "@/lib/member";
 import { MEETUP_LIMITS, regionSummaryText } from "@/lib/meetups";
@@ -59,7 +59,7 @@ export default async function MeetupHubPage({ searchParams }: Props) {
       </div>
 
       <div className="mt-6">
-        <MeetupMapShell regions={regions} countsByRegion={countsByRegion} selectedSido={selected?.sidoSlug ?? null} selectedRegionId={selected?.id ?? null}>
+        <RegionMapShell regions={regions} countsByRegion={countsByRegion} selectedSido={selected?.sidoSlug ?? null} selectedRegionId={selected?.id ?? null} hrefPrefix="/meetup?region=" noun="모임" unit="개">
           {selected && selectedCounts ? (
             <section>
               <h2 className="text-lg font-bold text-ink">
@@ -107,7 +107,7 @@ export default async function MeetupHubPage({ searchParams }: Props) {
               <GuestGate />
             </section>
           )}
-        </MeetupMapShell>
+        </RegionMapShell>
       </div>
     </div>
   );

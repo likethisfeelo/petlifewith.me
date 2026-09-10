@@ -30,7 +30,7 @@ export const ADS_OPT_OUT_META = "petlife-ads";
 
 export function isAdsExcludedPath(pathname: string): boolean {
   if (isAnalyticsExcludedPath(pathname)) return true;
-  return ["/portal", "/claim", "/rehab", "/login", "/signup", "/me", "/write", "/meetup", "/consult", "/reservations", "/book"].some(
+  return ["/portal", "/claim", "/rehab", "/login", "/signup", "/me", "/write", "/meetup", "/consult", "/reservations", "/book", "/chat"].some(
     (p) => pathname === p || pathname.startsWith(`${p}/`),
   );
 }

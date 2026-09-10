@@ -25,7 +25,7 @@ export default async function AdminDevicesPage() {
     <div>
       <AdminPageHeader
         title={`기기 ${rows.length}개`}
-        description="기기 자체를 주어로 다룹니다. 보유처 목록은 기기 콘텐츠 안에서만 무료로 노출되며 광고 상품이 아닙니다."
+        description="기기 자체를 주어로 다룹니다. 공개하면 관리·재활 도구 허브(/device)에 실립니다. 보유 병원 목록은 무료 노출 전용이며 광고 상품이 아닙니다."
         right={
           <Link href="/admin/devices/new" className="rounded-full bg-ink px-4 py-2 text-xs font-medium text-cream hover:opacity-90">
             + 기기 등록
@@ -39,6 +39,7 @@ export default async function AdminDevicesPage() {
             <tr className="border-b border-line text-left text-xs text-ink-faint">
               <th className="px-4 py-2.5 font-medium">기기</th>
               <th className="px-4 py-2.5 font-medium">제조사</th>
+              <th className="px-4 py-2.5 font-medium">공개</th>
               <th className="px-4 py-2.5 font-medium">보유처</th>
               <th className="px-4 py-2.5 font-medium">연결된 글</th>
             </tr>
@@ -46,7 +47,7 @@ export default async function AdminDevicesPage() {
           <tbody className="divide-y divide-line">
             {rows.length === 0 && (
               <tr>
-                <td colSpan={4} className="px-4 py-8 text-center text-sm text-ink-faint">
+                <td colSpan={5} className="px-4 py-8 text-center text-sm text-ink-faint">
                   등록된 기기가 없습니다.
                 </td>
               </tr>
@@ -59,6 +60,12 @@ export default async function AdminDevicesPage() {
                   </Link>
                 </td>
                 <td className="px-4 py-2.5 text-ink-soft">{device.makerName ?? "-"}</td>
+                <td className="px-4 py-2.5">
+                  <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${device.published ? "bg-sage-soft text-sage-deep" : "bg-sand text-ink-soft"}`}>
+                    {device.published ? "공개" : "비공개"}
+                  </span>
+                  {device.featuredOrder != null && <span className="ml-1.5 rounded-full bg-accent-soft px-2 py-0.5 text-xs font-medium text-accent-deep">주목 {device.featuredOrder}</span>}
+                </td>
                 <td className="px-4 py-2.5 text-ink-soft">{siteCount}곳</td>
                 <td className="px-4 py-2.5 text-ink-soft">{guideCount}편</td>
               </tr>

@@ -5,7 +5,7 @@ import { carePersonLabel, isCareType } from "@app/data";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { RegionSuggestBanner } from "@/components/region-banner";
 import { SpotDirectory } from "@/components/spot/spot-directory";
-import { B2BNote, PharmacyNote } from "@/components/notices";
+import { B2BNote, MedicalNotice, PharmacyNote } from "@/components/notices";
 import { CARE_INTRO, countProvidersByRegion, countProvidersBySido, primaryArea, type CareRegion } from "@/lib/care";
 import { countIndexableCareProviders, listCareProviders, listCareRegions } from "@/lib/queries/care";
 import { countIndexableSpotsForType, getSpotTypeBySlug, listRegionCountsForType, listRegionTiles } from "@/lib/queries/spots";
@@ -104,13 +104,20 @@ export default async function SpotTypeHubPage({ params }: Props) {
       {spotType.slug === "pharmacy" && <PharmacyNote />}
       {!spotType.listed && <B2BNote />}
       {spotType.slug === "rehab" && (
-        <p className="mt-4 rounded-lg border border-sage/30 bg-sage-soft px-4 py-3 text-sm text-sage-deep">
-          동물병원의 재활·한방·특수치료(침치료·수중런닝머신·체외충격파 등)는 치료법 기준의 별도 목록으로
-          정리합니다 —{" "}
-          <Link href="/rehab" className="font-semibold underline">
-            재활·한방·특수치료 어디서 받을 수 있나 →
-          </Link>
-        </p>
+        <div className="mt-4 space-y-3">
+          <p className="rounded-lg border border-line bg-sand px-4 py-3 text-sm text-ink-soft">
+            수중 러닝머신·밸런스 기구처럼 <span className="font-semibold text-ink">재활·특수 훈련 장비를 갖춘 곳</span>만 싣습니다. 어떤 장비가 있는지는 업체 페이지에 사실대로 적고,
+            기기 자체는 <Link href="/device" className="font-semibold text-sea underline">관리·재활 도구</Link>에서 본사·대리점·체험 가능 업체까지 이어집니다.
+          </p>
+          <p className="rounded-lg border border-sage/30 bg-sage-soft px-4 py-3 text-sm text-sage-deep">
+            동물병원의 재활·한방·특수치료(침치료·수중런닝머신·체외충격파 등)는 치료법 기준의 별도 목록으로
+            정리합니다 —{" "}
+            <Link href="/rehab" className="font-semibold underline">
+              재활·한방·특수치료 어디서 받을 수 있나 →
+            </Link>
+          </p>
+          <MedicalNotice />
+        </div>
       )}
 
       {/* 좌측 지도 + 우측 패널. 시군구 타일은 지역x유형 페이지로 가는 진짜 링크 (SEO 페이지 = 지도 페이지) */}

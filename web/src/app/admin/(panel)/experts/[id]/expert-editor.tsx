@@ -6,7 +6,9 @@ import { RowsEditor, type RowValue } from "../../../_components/rows-editor";
 import { UploadField } from "../../../_components/upload-field";
 import { createExpertAction, saveExpertAction } from "../../../expert-actions";
 import type { ActionState } from "../../../actions";
-import { CONSULT_MODES, CONSULT_MODE_LABEL, EXPERT_KINDS, EXPERT_KIND_LABEL, WEEKDAY_LABEL } from "@/lib/reservations";
+import { RegionMultiPicker } from "@/components/requests/region-picker";
+import type { RegionOption } from "@/lib/queries/requests";
+import { CONSULT_MODES, CONSULT_MODE_LABEL, EXPERT_KINDS, EXPERT_KIND_LABEL, EXPERT_LIMITS, WEEKDAY_LABEL } from "@/lib/reservations";
 
 export interface ExpertFormValues {
   id?: number;
@@ -24,6 +26,7 @@ export interface ExpertFormValues {
   contact: string | null;
   status: "draft" | "published";
   sortOrder: number;
+  regionIds: number[];
 }
 
 const SLOT_FIELDS = [
@@ -32,12 +35,11 @@ const SLOT_FIELDS = [
   { key: "end", label: "끝 (HH:MM)", span: "col-span-4", placeholder: "21:00" },
 ];
 
-export function ExpertEditor({ mode, expert, slots, fromRequestId }: { mode: "create" | "edit"; expert: ExpertFormValues; slots: RowValue[]; fromRequestId?: number }) {
+export function ExpertEditor({ mode, expert, slots, regions }: { mode: "create" | "edit"; expert: ExpertFormValues; slots: RowValue[]; regions: RegionOption[] }) {
   const [state, formAction, pending] = useActionState<ActionState, FormData>(mode === "create" ? createExpertAction : saveExpertAction, {});
   return (
     <form action={formAction} className="space-y-5">
       {expert.id !== undefined && <input type="hidden" name="id" value={expert.id} />}
-      {fromRequestId !== undefined && <input type="hidden" name="fromRequestId" value={fromRequestId} />}
       <section className="space-y-4 rounded-xl border border-line bg-surface p-4">
         <div className="grid gap-4 sm:grid-cols-3">
           <SelectField name="kind" label="종류" defaultValue={expert.kind} options={EXPERT_KINDS.map((k) => ({ value: k, label: EXPERT_KIND_LABEL[k] }))} required />
@@ -45,7 +47,7 @@ export function ExpertEditor({ mode, expert, slots, fromRequestId }: { mode: "cr
           {mode === "create" ? <TextField name="slug" label="슬러그 (선택)" defaultValue={expert.slug ?? ""} hint="비우면 활동명으로" /> : <TextField name="sortOrder" label="정렬 (작을수록 위)" type="number" defaultValue={String(expert.sortOrder)} />}
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
-          <TextField name="credentialsText" label="자격·경력 (사실만)" defaultValue={expert.credentialsText} placeholder="반려동물행동지도사 2급 · 훈련 경력 8년" hint="병원명·주소는 넣지 않습니다. 수의사는 면허 확인 여부만." />
+          <TextField name="credentialsText" label="자격·경력 (사실만)" defaultValue={expert.credentialsText} placeholder="반려동물행동지도사 2급 · 훈련 경력 8년" hint="훈련사는 자격 확인 뒤 공개. 병원명·주소는 넣지 않습니다." />
           <TextField name="credentialsVerifiedAt" label="확인 기준일" type="date" defaultValue={expert.credentialsVerifiedAt ?? ""} hint="자격을 확인한 날짜 — 페이지에 함께 표기" />
         </div>
         <TextField name="topics" label="상담 주제 (쉼표로)" defaultValue={expert.topics.join(", ")} placeholder="분리불안, 야간 짖음, 관절 약한 아이 산책" />
@@ -62,6 +64,12 @@ export function ExpertEditor({ mode, expert, slots, fromRequestId }: { mode: "cr
           <TextField name="userEmail" label="회원 계정 이메일 (선택)" defaultValue={expert.userEmail} hint="이 회원이 받은 요청을 확인·결제 확인·채팅합니다. 비우면 운영자가 대신 응대" />
         </div>
         <TextAreaField name="introMd" label="소개 (마크다운)" defaultValue={expert.introMd} rows={6} hint="어떤 고민을 함께 볼 수 있는지. 진단·처방·치료 표현은 쓰지 않습니다." />
+        <div>
+          <span className="block text-sm font-medium text-ink">활동 지역 (최대 {EXPERT_LIMITS.regions}곳 · 비우면 온라인 전용)</span>
+          <div className="mt-2">
+            <RegionMultiPicker name="regionIds" options={regions} defaultIds={expert.regionIds} max={EXPERT_LIMITS.regions} />
+          </div>
+        </div>
         <TextField name="contact" label="관리자 확인용 연락처 (비공개)" defaultValue={expert.contact} />
         <UploadField name="heroImageKey" label="프로필 사진" defaultKey={expert.heroImageKey} />
         {mode === "create" && <TextField name="sortOrder" label="정렬 (작을수록 위)" type="number" defaultValue={String(expert.sortOrder)} />}

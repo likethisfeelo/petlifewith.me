@@ -18,7 +18,6 @@ import {
   REQUEST_LIMITS,
   slackRequestText,
   validateCarePartner,
-  validateExpertPartner,
   validatePromoSlot,
   validateRequester,
   validateSpotRegister,
@@ -26,7 +25,6 @@ import {
   type RequestPayload,
 } from "@/lib/requests";
 import { listRegistrableSpotTypes, regionLabels } from "@/lib/queries/requests";
-import { CONSULT_MODES, CONSULT_MODE_LABEL, EXPERT_KINDS, EXPERT_KIND_LABEL, type ConsultMode, type ExpertKind } from "@/lib/reservations";
 import { sendSlackMessage } from "@/lib/slack";
 
 const { serviceRequests, spots, spotTypes, makers } = schema;
@@ -85,13 +83,6 @@ async function prepare(db: ReturnType<typeof getDb>, kind: RequestKind, raw: Rec
     const names = v.value.regionIds.map((id) => labels[id]).filter((s): s is string => Boolean(s));
     if (names.length !== v.value.regionIds.length) return { error: "활동 지역을 다시 골라 주세요." };
     const summary = [`${carePersonLabel(v.value.typeSlug)}: ${v.value.displayName}`, `활동 지역: ${names.join(", ")}`];
-    return { spotId: null, makerId: null, payload: v.value, summary };
-  }
-
-  if (kind === "expert_partner") {
-    const v = validateExpertPartner(raw, EXPERT_KINDS, CONSULT_MODES);
-    if (!v.ok) return { error: v.error };
-    const summary = [`${EXPERT_KIND_LABEL[v.value.kind as ExpertKind]}: ${v.value.displayName}`, `방식: ${v.value.modes.map((m) => CONSULT_MODE_LABEL[m as ConsultMode] ?? m).join("·")}${v.value.credentialsText ? ` · ${v.value.credentialsText}` : ""}`];
     return { spotId: null, makerId: null, payload: v.value, summary };
   }
 
