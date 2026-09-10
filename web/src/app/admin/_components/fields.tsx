@@ -115,16 +115,19 @@ export function CheckboxField({
   label,
   defaultChecked,
   hint,
+  value,
 }: {
   name: string;
   label: string;
   defaultChecked?: boolean;
   hint?: string;
+  /** 같은 name 으로 여러 개를 둘 때의 값 (기본 "on") */
+  value?: string;
 }) {
   return (
     <div>
       <label className="flex items-center gap-2 text-sm text-ink">
-        <input type="checkbox" name={name} defaultChecked={defaultChecked} />
+        <input type="checkbox" name={name} defaultChecked={defaultChecked}  value={value ?? "on"} />
         {label}
       </label>
       {hint && <p className="mt-1 text-xs text-ink-faint">{hint}</p>}

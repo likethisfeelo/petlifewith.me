@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { carePersonLabel, isCareType } from "@app/data";
 import { Breadcrumbs } from "@/components/breadcrumbs";
-import { CareActions } from "@/components/care/booking-form";
+import { ReserveActions } from "@/components/reservation/reserve-actions";
 import { JsonLd } from "@/components/jsonld";
 import { B2BNote, DataReferenceNote, PharmacyNote } from "@/components/notices";
 import { RememberRegion } from "@/components/region-banner";
@@ -176,17 +176,15 @@ export default async function PlacePage({ params }: Props) {
         </section>
       )}
 
-      {isCare && spot.status === "operating" && (
+      {spot.status === "operating" && typeMonetizable && spot.source !== "sample" && (
         <section className="mt-4 rounded-xl border border-line bg-cream px-4 py-3">
           <p className="text-sm font-semibold text-ink">예약·상담</p>
-          <p className="mt-0.5 text-xs text-ink-soft">예약 신청은 운영자가 받아 {carePersonLabel(found.typeSlug)}에게 연결합니다.</p>
-          <CareActions
-            spotId={spot.id}
-            spotName={spot.name}
-            regionId={exposedAreas[0]?.regionId ?? null}
-            personLabel={carePersonLabel(found.typeSlug)}
-            kakaoUrl={links.find((l) => l.kind === "kakao")?.url ?? null}
-          />
+          <p className="mt-0.5 text-xs text-ink-soft">
+            {isCare
+              ? `예약 요청을 보내면 ${carePersonLabel(found.typeSlug)} 또는 운영자가 확인하고, 결제 확인 뒤 서비스 안 채팅으로 약속을 잡습니다.`
+              : "예약 요청을 보내면 업체 담당자 또는 운영자가 확인하고, 결제 확인 뒤 서비스 안 채팅으로 이어집니다. 카카오톡 채널이 있으면 바로 상담해도 됩니다."}
+          </p>
+          <ReserveActions spotId={spot.id} kakaoUrl={links.find((l) => l.kind === "kakao")?.url ?? null} />
         </section>
       )}
 

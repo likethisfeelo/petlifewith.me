@@ -14,7 +14,7 @@ import { parseAreaOrder, parseCuratedOrder } from "@/lib/guide-order";
 import { careRelatedPaths, guideRelatedPaths } from "@/lib/revalidate-paths";
 import { countExposedInArea } from "@/lib/queries/care";
 
-const { guides, topics, users, comments, spots, spotTypes, guideItemTags, guideSpotTags, guideMakerTags, promotions, spotServiceAreas, bookingRequests } = schema;
+const { guides, topics, users, comments, spots, spotTypes, guideItemTags, guideSpotTags, guideMakerTags, promotions, spotServiceAreas } = schema;
 
 /** 대표 영상(hero_media) — 형식이 맞고 본문에 있는 영상만. 비우면 자동(본문 첫 영상) */
 function readHeroMedia(formData: FormData, bodyMd: string): { error?: string; heroMedia: string | null } {
@@ -436,13 +436,3 @@ export async function toggleServiceAreaExposureAction(formData: FormData): Promi
   revalidatePath("/admin/care");
 }
 
-export async function toggleBookingHandledAction(formData: FormData): Promise<void> {
-  const db = await requireAdminSession();
-  const id = Number(formData.get("id"));
-  if (!Number.isSafeInteger(id)) return;
-  const row = (await db.select({ handledAt: bookingRequests.handledAt }).from(bookingRequests).where(eq(bookingRequests.id, id)).limit(1))[0];
-  if (!row) return;
-  await db.update(bookingRequests).set({ handledAt: row.handledAt ? null : new Date() }).where(eq(bookingRequests.id, id));
-  revalidatePath("/admin/bookings");
-  revalidatePath("/admin");
-}

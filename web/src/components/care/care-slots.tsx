@@ -7,7 +7,7 @@ import Link from "next/link";
 import { MAX_EXPOSED_PER_AREA } from "@app/data";
 import type { CareProvider, CareRegion } from "@/lib/care";
 import { idSlugPath } from "@/lib/format";
-import { CareActions } from "./booking-form";
+import { ReserveActions } from "@/components/reservation/reserve-actions";
 
 export function CareProviderCard({
   provider,
@@ -55,14 +55,7 @@ export function CareProviderCard({
         )}
       </dl>
       {provider.intro && <p className="mt-2 text-sm leading-relaxed text-ink-soft">{provider.intro}</p>}
-      <CareActions
-        spotId={provider.id}
-        spotName={provider.name}
-        regionId={regionId}
-        personLabel={personLabel}
-        kakaoUrl={provider.kakaoUrl}
-        detailHref={idSlugPath("place", provider.id, provider.slug)}
-      />
+      <ReserveActions spotId={provider.id} kakaoUrl={provider.kakaoUrl} detailHref={idSlugPath("place", provider.id, provider.slug)} compact />
     </article>
   );
 }
