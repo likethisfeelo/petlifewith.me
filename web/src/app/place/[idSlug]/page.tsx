@@ -8,6 +8,8 @@ import { JsonLd } from "@/components/jsonld";
 import { B2BNote, DataReferenceNote, PharmacyNote } from "@/components/notices";
 import { RememberRegion } from "@/components/region-banner";
 import { contactEmail } from "@/lib/config";
+import { ContactRow } from "@/components/contact/contact-row";
+import { ReactionButtons } from "@/components/reactions/reaction-buttons";
 import { SPOT_STATUS_LABEL, formatDate, idSlugPath, parseIdSlug } from "@/lib/format";
 import { renderMarkdown } from "@/lib/markdown";
 import { guidesMentioningSpot } from "@/lib/queries/guides";
@@ -138,6 +140,9 @@ export default async function PlacePage({ params }: Props) {
               예시 (가상 데이터)
             </span>
           )}
+          <span className="ml-auto">
+            <ReactionButtons target="spot" id={spot.id} kinds={["save"]} nextPath={idSlugPath("place", spot.id, spot.slug)} size="sm" />
+          </span>
         </div>
         <h1 className="mt-3 text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">{spot.name}</h1>
         <p className="mt-1 text-sm text-ink-soft">
@@ -213,6 +218,16 @@ export default async function PlacePage({ params }: Props) {
               </li>
             ))}
           </ul>
+        </section>
+      )}
+
+      {links.length > 0 && (
+        <section className="mt-8 rounded-2xl border border-line bg-surface p-5">
+          <h2 className="text-sm font-bold text-ink">연락·예약</h2>
+          <p className="mt-1 text-xs text-ink-soft">예약·문의는 업체가 쓰는 채널에서 바로 이어 가세요. 로그인하면 연락한 업체가 내 페이지에 남습니다.</p>
+          <div className="mt-3">
+            <ContactRow spotId={spot.id} links={links.map((l) => ({ kind: l.kind, url: l.url, label: spotLinkLabel(l) }))} />
+          </div>
         </section>
       )}
 

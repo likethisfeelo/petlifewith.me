@@ -6,6 +6,7 @@ import { getDb, schema } from "@/lib/db";
 import { requireMember } from "@/lib/member";
 import { listTopics } from "@/lib/queries/guides";
 import { getMemberMediaSettings } from "@/lib/queries/settings";
+import { getGuideLinks, listOwnedEntityOptions } from "@/lib/queries/owner";
 import { listPopularTags } from "@/lib/queries/tags";
 import { uploadPolicyFor } from "@/lib/settings";
 import { MemberPostForm } from "../post-form";
@@ -28,10 +29,12 @@ export default async function EditPostPage({ params }: { params: Promise<{ id: s
   // 내 글이 아니면 존재 자체를 드러내지 않는다
   if (!guide || guide.authorUserId !== member.id) notFound();
   const editable = guide.status === "pending" || guide.status === "published";
-  const [topics, limits, popular] = await Promise.all([
+  const [topics, limits, popular, owned, links] = await Promise.all([
     listTopics().then((ts) => ts.filter((t) => t.slug !== "spot")),
     getMemberMediaSettings(),
     listPopularTags(30),
+    listOwnedEntityOptions(member.id),
+    getGuideLinks(guide.id),
   ]);
 
   return (
@@ -61,6 +64,8 @@ export default async function EditPostPage({ params }: { params: Promise<{ id: s
             policy={uploadPolicyFor("member", limits)}
             limits={limits}
             tagSuggestions={popular.map((t) => t.tag)}
+            owned={owned}
+            links={links}
           />
         </div>
       )}

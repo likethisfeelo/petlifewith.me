@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ReactionButtons } from "@/components/reactions/reaction-buttons";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { JsonLd } from "@/components/jsonld";
 import { AffiliateDisclosure } from "@/components/notices";
@@ -60,9 +61,14 @@ export default async function ItemPage({ params }: Props) {
       />
 
       <header className="mt-6">
-        <span className="rounded-full bg-accent-soft px-2.5 py-1 text-xs font-medium text-accent-deep">
-          {ITEM_CATEGORY_LABEL[item.category] ?? item.category}
-        </span>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="rounded-full bg-accent-soft px-2.5 py-1 text-xs font-medium text-accent-deep">
+            {ITEM_CATEGORY_LABEL[item.category] ?? item.category}
+          </span>
+          <span className="ml-auto">
+            <ReactionButtons target="item" id={item.id} kinds={["save"]} nextPath={idSlugPath("item", item.id, item.slug)} size="sm" />
+          </span>
+        </div>
         {assetUrl(item.imageKey) && (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={assetUrl(item.imageKey)} alt={item.name} className="mt-4 w-full rounded-2xl bg-sand" decoding="async" />

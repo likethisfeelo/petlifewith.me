@@ -17,7 +17,7 @@ import {
 } from "@/lib/requests";
 import { AdminPageHeader } from "../../_components/fields";
 import { togglePromotionAction } from "../../actions";
-import { attachRequestSpotAction, saveRequestNoteAction, setRequestStatusAction, toggleRequestPaidAction } from "../../request-actions";
+import { attachOwnerAction, attachRequestSpotAction, saveRequestNoteAction, setRequestStatusAction, toggleRequestPaidAction } from "../../request-actions";
 
 // 요청함 — 업체 등록·정보 관리·지역 상단 노출·돌봄 파트너 등록 요청을 한 곳에서 본다.
 // 흐름: 슬랙 알림 → 여기서 확인 → 종류별 바로가기(스팟 등록·편집·노출 토글)로 처리 → 상태 기록.
@@ -212,6 +212,12 @@ function RequestCard({ item, labels }: { item: RequestListItem; labels: Record<n
           <dt className="shrink-0 text-ink-faint">연락처 (비공개)</dt>
           <dd className="text-ink">{r.contact}</dd>
         </div>
+        {item.memberName && (
+          <div className="flex gap-2">
+            <dt className="shrink-0 text-ink-faint">회원</dt>
+            <dd className="text-ink">{item.memberName} <span className="text-ink-faint">— 처리하면 이 회원이 /me 에서 직접 관리</span></dd>
+          </div>
+        )}
         {r.bizRegistrationNo && (
           <div className="flex gap-2">
             <dt className="shrink-0 text-ink-faint">사업자번호 (비공개)</dt>
@@ -248,6 +254,14 @@ function RequestCard({ item, labels }: { item: RequestListItem; labels: Record<n
           <Link href={`/admin/makers/${r.makerId}`} className="rounded-full bg-ink px-3 py-1 font-semibold text-white hover:opacity-90">
             편집기에서 반영 →
           </Link>
+        )}
+        {(r.kind === "spot_claim" || r.kind === "maker_claim") && r.userId && (r.spotId || r.makerId) && r.status !== "done" && (
+          <form action={attachOwnerAction}>
+            <input type="hidden" name="id" value={r.id} />
+            <button type="submit" className="rounded-full bg-sage px-3 py-1 font-semibold text-white hover:opacity-90" title="사업자번호·연락처로 운영자임을 확인한 뒤 누르세요">
+              소유자로 연결 (완료)
+            </button>
+          </form>
         )}
         {r.kind === "promo_slot" && (
           <>

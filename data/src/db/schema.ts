@@ -63,6 +63,9 @@ export const requestKind = pgEnum("request_kind", ["spot_register", "spot_claim"
 export const requestStatus = pgEnum("request_status", ["new", "in_progress", "done", "rejected"]);
 // 펫모임 (0013) — 열림 / 마감 (주최자가 정한다). 숨김은 관리자 hidden_at
 export const meetupStatus = pgEnum("meetup_status", ["open", "closed"]);
+// 저장·좋아요 (0014) — 대상 종류와 반응 종류. 좋아요 수는 게시글에만 공개한다 (업체·상품에 공개 숫자는 순위·평점 금지 규정과 충돌)
+export const reactionTarget = pgEnum("reaction_target", ["guide", "spot", "maker", "item", "meetup"]);
+export const reactionKind = pgEnum("reaction_kind", ["save", "like"]);
 export const embedSource = pgEnum("embed_source", ["youtube", "instagram", "none"]);
 export const offerVendor = pgEnum("offer_vendor", ["coupang", "brand_store", "other"]);
 export const promotionKind = pgEnum("promotion_kind", ["region_top", "content_card"]);
@@ -528,6 +531,8 @@ export const serviceRequests = pgTable(
     // 기존 업체·메이커를 가리키는 요청(정보 관리·유료 노출). 새 등록 요청은 비어 있다가 관리자가 만든 뒤 연결한다
     spotId: bigint("spot_id", { mode: "number" }).references(() => spots.id, { onDelete: "set null" }),
     makerId: bigint("maker_id", { mode: "number" }).references(() => makers.id, { onDelete: "set null" }),
+    // 로그인한 회원이 보낸 요청이면 그 회원 (0014). 소유 확인·등록이 끝나면 spots/makers.claimed_by 로 이어진다
+    userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
     requesterName: text("requester_name").notNull(),
     contact: text("contact").notNull(), // 이메일·전화·카카오 ID — 관리자 확인용, 공개 금지
     bizRegistrationNo: text("biz_registration_no"), // 확인용, 공개 금지
@@ -544,7 +549,7 @@ export const serviceRequests = pgTable(
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
-  (t) => [index("service_requests_status_idx").on(t.status, t.createdAt), index("service_requests_kind_idx").on(t.kind)],
+  (t) => [index("service_requests_status_idx").on(t.status, t.createdAt), index("service_requests_kind_idx").on(t.kind), index("service_requests_user_idx").on(t.userId)],
 );
 
 
@@ -626,6 +631,41 @@ export const meetupPosts = pgTable(
     updatedAt: updatedAt(),
   },
   (t) => [index("meetup_posts_meetup_idx").on(t.meetupId, t.createdAt), index("meetup_posts_user_idx").on(t.userId, t.createdAt)],
+);
+
+
+// ---------- 저장·좋아요 · 연락 기록 (0014) ----------
+// 저장(save)은 모든 대상에 붙는 본인만 보는 북마크. 좋아요(like)는 게시글에만 두고 수를 공개한다.
+// 연락 기록은 로그인 회원이 업체·브랜드의 외부 채널(홈페이지·카카오톡·인스타그램)을 눌렀을 때 남겨 /me 에서 다시 찾게 한다.
+
+export const reactions = pgTable(
+  "reactions",
+  {
+    id: bigint("id", { mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    targetType: reactionTarget("target_type").notNull(),
+    targetId: bigint("target_id", { mode: "number" }).notNull(),
+    kind: reactionKind("kind").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("reactions_user_target_uq").on(t.userId, t.targetType, t.targetId, t.kind), index("reactions_target_idx").on(t.targetType, t.targetId, t.kind)],
+);
+
+export const contactLogs = pgTable(
+  "contact_logs",
+  {
+    id: bigint("id", { mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    spotId: bigint("spot_id", { mode: "number" }).references(() => spots.id, { onDelete: "set null" }),
+    makerId: bigint("maker_id", { mode: "number" }).references(() => makers.id, { onDelete: "set null" }),
+    channel: text("channel").notNull(), // spot_links / maker_links 의 kind (website · kakao · instagram …)
+    createdAt: createdAt(),
+  },
+  (t) => [index("contact_logs_user_idx").on(t.userId, t.createdAt)],
 );
 
 // ---------- 개체 단위 태깅 (claude.md 5-4) ----------

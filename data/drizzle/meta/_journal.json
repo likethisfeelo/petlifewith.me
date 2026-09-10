@@ -99,6 +99,13 @@
       "when": 1788974629494,
       "tag": "0013_meetups",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1789009271617,
+      "tag": "0014_member_dashboard",
+      "breakpoints": true
     }
   ]
 }

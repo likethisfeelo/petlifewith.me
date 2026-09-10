@@ -9,7 +9,7 @@ import { getDb, isDbConfigured, schema } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { REQUEST_STATUSES, type RequestStatus } from "@/lib/requests";
 
-const { serviceRequests, spots } = schema;
+const { serviceRequests, spots, makers } = schema;
 
 async function requireDb() {
   const session = await getSession();
@@ -71,4 +71,44 @@ export async function attachRequestSpotAction(formData: FormData): Promise<void>
     await db.update(serviceRequests).set({ spotId: spot.id, updatedAt: new Date() }).where(eq(serviceRequests.id, id));
   }
   revalidatePath("/admin/requests");
+}
+
+/**
+ * 요청한 회원을 대상 업체·브랜드의 소유자로 연결한다 (spots/makers.claimed_by) — 정보 관리 요청의 "소유 확인".
+ * 이미 다른 회원이 소유자면 덮어쓰지 않는다 (먼저 해제한다). 연결되면 요청은 완료로.
+ */
+export async function attachOwnerAction(formData: FormData): Promise<void> {
+  const db = await requireDb();
+  const id = requestId(formData);
+  if (!id) return;
+  const req = (await db.select().from(serviceRequests).where(eq(serviceRequests.id, id)).limit(1))[0];
+  if (!req || !req.userId) return;
+  if (req.spotId) {
+    const spot = (await db.select({ claimedBy: spots.claimedBy }).from(spots).where(eq(spots.id, req.spotId)).limit(1))[0];
+    if (!spot || (spot.claimedBy && spot.claimedBy !== req.userId)) return;
+    await db.update(spots).set({ claimedBy: req.userId, updatedAt: new Date() }).where(eq(spots.id, req.spotId));
+  } else if (req.makerId) {
+    const maker = (await db.select({ claimedBy: makers.claimedBy }).from(makers).where(eq(makers.id, req.makerId)).limit(1))[0];
+    if (!maker || (maker.claimedBy && maker.claimedBy !== req.userId)) return;
+    await db.update(makers).set({ claimedBy: req.userId, updatedAt: new Date() }).where(eq(makers.id, req.makerId));
+  } else return;
+  await db.update(serviceRequests).set({ status: "done", handledAt: new Date(), updatedAt: new Date() }).where(eq(serviceRequests.id, id));
+  revalidatePath("/admin/requests");
+  revalidatePath("/admin");
+  revalidatePath("/me/business");
+}
+
+/** 소유자 해제 — 스팟·메이커 편집기에서 */
+export async function detachOwnerAction(formData: FormData): Promise<void> {
+  const db = await requireDb();
+  const spotId = Number(formData.get("spotId"));
+  const makerId = Number(formData.get("makerId"));
+  if (Number.isSafeInteger(spotId) && spotId > 0) {
+    await db.update(spots).set({ claimedBy: null, updatedAt: new Date() }).where(eq(spots.id, spotId));
+    revalidatePath(`/admin/spots/${spotId}`);
+  } else if (Number.isSafeInteger(makerId) && makerId > 0) {
+    await db.update(makers).set({ claimedBy: null, updatedAt: new Date() }).where(eq(makers.id, makerId));
+    revalidatePath(`/admin/makers/${makerId}`);
+  }
+  revalidatePath("/me/business");
 }

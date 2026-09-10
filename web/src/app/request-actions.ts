@@ -11,6 +11,7 @@ import { CARE_TYPE_SLUGS, carePersonLabel } from "@app/data";
 import { getDb, isDbConfigured, schema } from "@/lib/db";
 import { authSecret, siteUrl, slackRequestsWebhookUrl } from "@/lib/config";
 import { idSlugPath } from "@/lib/format";
+import { getCurrentMember } from "@/lib/member";
 import {
   PROMO_PLAN_LABEL,
   REQUEST_KINDS,
@@ -143,6 +144,8 @@ export async function createServiceRequestAction(_prev: RequestActionState, form
   const prepared = await prepare(db, kind as RequestKind, raw);
   if ("error" in prepared) return { error: prepared.error, values };
 
+  // 로그인한 회원이면 요청에 연결한다 — 소유 확인·등록이 끝나면 claimed_by 로 이어져 /me 에서 직접 관리한다
+  const member = await getCurrentMember();
   const ipHash = await requesterHash();
   const recent = await db
     .select({ count: sql<number>`count(*)`.mapWith(Number) })
@@ -154,6 +157,7 @@ export async function createServiceRequestAction(_prev: RequestActionState, form
     .insert(serviceRequests)
     .values({
       kind: kind as RequestKind,
+      userId: member?.id ?? null,
       spotId: prepared.spotId,
       makerId: prepared.makerId,
       requesterName: requester.value.requesterName,
@@ -172,7 +176,7 @@ export async function createServiceRequestAction(_prev: RequestActionState, form
       kind: kind as RequestKind,
       requesterName: requester.value.requesterName,
       contact: requester.value.contact,
-      summary: prepared.summary,
+      summary: member ? [...prepared.summary, `회원: ${member.displayName}`] : prepared.summary,
       message: requester.value.message,
       adminUrl: `${siteUrl()}/admin/requests?status=new#request-${id}`,
     }),

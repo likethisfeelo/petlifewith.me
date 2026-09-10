@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { GUIDE_CATEGORIES_BY_TOPIC } from "@app/data";
 import { requireMember } from "@/lib/member";
 import { listTopics } from "@/lib/queries/guides";
+import { listOwnedEntityOptions } from "@/lib/queries/owner";
 import { getMemberMediaSettings } from "@/lib/queries/settings";
 import { listPopularTags } from "@/lib/queries/tags";
 import { uploadPolicyFor } from "@/lib/settings";
@@ -20,8 +21,9 @@ export default async function WritePage({ searchParams }: { searchParams: Promis
   const qs = new URLSearchParams();
   if (topicParam) qs.set("topic", topicParam);
   if (categoryParam) qs.set("category", categoryParam);
-  await requireMember(qs.size > 0 ? `/write?${qs.toString()}` : "/write");
-  const [topics, limits, popular] = await Promise.all([
+  const member = await requireMember(qs.size > 0 ? `/write?${qs.toString()}` : "/write");
+  const [owned, topics, limits, popular] = await Promise.all([
+    listOwnedEntityOptions(member.id),
     listTopics().then((ts) => ts.filter((t) => t.slug !== "spot")),
     getMemberMediaSettings(),
     listPopularTags(30),
@@ -46,6 +48,7 @@ export default async function WritePage({ searchParams }: { searchParams: Promis
           policy={uploadPolicyFor("member", limits)}
           limits={limits}
           tagSuggestions={popular.map((t) => t.tag)}
+          owned={owned}
           categoryPreset={preCategory !== null}
         />
       </div>

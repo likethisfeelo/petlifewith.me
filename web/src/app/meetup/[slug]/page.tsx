@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { joinMeetupAction, leaveMeetupAction, setMeetupStatusAction, deleteOwnMeetupPostAction } from "@/app/meetup-actions";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { MeetupPostForm } from "@/components/meetup/meetup-post-form";
+import { ReactionButtons } from "@/components/reactions/reaction-buttons";
 import { getSession } from "@/lib/auth";
 import { formatDateTime } from "@/lib/format";
 import { renderMarkdown } from "@/lib/markdown";
@@ -84,6 +85,9 @@ export default async function MeetupPage({ params, searchParams }: Props) {
         </Link>
         <span>참여 {capacityText(meetup.memberCount, meetup.capacity)}</span>
         {meetup.hostName && <span>주최 {meetup.hostName}</span>}
+        <span className="ml-auto">
+          <ReactionButtons target="meetup" id={meetup.id} kinds={["save"]} nextPath={`/meetup/${slug}`} size="sm" />
+        </span>
       </div>
       <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-ink">{meetup.title}</h1>
       <dl className="mt-4 grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2">

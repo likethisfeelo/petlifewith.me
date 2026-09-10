@@ -7,9 +7,10 @@ import { isCareType } from "@app/data";
 import { listServiceAreasForSpot } from "@/lib/queries/care";
 import { getSpotLinks } from "@/lib/queries/spots";
 import { AdminPageHeader } from "../../../_components/fields";
+import { detachOwnerAction } from "../../../request-actions";
 import { SpotEditor } from "./spot-editor";
 
-const { spots, spotTypes, regions } = schema;
+const { spots, spotTypes, regions, users } = schema;
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -48,6 +49,7 @@ export default async function AdminSpotEditPage({ params, searchParams }: Props)
   ]);
 
   const { spot } = row;
+  const owner = spot.claimedBy ? (await db.select({ name: users.displayName, email: users.email }).from(users).where(eq(users.id, spot.claimedBy)).limit(1))[0] : null;
 
   return (
     <div>
@@ -104,6 +106,25 @@ export default async function AdminSpotEditPage({ params, searchParams }: Props)
             <dd>{spot.dataReferenceDate}</dd>
           </div>
         )}
+        <div className="flex flex-wrap items-center gap-2 sm:col-span-2">
+          <dt className="text-ink-faint">소유자 (회원)</dt>
+          <dd>
+            {owner ? (
+              <span className="flex flex-wrap items-center gap-2">
+                <span className="font-medium text-ink">{owner.name ?? "(닉네임 없음)"}</span>
+                <span className="text-ink-faint">{owner.email}</span>
+                <form action={detachOwnerAction}>
+                  <input type="hidden" name="spotId" value={spot.id} />
+                  <button type="submit" className="rounded-full border border-line px-2.5 py-0.5 text-[11px] font-medium text-ink-soft hover:bg-sand">
+                    해제
+                  </button>
+                </form>
+              </span>
+            ) : (
+              <span className="text-ink-faint">없음 — 요청함의 정보 관리 요청에서 &quot;소유자로 연결&quot;</span>
+            )}
+          </dd>
+        </div>
       </dl>
 
       <div className="mt-5">
