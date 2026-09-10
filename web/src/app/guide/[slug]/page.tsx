@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Breadcrumbs } from "@/components/breadcrumbs";
+import { ReactionButtons } from "@/components/reactions/reaction-buttons";
 import { TopicTagline } from "@/components/site-tagline";
 import { GuideCard } from "@/components/cards";
 import { EntityTagPanels, hasEntityTags } from "@/components/entity-panels";
@@ -115,6 +116,9 @@ export default async function GuidePage({ params }: Props) {
           {guide.vetReviewed && guide.vetReviewerName && (
             <VetReviewBadge reviewerName={guide.vetReviewerName} reviewedAt={guide.vetReviewedAt} />
           )}
+          <span className="ml-auto">
+            <ReactionButtons target="guide" id={guide.id} kinds={["like", "save"]} nextPath={`/guide/${guide.slug}`} size="sm" />
+          </span>
         </div>
         <h1 className="mt-3 text-2xl font-extrabold leading-tight tracking-tight text-ink sm:text-3xl">
           {guide.title}

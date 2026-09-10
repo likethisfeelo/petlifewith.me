@@ -7,7 +7,7 @@
 import { randomInt } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { and, eq, gt, sql } from "drizzle-orm";
+import { and, eq, gt, inArray, sql } from "drizzle-orm";
 import { categoriesForTopic, slugify } from "@app/data";
 import { getDb, isDbConfigured, schema } from "@/lib/db";
 import { endMemberSession, startMemberSession } from "@/lib/auth";
@@ -24,12 +24,13 @@ import {
 import { extractEmbeds, parseMediaRef, sameRef, uploadedKeysIn, videoEmbeds } from "@/lib/media-ref";
 import { hashPassword, passwordPolicyError, verifyPassword } from "@/lib/password";
 import { findAssetsByKeys } from "@/lib/queries/media";
+import { listOwnedEntityOptions } from "@/lib/queries/owner";
 import { getMemberMediaSettings } from "@/lib/queries/settings";
 import { guideRelatedPaths } from "@/lib/revalidate-paths";
 import { mediaCountError } from "@/lib/settings";
 import { hashtagsIn, mergeTags, parseTagInput, tagHref } from "@/lib/tags";
 
-const { users, guides, topics, comments } = schema;
+const { users, guides, topics, comments, guideSpotTags, guideMakerTags, guideItemTags } = schema;
 
 export interface MemberActionState {
   error?: string;
@@ -249,6 +250,43 @@ async function readPostInput(formData: FormData, memberId: string): Promise<{ er
   return { values, input: { topicId: topic.id, topicSlug: topic.slug, category, title, summary, bodyMd, heroMedia: media.heroMedia, tags } };
 }
 
+
+/** 글에 연결할 내 업체·브랜드·상품 — 폼의 체크박스(linkSpots/linkMakers/linkItems). 소유한 것만 남긴다 */
+function readEntityLinks(formData: FormData): { spotIds: number[]; makerIds: number[]; itemIds: number[] } {
+  const ids = (name: string) => [...new Set(formData.getAll(name).map((v) => Number(v)).filter((n) => Number.isSafeInteger(n) && n > 0))];
+  return { spotIds: ids("linkSpots"), makerIds: ids("linkMakers"), itemIds: ids("linkItems") };
+}
+
+/**
+ * 회원 글의 개체 연결 동기화 — 이 회원이 소유한 개체 범위 안에서만 넣고 뺀다.
+ * 운영자가 붙인 다른 개체의 태그는 그대로 둔다.
+ */
+async function syncMemberEntityLinks(db: ReturnType<typeof getDb>, guideId: number, memberId: string, wanted: { spotIds: number[]; makerIds: number[]; itemIds: number[] }) {
+  const owned = await listOwnedEntityOptions(memberId);
+  const ownedSpots = owned.spots.map((s) => s.id);
+  const ownedMakers = owned.makers.map((m) => m.id);
+  const ownedItems = owned.items.map((i) => i.id);
+  const sync = async (ownedIds: number[], wantedIds: number[], table: typeof guideSpotTags | typeof guideMakerTags | typeof guideItemTags, col: "spotId" | "makerId" | "itemId") => {
+    if (ownedIds.length === 0) return;
+    const keep = wantedIds.filter((id) => ownedIds.includes(id));
+    const removable = ownedIds.filter((id) => !keep.includes(id));
+    if (removable.length > 0) {
+      if (col === "spotId") await db.delete(guideSpotTags).where(and(eq(guideSpotTags.guideId, guideId), inArray(guideSpotTags.spotId, removable)));
+      else if (col === "makerId") await db.delete(guideMakerTags).where(and(eq(guideMakerTags.guideId, guideId), inArray(guideMakerTags.makerId, removable)));
+      else await db.delete(guideItemTags).where(and(eq(guideItemTags.guideId, guideId), inArray(guideItemTags.itemId, removable)));
+    }
+    void table;
+    for (const id of keep) {
+      if (col === "spotId") await db.insert(guideSpotTags).values({ guideId, spotId: id }).onConflictDoNothing();
+      else if (col === "makerId") await db.insert(guideMakerTags).values({ guideId, makerId: id }).onConflictDoNothing();
+      else await db.insert(guideItemTags).values({ guideId, itemId: id }).onConflictDoNothing();
+    }
+  };
+  await sync(ownedSpots, wanted.spotIds, guideSpotTags, "spotId");
+  await sync(ownedMakers, wanted.makerIds, guideMakerTags, "makerId");
+  await sync(ownedItems, wanted.itemIds, guideItemTags, "itemId");
+}
+
 function randomSuffix(): string {
   return randomInt(36 ** 4).toString(36).padStart(4, "0");
 }
@@ -302,6 +340,7 @@ export async function createMemberPostAction(_prev: MemberActionState, formData:
     }
   }
   if (!inserted) return { error: "저장에 실패했습니다. 잠시 후 다시 시도해 주세요.", values };
+  await syncMemberEntityLinks(db, inserted.id, member.id, readEntityLinks(formData));
   if (!requireApproval) {
     for (const p of await guideRelatedPaths(inserted.id)) revalidatePath(p);
     for (const t of input.tags) revalidatePath(tagHref(t));
@@ -346,6 +385,7 @@ export async function updateMemberPostAction(_prev: MemberActionState, formData:
       updatedAt: new Date(),
     })
     .where(eq(guides.id, id));
+  await syncMemberEntityLinks(db, id, member.id, readEntityLinks(formData));
   if (wasPublished || nextStatus === "published") {
     if (existing.category) revalidatePath(`/topic/${input.topicSlug}/${existing.category}`);
     for (const p of await guideRelatedPaths(id)) revalidatePath(p);

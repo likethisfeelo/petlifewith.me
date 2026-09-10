@@ -59,10 +59,20 @@ export const spotSource = pgEnum("spot_source", [
 ]);
 export const makerStatus = pgEnum("maker_status", ["draft", "published"]);
 // 요청함 (0012) — 업체 등록·정보 관리·유료 노출·돌봄 파트너 등록이 한 표에 쌓인다. 옛 claims 는 여기로 옮겼다.
-export const requestKind = pgEnum("request_kind", ["spot_register", "spot_claim", "maker_claim", "promo_slot", "care_partner"]);
+export const requestKind = pgEnum("request_kind", ["spot_register", "spot_claim", "maker_claim", "promo_slot", "care_partner", "expert_partner"]);
 export const requestStatus = pgEnum("request_status", ["new", "in_progress", "done", "rejected"]);
 // 펫모임 (0013) — 열림 / 마감 (주최자가 정한다). 숨김은 관리자 hidden_at
 export const meetupStatus = pgEnum("meetup_status", ["open", "closed"]);
+// 저장·좋아요 (0014) — 대상 종류와 반응 종류. 좋아요 수는 게시글에만 공개한다 (업체·상품에 공개 숫자는 순위·평점 금지 규정과 충돌)
+export const reactionTarget = pgEnum("reaction_target", ["guide", "spot", "maker", "item", "meetup"]);
+export const reactionKind = pgEnum("reaction_kind", ["save", "like"]);
+// 예약·상담 (0015) — 업체·돌봄 파트너 예약 요청(care/spot)과 전문가 상담 신청(consult)이 한 표에 쌓인다.
+// 흐름: 요청(new) → 확인(confirmed) → 결제 확인(paid, 제공자 또는 관리자가 수동 확인 — PG 는 뒤에) → 채팅 → 완료(done) / 취소(cancelled)
+export const reservationKind = pgEnum("reservation_kind", ["care", "spot", "consult"]);
+export const reservationStatus = pgEnum("reservation_status", ["new", "confirmed", "paid", "done", "cancelled"]);
+// 노견 생활 상담 전문가 — 훈련사 / 수의사 / 수의 테크니션 / 멘토(경험 많은 보호자). 수의사·수의 테크니션은 "생활 상담"으로 한정 (claude.md 6-2)
+export const expertKind = pgEnum("expert_kind", ["trainer", "vet", "vet_tech", "mentor"]);
+export const expertStatus = pgEnum("expert_status", ["draft", "published"]);
 export const embedSource = pgEnum("embed_source", ["youtube", "instagram", "none"]);
 export const offerVendor = pgEnum("offer_vendor", ["coupang", "brand_store", "other"]);
 export const promotionKind = pgEnum("promotion_kind", ["region_top", "content_card"]);
@@ -473,29 +483,131 @@ export const spotServiceAreas = pgTable(
 
 // 예약 신청 — 돌봄 파트너 카드의 "예약 신청" 폼. 프로세스는 최소: 저장 + 슬랙 알림, 운영자가 연결한다.
 // 신청자 이름·연락처는 개인정보 — 관리자 화면에만 보이고 공개 페이지·사이트맵 어디에도 렌더하지 않는다.
-export const bookingRequests = pgTable(
-  "booking_requests",
+// ---------- 노견 생활 상담 전문가 (0015) ----------
+// 프로필은 관리자가 만든다(요청함 expert_partner 로 신청). user_id 는 이 프로필을 관리하고 채팅하는 회원 계정.
+// 자격·경력은 기준일 붙은 사실 표기만. 병원명·주소·연락처는 싣지 않는다 — 순위·평점·후기 없음, 노출 순서는 sort_order 뿐.
+
+export const experts = pgTable(
+  "experts",
   {
     id: bigint("id", { mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
+    slug: text("slug").notNull().unique(),
+    kind: expertKind("kind").notNull(),
+    displayName: text("display_name").notNull(),
+    introMd: text("intro_md"),
+    // "반려동물행동지도사 2급 (2024)" 처럼 사실만 — 검증 기준일과 함께 표기
+    credentialsText: text("credentials_text"),
+    credentialsVerifiedAt: date("credentials_verified_at"),
+    topics: text("topics").array().notNull().default(sql`'{}'::text[]`),
+    // 상담 방식 — video / phone / chat
+    modes: text("modes").array().notNull().default(sql`'{}'::text[]`),
+    priceText: text("price_text"),
+    heroImageKey: text("hero_image_key"),
+    // 이 프로필을 관리·채팅하는 회원 (선택 — 없으면 관리자가 대신 응대)
+    userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+    // 관리자 확인용 연락처 — 공개 금지
+    contact: text("contact"),
+    status: expertStatus("status").notNull().default("draft"),
+    sortOrder: integer("sort_order").notNull().default(0),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index("experts_status_idx").on(t.status, t.sortOrder), index("experts_user_idx").on(t.userId)],
+);
+
+// 주간 반복 상담 슬롯 — 요일(0=일)과 하루 안의 분 단위 시작·끝. 신청자는 앞으로 2주 안의 빈 시간을 고른다.
+export const expertSlots = pgTable(
+  "expert_slots",
+  {
+    id: bigint("id", { mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
+    expertId: bigint("expert_id", { mode: "number" })
+      .notNull()
+      .references(() => experts.id, { onDelete: "cascade" }),
+    weekday: integer("weekday").notNull(),
+    startMin: integer("start_min").notNull(),
+    endMin: integer("end_min").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [index("expert_slots_expert_idx").on(t.expertId, t.weekday)],
+);
+
+// ---------- 예약·상담 요청 (0015 — 옛 booking_requests 를 흡수) ----------
+// care: 돌봄 파트너 예약, spot: 업체 예약, consult: 전문가 상담. 신청은 로그인 회원(user_id) — 옛 비회원 신청 행은 NULL.
+// provider_user_id 는 신청 시점의 제공자 계정(스팟 소유자 또는 전문가 계정) 스냅샷 — 받은 요청 화면과 채팅 권한의 기준.
+// 신청자 이름·연락처는 관리자·슬랙에만. 결제 확인(paid_at/paid_by)은 제공자 또는 관리자가 수동으로 (PG 연동은 뒤에).
+
+export const reservations = pgTable(
+  "reservations",
+  {
+    id: bigint("id", { mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
+    kind: reservationKind("kind").notNull(),
+    status: reservationStatus("status").notNull().default("new"),
     spotId: bigint("spot_id", { mode: "number" }).references(() => spots.id, { onDelete: "set null" }),
-    spotName: text("spot_name").notNull(), // 파트너가 삭제돼도 기록이 남게 스냅샷
-    serviceKind: text("service_kind").notNull(), // spot_types.slug (pet-sitter / dog-walk)
+    expertId: bigint("expert_id", { mode: "number" }).references(() => experts.id, { onDelete: "set null" }),
+    // 대상 이름 스냅샷 — 대상이 지워져도 기록이 남는다
+    targetName: text("target_name").notNull(),
+    // 옛 예약 신청의 서비스 종류(spot_types.slug) — 표시용
+    serviceKind: text("service_kind"),
     regionId: integer("region_id").references(() => regions.id, { onDelete: "set null" }),
-    areaLabel: text("area_label"), // "서울특별시 마포구" 스냅샷
+    areaLabel: text("area_label"),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+    providerUserId: uuid("provider_user_id").references(() => users.id, { onDelete: "set null" }),
     requesterName: text("requester_name").notNull(),
-    contact: text("contact").notNull(), // 전화 또는 카카오톡 ID
+    contact: text("contact").notNull(),
     petNote: text("pet_note"),
-    preferredDate: text("preferred_date"),
+    // 상담: slot(시간 예약) / callback(연락받기). 예약: NULL
+    mode: text("mode"),
+    slotStart: timestamp("slot_start", { withTimezone: true }),
+    slotEnd: timestamp("slot_end", { withTimezone: true }),
+    preferredText: text("preferred_text"),
+    topic: text("topic"),
     message: text("message"),
-    ipHash: text("ip_hash"), // 시간당 신청 제한용 해시 — 원 IP 는 저장하지 않는다
+    paidAt: timestamp("paid_at", { withTimezone: true }),
+    // provider / admin — 누가 결제를 확인했는지
+    paidBy: text("paid_by"),
+    adminNote: text("admin_note"),
+    ipHash: text("ip_hash"),
     slackSentAt: timestamp("slack_sent_at", { withTimezone: true }),
     handledAt: timestamp("handled_at", { withTimezone: true }),
     createdAt: createdAt(),
+    updatedAt: updatedAt(),
   },
   (t) => [
-    index("booking_requests_created_idx").on(t.createdAt),
-    index("booking_requests_ip_idx").on(t.ipHash, t.createdAt),
+    index("reservations_user_idx").on(t.userId, t.createdAt),
+    index("reservations_provider_idx").on(t.providerUserId, t.status),
+    index("reservations_expert_slot_idx").on(t.expertId, t.slotStart),
+    index("reservations_status_idx").on(t.status, t.createdAt),
   ],
+);
+
+// 예약·상담당 대화 하나. 결제 확인(paid) 뒤에 열린다. 참여자는 신청 회원·제공자 계정·관리자.
+export const conversations = pgTable(
+  "conversations",
+  {
+    id: bigint("id", { mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
+    reservationId: bigint("reservation_id", { mode: "number" })
+      .notNull()
+      .unique()
+      .references(() => reservations.id, { onDelete: "cascade" }),
+    lastMessageAt: timestamp("last_message_at", { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+);
+
+export const messages = pgTable(
+  "messages",
+  {
+    id: bigint("id", { mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
+    conversationId: bigint("conversation_id", { mode: "number" })
+      .notNull()
+      .references(() => conversations.id, { onDelete: "cascade" }),
+    // 보낸 회원 (관리자 메시지는 NULL + sender_role='admin')
+    senderUserId: uuid("sender_user_id").references(() => users.id, { onDelete: "set null" }),
+    senderRole: text("sender_role").notNull(), // requester / provider / admin
+    body: text("body").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [index("messages_conversation_idx").on(t.conversationId, t.id)],
 );
 
 // 노출 광고 (기획서 4-3). 가격은 트래픽 확보 후 책정 — 지금은 슬롯 구조만.
@@ -528,6 +640,8 @@ export const serviceRequests = pgTable(
     // 기존 업체·메이커를 가리키는 요청(정보 관리·유료 노출). 새 등록 요청은 비어 있다가 관리자가 만든 뒤 연결한다
     spotId: bigint("spot_id", { mode: "number" }).references(() => spots.id, { onDelete: "set null" }),
     makerId: bigint("maker_id", { mode: "number" }).references(() => makers.id, { onDelete: "set null" }),
+    // 로그인한 회원이 보낸 요청이면 그 회원 (0014). 소유 확인·등록이 끝나면 spots/makers.claimed_by 로 이어진다
+    userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
     requesterName: text("requester_name").notNull(),
     contact: text("contact").notNull(), // 이메일·전화·카카오 ID — 관리자 확인용, 공개 금지
     bizRegistrationNo: text("biz_registration_no"), // 확인용, 공개 금지
@@ -544,7 +658,7 @@ export const serviceRequests = pgTable(
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
-  (t) => [index("service_requests_status_idx").on(t.status, t.createdAt), index("service_requests_kind_idx").on(t.kind)],
+  (t) => [index("service_requests_status_idx").on(t.status, t.createdAt), index("service_requests_kind_idx").on(t.kind), index("service_requests_user_idx").on(t.userId)],
 );
 
 
@@ -626,6 +740,41 @@ export const meetupPosts = pgTable(
     updatedAt: updatedAt(),
   },
   (t) => [index("meetup_posts_meetup_idx").on(t.meetupId, t.createdAt), index("meetup_posts_user_idx").on(t.userId, t.createdAt)],
+);
+
+
+// ---------- 저장·좋아요 · 연락 기록 (0014) ----------
+// 저장(save)은 모든 대상에 붙는 본인만 보는 북마크. 좋아요(like)는 게시글에만 두고 수를 공개한다.
+// 연락 기록은 로그인 회원이 업체·브랜드의 외부 채널(홈페이지·카카오톡·인스타그램)을 눌렀을 때 남겨 /me 에서 다시 찾게 한다.
+
+export const reactions = pgTable(
+  "reactions",
+  {
+    id: bigint("id", { mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    targetType: reactionTarget("target_type").notNull(),
+    targetId: bigint("target_id", { mode: "number" }).notNull(),
+    kind: reactionKind("kind").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("reactions_user_target_uq").on(t.userId, t.targetType, t.targetId, t.kind), index("reactions_target_idx").on(t.targetType, t.targetId, t.kind)],
+);
+
+export const contactLogs = pgTable(
+  "contact_logs",
+  {
+    id: bigint("id", { mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    spotId: bigint("spot_id", { mode: "number" }).references(() => spots.id, { onDelete: "set null" }),
+    makerId: bigint("maker_id", { mode: "number" }).references(() => makers.id, { onDelete: "set null" }),
+    channel: text("channel").notNull(), // spot_links / maker_links 의 kind (website · kakao · instagram …)
+    createdAt: createdAt(),
+  },
+  (t) => [index("contact_logs_user_idx").on(t.userId, t.createdAt)],
 );
 
 // ---------- 개체 단위 태깅 (claude.md 5-4) ----------

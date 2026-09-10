@@ -9,6 +9,7 @@ import type { GuideCategoryDef } from "@app/data";
 import { createMemberPostAction, updateMemberPostAction, type MemberActionState } from "@/app/member-actions";
 import { POST_BODY_MAX, POST_BODY_MIN, POST_SUMMARY_MAX, POST_TITLE_MAX } from "@/lib/member-limits";
 import { uploadedKeysIn } from "@/lib/media-ref";
+import type { GuideLinks, OwnedEntityOptions } from "@/lib/queries/owner";
 import type { MemberMediaSettings, UploadPolicy } from "@/lib/settings";
 import { FormMessage, SubmitButton, TextField } from "@/app/admin/_components/fields";
 import { BlockEditor } from "@/components/editor/block-editor";
@@ -46,6 +47,9 @@ export function MemberPostForm({
   tagSuggestions = [],
   /** 주소로 카테고리까지 정해져 들어왔는가 (게시판의 글쓰기 버튼) — 그러면 바로 편집 */
   categoryPreset = false,
+  /** 소유 확인된 내 업체·브랜드·상품 — 글에 연결하면 글 옆에 링크가 보인다 */
+  owned,
+  links,
 }: {
   mode: "create" | "edit";
   post: PostFormValues;
@@ -55,6 +59,8 @@ export function MemberPostForm({
   limits: MemberMediaSettings;
   tagSuggestions?: string[];
   categoryPreset?: boolean;
+  owned?: OwnedEntityOptions;
+  links?: GuideLinks;
 }) {
   const action = mode === "create" ? createMemberPostAction : updateMemberPostAction;
   const [state, formAction, pending] = useActionState<MemberActionState, FormData>(action, {});
@@ -171,6 +177,54 @@ export function MemberPostForm({
             <TagInput defaultTags={state.values?.tags ? state.values.tags.split(",").filter(Boolean) : post.tags} suggestions={tagSuggestions} />
           </div>
         </section>
+
+        {owned && owned.spots.length + owned.makers.length + owned.items.length > 0 && (
+          <section className="rounded-xl border border-line bg-surface p-4">
+            <p className="text-sm font-bold text-ink">내 업체·상품 연결</p>
+            <p className="mt-1 text-xs text-ink-faint">체크한 업체·브랜드·상품이 글 옆(놀이는 오른쪽 패널)에 링크와 함께 보이고, 그 페이지의 &quot;언급된 글&quot;에도 실립니다. 소유가 확인된 것만 고를 수 있어요.</p>
+            <div className="mt-3 grid gap-3 sm:grid-cols-3">
+              {owned.spots.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-ink-soft">업체·파트너</p>
+                  {owned.spots.map((s) => (
+                    <label key={s.id} className="mt-1.5 flex items-start gap-2 text-sm text-ink">
+                      <input type="checkbox" name="linkSpots" value={s.id} defaultChecked={links?.spotIds.includes(s.id)} className="mt-1" />
+                      <span>
+                        {s.name}
+                        <span className="block text-[11px] text-ink-faint">{s.sub}</span>
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              )}
+              {owned.makers.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-ink-soft">브랜드</p>
+                  {owned.makers.map((m) => (
+                    <label key={m.id} className="mt-1.5 flex items-start gap-2 text-sm text-ink">
+                      <input type="checkbox" name="linkMakers" value={m.id} defaultChecked={links?.makerIds.includes(m.id)} className="mt-1" />
+                      <span>{m.name}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+              {owned.items.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-ink-soft">상품</p>
+                  {owned.items.map((i) => (
+                    <label key={i.id} className="mt-1.5 flex items-start gap-2 text-sm text-ink">
+                      <input type="checkbox" name="linkItems" value={i.id} defaultChecked={links?.itemIds.includes(i.id)} className="mt-1" />
+                      <span>
+                        {i.name}
+                        <span className="block text-[11px] text-ink-faint">{i.sub}</span>
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
+        )}
 
         <div className="rounded-lg border border-sage/30 bg-sage-soft px-4 py-3 text-xs leading-relaxed text-sage-deep">
           <p className="font-semibold">{limits.requireApproval ? "승인 기준" : "게시 기준"}</p>

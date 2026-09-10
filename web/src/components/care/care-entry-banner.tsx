@@ -6,6 +6,7 @@
 import Link from "next/link";
 import { isCareType } from "@app/data";
 import { countIndexableCareProviders } from "@/lib/queries/care";
+import { countPublishedExpertsByKind } from "@/lib/queries/experts";
 import { countOpenMeetups } from "@/lib/queries/meetups";
 import { countIndexableSpotsForType, listSpotTypesBySlugs } from "@/lib/queries/spots";
 import { SpotTypeIcon } from "@/components/spot-type-banners";
@@ -15,6 +16,8 @@ interface EntryItem {
   label: string;
   /** 스팟 유형 — 있으면 /spot/type/[slug] 로 가고 등록 수를 센다 */
   typeSlug?: string;
+  /** 상담 전문가 종류 — 공개 전문가 수를 상태 문구로 */
+  expertKind?: string;
   /** 디렉토리가 아닌 목적지 (예: 펫모임 /meetup) */
   href?: string;
   /** typeSlug 가 없을 때 수 자리에 보여 줄 문구 */
@@ -54,6 +57,18 @@ const SENIOR_GROUPS: EntryGroup[] = [
     items: [
       { key: "pet-sitter", label: "펫시터", typeSlug: "pet-sitter", icon: "pet-sitter", blurb: "집으로 와서 돌보는 방문 돌봄" },
       { key: "dog-walk", label: "산책", typeSlug: "dog-walk", icon: "dog-walk", blurb: "산책 대행·동행 · 노견 맞춤 코스" },
+    ],
+  },
+  {
+    id: "care-entry-consult",
+    heading: "노견 생활 상담하기",
+    sub: "온라인으로 묻고 답하는 생활 상담 — 진단·처방이 아닌 일상의 이야기",
+    cols: "sm:grid-cols-4",
+    items: [
+      { key: "consult-trainer", label: "훈련사", href: "/consult?kind=trainer", expertKind: "trainer", icon: "consult", blurb: "행동·훈련·산책·분리불안 온라인 상담", cta: "상담 보기 →" },
+      { key: "consult-vet", label: "수의사", href: "/consult?kind=vet", expertKind: "vet", icon: "consult", blurb: "돌봄 루틴·식이·생활 관리 — 생활 상담", cta: "상담 보기 →" },
+      { key: "consult-vet-tech", label: "수의 테크니션", href: "/consult?kind=vet_tech", expertKind: "vet_tech", icon: "consult", blurb: "투약·간호·재활 보조 등 집에서의 돌봄", cta: "상담 보기 →" },
+      { key: "consult-mentor", label: "멘토", href: "/consult?kind=mentor", expertKind: "mentor", icon: "consult", blurb: "먼저 노견을 돌본 보호자의 경험", cta: "상담 보기 →", isNew: true },
     ],
   },
 ];
@@ -96,6 +111,7 @@ async function EntryBanner({ groups, directoryHref = "/spot" }: { groups: EntryG
   const available = new Set(types.map((t) => t.slug));
   // 펫모임 카드 — 열린 모임 수 (비회원에게도 보이는 집계)
   const meetupTotal = groups.some((g) => g.items.some((i) => i.key === "meetup")) ? await countOpenMeetups() : 0;
+  const expertCounts = groups.some((g) => g.items.some((i) => i.expertKind)) ? await countPublishedExpertsByKind() : {};
 
   return (
     <div className="space-y-5">
@@ -129,7 +145,11 @@ async function EntryBanner({ groups, directoryHref = "/spot" }: { groups: EntryG
                     ? meetupTotal > 0
                       ? `열린 모임 ${meetupTotal.toLocaleString("ko-KR")}개`
                       : "첫 모임을 열어 보세요"
-                    : (item.status ?? "");
+                    : item.expertKind
+                      ? (expertCounts[item.expertKind] ?? 0) > 0
+                        ? `전문가 ${expertCounts[item.expertKind]}명`
+                        : "모집 중"
+                      : (item.status ?? "");
                 return (
                   <Link
                     key={item.key}

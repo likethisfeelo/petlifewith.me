@@ -1,10 +1,10 @@
 // 요청함 조회 — service_requests. 관리자 화면·대시보드용.
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { isCareType } from "@app/data";
 import { getDb, isDbConfigured, schema } from "../db";
 import type { RequestKind, RequestStatus } from "../requests";
 
-const { serviceRequests, spots, makers, regions, promotions } = schema;
+const { serviceRequests, spots, makers, regions, promotions, users } = schema;
 
 export type ServiceRequestRow = typeof serviceRequests.$inferSelect;
 
@@ -16,6 +16,8 @@ export interface RequestListItem {
   makerSlug: string | null;
   /** 연결된 스팟이 지역 상단 노출 중인지 (유료 노출 요청 처리 상태 표시용) */
   promoted: boolean;
+  /** 로그인 회원이 보낸 요청이면 닉네임 — 소유자 연결용 */
+  memberName: string | null;
 }
 
 export async function listServiceRequests(filter: { kind?: RequestKind | null; status?: RequestStatus | null; limit?: number } = {}): Promise<RequestListItem[]> {
@@ -31,10 +33,12 @@ export async function listServiceRequests(filter: { kind?: RequestKind | null; s
       makerName: makers.name,
       makerSlug: makers.slug,
       promoted: sql<boolean>`exists (select 1 from ${promotions} p where p.spot_id = ${serviceRequests.spotId} and p.active = true)`,
+      memberName: users.displayName,
     })
     .from(serviceRequests)
     .leftJoin(spots, eq(serviceRequests.spotId, spots.id))
     .leftJoin(makers, eq(serviceRequests.makerId, makers.id))
+    .leftJoin(users, eq(serviceRequests.userId, users.id))
     .where(conds.length ? and(...conds) : undefined)
     .orderBy(desc(serviceRequests.createdAt))
     .limit(filter.limit ?? 200);
@@ -96,4 +100,47 @@ export async function listRegistrableSpotTypes(): Promise<SpotTypeOption[]> {
     .where(and(eq(spotTypes.listed, true), eq(spotTypes.monetizable, true)))
     .orderBy(spotTypes.sortOrder);
   return rows.filter((r) => !isCareType(r.slug));
+}
+
+// ---------- 회원 본인 화면 (/me) ----------
+
+export interface MyRequestItem {
+  id: number;
+  kind: RequestKind;
+  status: RequestStatus;
+  /** 한 줄 요약 — 업체명·활동명·대상 이름 */
+  summary: string;
+  targetPath: string | null;
+  createdAt: Date;
+}
+
+export async function listMyServiceRequests(userId: string): Promise<MyRequestItem[]> {
+  if (!isDbConfigured()) return [];
+  const rows = await getDb()
+    .select({ request: serviceRequests, spotName: spots.name, spotSlug: spots.slug, makerName: makers.name, makerSlug: makers.slug })
+    .from(serviceRequests)
+    .leftJoin(spots, eq(serviceRequests.spotId, spots.id))
+    .leftJoin(makers, eq(serviceRequests.makerId, makers.id))
+    .where(eq(serviceRequests.userId, userId))
+    .orderBy(desc(serviceRequests.createdAt))
+    .limit(100);
+  const { idSlugPath } = await import("../format");
+  return rows.map(({ request: r, spotName, spotSlug, makerName, makerSlug }) => {
+    const p = r.payload as Record<string, unknown>;
+    const name = (typeof p.businessName === "string" && p.businessName) || (typeof p.displayName === "string" && p.displayName) || spotName || makerName || "";
+    const targetPath = r.spotId && spotSlug ? idSlugPath("place", r.spotId, spotSlug) : r.makerId && makerSlug ? idSlugPath("maker", r.makerId, makerSlug) : null;
+    return { id: r.id, kind: r.kind, status: r.status, summary: name, targetPath, createdAt: r.createdAt };
+  });
+}
+
+/** 접수·처리 중인 내 요청 수 — /me 탭 배지 */
+export async function countNewForMember(userId: string): Promise<number> {
+  if (!isDbConfigured()) return 0;
+  const row = (
+    await getDb()
+      .select({ count: sql<number>`count(*)`.mapWith(Number) })
+      .from(serviceRequests)
+      .where(and(eq(serviceRequests.userId, userId), inArray(serviceRequests.status, ["new", "in_progress"])))
+  )[0];
+  return row?.count ?? 0;
 }

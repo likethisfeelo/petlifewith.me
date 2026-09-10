@@ -8,6 +8,8 @@ import { ITEM_CATEGORY_LABEL, MAKER_CATEGORY_LABEL, idSlugPath, parseIdSlug } fr
 import { renderMarkdown } from "@/lib/markdown";
 import { guidesMentioningMaker } from "@/lib/queries/guides";
 import { getMakerProfile } from "@/lib/queries/makers";
+import { ContactRow } from "@/components/contact/contact-row";
+import { ReactionButtons } from "@/components/reactions/reaction-buttons";
 import { buildMeta, itemListLd, robotsMeta } from "@/lib/seo";
 import { assetUrl } from "@/lib/assets";
 
@@ -98,21 +100,12 @@ export default async function MakerPage({ params }: Props) {
         )}
       </header>
 
-      {links.length > 0 && (
-        <div className="mt-5 flex flex-wrap gap-2">
-          {links.map((l) => (
-            <a
-              key={l.id}
-              href={l.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="rounded-full border border-line bg-surface px-4 py-1.5 text-sm font-medium text-ink hover:bg-sand"
-            >
-              {l.label ?? LINK_KIND_LABEL[l.kind] ?? l.kind} ↗
-            </a>
-          ))}
-        </div>
-      )}
+      <div className="mt-5 flex flex-wrap items-center gap-2">
+        <ContactRow makerId={maker.id} links={links.map((l) => ({ kind: l.kind, url: l.url, label: l.label ?? LINK_KIND_LABEL[l.kind] ?? l.kind }))} compact />
+        <span className={links.length > 0 ? "ml-auto" : ""}>
+          <ReactionButtons target="maker" id={maker.id} kinds={["save"]} nextPath={idSlugPath("maker", maker.id, maker.slug)} size="sm" />
+        </span>
+      </div>
 
       {story && (
         <div className="guide-prose prose prose-neutral mt-8 max-w-none" dangerouslySetInnerHTML={{ __html: story.html }} />

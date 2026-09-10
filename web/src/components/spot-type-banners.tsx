@@ -96,6 +96,13 @@ export function SpotTypeIcon({ slug, className = "h-6 w-6" }: { slug: string; cl
           <path d="M2 18c0-2 1.4-3.5 3.5-3.5M22 18c0-2-1.4-3.5-3.5-3.5" />
         </svg>
       );
+    case "consult": // 말풍선 + 하트 (온라인 상담)
+      return (
+        <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v8a2.5 2.5 0 0 1-2.5 2.5H10l-4.5 4v-4A2.5 2.5 0 0 1 4 13.5z" />
+          <path d="M12 12.2 9.6 9.9a1.6 1.6 0 0 1 2.3-2.3l.1.1.1-.1a1.6 1.6 0 0 1 2.3 2.3z" />
+        </svg>
+      );
     default: // 핀
       return (
         <svg {...common}>

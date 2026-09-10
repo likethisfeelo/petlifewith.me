@@ -243,12 +243,16 @@ export async function createSpotAction(_prev: ActionState, formData: FormData): 
   // 요청함에서 넘어온 등록 — 요청에 스팟을 연결하고 "처리 중"으로 (완료 표시는 운영자가 안내를 마친 뒤 직접)
   const fromRequestId = intOrNull(formData, "fromRequestId");
   if (fromRequestId) {
+    const req = (await db.select({ userId: serviceRequests.userId }).from(serviceRequests).where(eq(serviceRequests.id, fromRequestId)).limit(1))[0];
     await db
       .update(serviceRequests)
       .set({ spotId, status: "in_progress", updatedAt: new Date() })
       .where(and(eq(serviceRequests.id, fromRequestId), eq(serviceRequests.status, "new")));
     await db.update(serviceRequests).set({ spotId, updatedAt: new Date() }).where(eq(serviceRequests.id, fromRequestId));
+    // 로그인 회원이 보낸 등록 요청이면 그 회원을 소유자로 — /me 에서 바로 관리한다
+    if (req?.userId) await db.update(spots).set({ claimedBy: req.userId }).where(eq(spots.id, spotId));
     revalidatePath("/admin/requests");
+    revalidatePath("/me/business");
   }
 
   revalidatePath("/admin/spots");

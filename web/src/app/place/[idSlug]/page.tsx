@@ -3,11 +3,13 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { carePersonLabel, isCareType } from "@app/data";
 import { Breadcrumbs } from "@/components/breadcrumbs";
-import { CareActions } from "@/components/care/booking-form";
+import { ReserveActions } from "@/components/reservation/reserve-actions";
 import { JsonLd } from "@/components/jsonld";
 import { B2BNote, DataReferenceNote, PharmacyNote } from "@/components/notices";
 import { RememberRegion } from "@/components/region-banner";
 import { contactEmail } from "@/lib/config";
+import { ContactRow } from "@/components/contact/contact-row";
+import { ReactionButtons } from "@/components/reactions/reaction-buttons";
 import { SPOT_STATUS_LABEL, formatDate, idSlugPath, parseIdSlug } from "@/lib/format";
 import { renderMarkdown } from "@/lib/markdown";
 import { guidesMentioningSpot } from "@/lib/queries/guides";
@@ -138,6 +140,9 @@ export default async function PlacePage({ params }: Props) {
               예시 (가상 데이터)
             </span>
           )}
+          <span className="ml-auto">
+            <ReactionButtons target="spot" id={spot.id} kinds={["save"]} nextPath={idSlugPath("place", spot.id, spot.slug)} size="sm" />
+          </span>
         </div>
         <h1 className="mt-3 text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">{spot.name}</h1>
         <p className="mt-1 text-sm text-ink-soft">
@@ -171,17 +176,15 @@ export default async function PlacePage({ params }: Props) {
         </section>
       )}
 
-      {isCare && spot.status === "operating" && (
+      {spot.status === "operating" && typeMonetizable && spot.source !== "sample" && (
         <section className="mt-4 rounded-xl border border-line bg-cream px-4 py-3">
           <p className="text-sm font-semibold text-ink">예약·상담</p>
-          <p className="mt-0.5 text-xs text-ink-soft">예약 신청은 운영자가 받아 {carePersonLabel(found.typeSlug)}에게 연결합니다.</p>
-          <CareActions
-            spotId={spot.id}
-            spotName={spot.name}
-            regionId={exposedAreas[0]?.regionId ?? null}
-            personLabel={carePersonLabel(found.typeSlug)}
-            kakaoUrl={links.find((l) => l.kind === "kakao")?.url ?? null}
-          />
+          <p className="mt-0.5 text-xs text-ink-soft">
+            {isCare
+              ? `예약 요청을 보내면 ${carePersonLabel(found.typeSlug)} 또는 운영자가 확인하고, 결제 확인 뒤 서비스 안 채팅으로 약속을 잡습니다.`
+              : "예약 요청을 보내면 업체 담당자 또는 운영자가 확인하고, 결제 확인 뒤 서비스 안 채팅으로 이어집니다. 카카오톡 채널이 있으면 바로 상담해도 됩니다."}
+          </p>
+          <ReserveActions spotId={spot.id} kakaoUrl={links.find((l) => l.kind === "kakao")?.url ?? null} />
         </section>
       )}
 
@@ -213,6 +216,16 @@ export default async function PlacePage({ params }: Props) {
               </li>
             ))}
           </ul>
+        </section>
+      )}
+
+      {links.length > 0 && (
+        <section className="mt-8 rounded-2xl border border-line bg-surface p-5">
+          <h2 className="text-sm font-bold text-ink">연락·예약</h2>
+          <p className="mt-1 text-xs text-ink-soft">예약·문의는 업체가 쓰는 채널에서 바로 이어 가세요. 로그인하면 연락한 업체가 내 페이지에 남습니다.</p>
+          <div className="mt-3">
+            <ContactRow spotId={spot.id} links={links.map((l) => ({ kind: l.kind, url: l.url, label: spotLinkLabel(l) }))} />
+          </div>
         </section>
       )}
 

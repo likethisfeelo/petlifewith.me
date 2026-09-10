@@ -85,7 +85,7 @@ export default async function MeetupHubPage({ searchParams }: Props) {
                         + 이 지역에 모임 만들기
                       </Link>
                     ) : (
-                      <Link href="/me#regions" className="rounded-full border border-line bg-surface px-4 py-1.5 font-medium text-ink hover:bg-sand">
+                      <Link href="/me/meetups" className="rounded-full border border-line bg-surface px-4 py-1.5 font-medium text-ink hover:bg-sand">
                         내 지역에 추가하기 →
                       </Link>
                     )}
@@ -150,7 +150,7 @@ function MemberHome({
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-lg font-bold text-ink">내 지역</h2>
           {regionIds.length > 0 && (
-            <Link href="/me#regions" className="text-xs font-medium text-sea hover:underline">
+            <Link href="/me/meetups" className="text-xs font-medium text-sea hover:underline">
               바꾸기 →
             </Link>
           )}
