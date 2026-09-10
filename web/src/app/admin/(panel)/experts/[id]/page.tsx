@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { getExpertById } from "@/lib/queries/experts";
+import { listRegionOptions } from "@/lib/queries/requests";
 import { minToHm } from "@/lib/reservations";
 import { AdminPageHeader } from "../../../_components/fields";
 import { ExpertEditor } from "./expert-editor";
@@ -14,7 +15,10 @@ export default async function AdminExpertEditPage({ params, searchParams }: { pa
   if (!Number.isSafeInteger(expertId)) notFound();
   const expert = await getExpertById(expertId);
   if (!expert) notFound();
-  const email = expert.userId ? ((await getDb().select({ email: schema.users.email }).from(schema.users).where(eq(schema.users.id, expert.userId)).limit(1))[0]?.email ?? "") : "";
+  const [email, regions] = await Promise.all([
+    expert.userId ? getDb().select({ email: schema.users.email }).from(schema.users).where(eq(schema.users.id, expert.userId)).limit(1).then((r) => r[0]?.email ?? "") : Promise.resolve(""),
+    listRegionOptions(),
+  ]);
   return (
     <div>
       <AdminPageHeader
@@ -45,8 +49,10 @@ export default async function AdminExpertEditPage({ params, searchParams }: { pa
             contact: expert.contact,
             status: expert.status,
             sortOrder: expert.sortOrder,
+            regionIds: expert.regionIds,
           }}
           slots={expert.slots.map((s) => ({ weekday: String(s.weekday), start: minToHm(s.startMin), end: minToHm(s.endMin) }))}
+          regions={regions}
         />
       </div>
     </div>

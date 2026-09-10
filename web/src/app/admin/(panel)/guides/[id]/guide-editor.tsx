@@ -26,6 +26,7 @@ interface GuideValues {
   medicalAdjacent: boolean;
   vetReviewed: boolean;
   vetReviewerName: string | null;
+  sponsorName: string | null;
   vetReviewedAt: string | null;
   heroImageKey: string | null;
   heroMedia: string | null;
@@ -197,6 +198,14 @@ export function GuideEditor({
           <label className="block text-sm font-medium text-ink" htmlFor="vetReviewedAt">감수일</label>
           <input id="vetReviewedAt" name="vetReviewedAt" type="date" defaultValue={guide.vetReviewedAt ?? ""} className={input} />
         </div>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-ink" htmlFor="sponsorName">협찬사 (선택)</label>
+        <input id="sponsorName" name="sponsorName" defaultValue={guide.sponsorName ?? ""} placeholder="○○메디칼" className={input} />
+        <p className="mt-1 text-xs text-ink-faint">
+          업체가 비용·제품을 지원한 글이면 회사명을 적습니다. 적으면 글과 기기 페이지에 &quot;광고·협찬&quot; 표기가 자동으로 붙습니다 (표시광고법). 지원받지 않았으면 비웁니다.
+        </p>
       </div>
 
       <UploadField

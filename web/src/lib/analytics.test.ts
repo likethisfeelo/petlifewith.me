@@ -38,6 +38,11 @@ describe("isAdsExcluded (AdSense 로드 범위)", () => {
     expect(isAdsExcluded("/portal/spot", "petlifewith.me", APEX)).toBe(true);
     expect(isAdsExcluded("/claim/spot/1", "petlifewith.me", APEX)).toBe(true);
     expect(isAdsExcluded("/rehab", "petlifewith.me", APEX)).toBe(true);
+    // 개인 대화·상담은 광고를 붙이지 않는다. 기기 허브는 광고 대상이다.
+    expect(isAdsExcluded("/chat/12", "petlifewith.me", APEX)).toBe(true);
+    expect(isAdsExcluded("/consult", "petlifewith.me", APEX)).toBe(true);
+    expect(isAdsExcluded("/device", "petlifewith.me", APEX)).toBe(false);
+    expect(isAdsExcluded("/device/aqua-walk", "petlifewith.me", APEX)).toBe(false);
     expect(isAdsExcluded("/rehab/acupuncture", "petlifewith.me", APEX)).toBe(true);
   });
   it("회원 화면(로그인·가입·내정보·글쓰기)은 제외", () => {

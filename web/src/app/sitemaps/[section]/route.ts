@@ -1,7 +1,7 @@
 // 섹션별 사이트맵 — noindex 게이트를 통과한 URL 만 내보낸다 (lib/queries/sitemap.ts)
 import { notFound } from "next/navigation";
 import { siteUrl } from "@/lib/config";
-import { sitemapCategoryBoards, sitemapCurations, sitemapGuides, sitemapItems, sitemapMakers, sitemapPlaces, sitemapRegions, sitemapRehab, sitemapTags, sitemapTopicBoards, sitemapTopics, type SitemapEntry } from "@/lib/queries/sitemap";
+import { sitemapCategoryBoards, sitemapCurations, sitemapDevices, sitemapGuides, sitemapItems, sitemapMakers, sitemapPlaces, sitemapRegions, sitemapRehab, sitemapTags, sitemapTopicBoards, sitemapTopics, type SitemapEntry } from "@/lib/queries/sitemap";
 
 export const revalidate = 3600; // REVALIDATE.sitemap
 
@@ -18,8 +18,8 @@ async function entriesFor(section: string): Promise<SitemapEntry[] | null> {
     case "guides":
       return sitemapGuides();
     case "spots": {
-      const [regions, rehab] = await Promise.all([sitemapRegions(), sitemapRehab()]);
-      return [...regions, ...rehab];
+      const [regions, rehab, devices] = await Promise.all([sitemapRegions(), sitemapRehab(), sitemapDevices()]);
+      return [...regions, ...rehab, ...devices];
     }
     case "places":
       return sitemapPlaces();

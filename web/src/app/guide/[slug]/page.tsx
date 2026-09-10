@@ -9,7 +9,7 @@ import { EntityTagPanels, hasEntityTags } from "@/components/entity-panels";
 import { InstagramEmbedScript } from "@/components/instagram-script";
 import { JsonLd } from "@/components/jsonld";
 import { CommentSection } from "@/components/comments";
-import { AffiliateDisclosure, MedicalNotice, MemberPostNote, VetReviewBadge } from "@/components/notices";
+import { AffiliateDisclosure, MedicalNotice, MemberPostNote, SponsoredBadge, SponsoredNote, VetReviewBadge } from "@/components/notices";
 import { getGuideCategory } from "@app/data";
 import { SpotTypeBanners } from "@/components/spot-type-banners";
 import { countIndexableSpotsForType, listSpotTypesBySlugs } from "@/lib/queries/spots";
@@ -116,6 +116,7 @@ export default async function GuidePage({ params }: Props) {
           {guide.vetReviewed && guide.vetReviewerName && (
             <VetReviewBadge reviewerName={guide.vetReviewerName} reviewedAt={guide.vetReviewedAt} />
           )}
+          {guide.sponsorName && <SponsoredBadge sponsorName={guide.sponsorName} />}
           <span className="ml-auto">
             <ReactionButtons target="guide" id={guide.id} kinds={["like", "save"]} nextPath={`/guide/${guide.slug}`} size="sm" />
           </span>
@@ -156,6 +157,12 @@ export default async function GuidePage({ params }: Props) {
       )}
 
       {isMemberPost && authorName && <MemberPostNote authorName={authorName} />}
+
+      {guide.sponsorName && (
+        <div className="mt-6">
+          <SponsoredNote sponsorName={guide.sponsorName} />
+        </div>
+      )}
 
       {showDisclosure && (
         <div className="mt-6">

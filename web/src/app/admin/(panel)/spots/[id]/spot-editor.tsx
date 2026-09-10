@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from "react";
 import {
+  CheckboxField,
   FormMessage,
   SelectField,
   SubmitButton,
@@ -29,7 +30,13 @@ export interface SpotFormValues {
   parkingText: string | null;
   descriptionMd: string | null;
   heroImageKey?: string | null;
+  isHospital?: boolean;
   seo?: SeoDefaults;
+}
+
+export interface DeviceOption {
+  id: number;
+  label: string;
 }
 
 export interface SpotOption {
@@ -65,6 +72,9 @@ export function SpotEditor({
   careTypeIds = [],
   areaOptions = [],
   serviceAreas = [],
+  rehabTypeId,
+  deviceOptions = [],
+  spotDeviceIds = [],
   fromRequestId,
 }: {
   mode: "create" | "edit";
@@ -76,6 +86,10 @@ export function SpotEditor({
   careTypeIds?: number[];
   areaOptions?: AreaOption[];
   serviceAreas?: ServiceAreaRow[];
+  /** 운동·재활 유형의 id — 고르면 보유 장비·병원 여부가 나타난다 */
+  rehabTypeId?: number;
+  deviceOptions?: DeviceOption[];
+  spotDeviceIds?: number[];
   /** 요청함에서 넘어온 등록 — 등록되면 그 요청에 스팟을 연결한다 */
   fromRequestId?: number;
 }) {
@@ -83,6 +97,7 @@ export function SpotEditor({
   const [state, formAction, pending] = useActionState<ActionState, FormData>(action, {});
   const [typeId, setTypeId] = useState<number | "">(spot.typeId);
   const isCare = typeId !== "" && careTypeIds.includes(typeId);
+  const isRehab = typeId !== "" && rehabTypeId !== undefined && typeId === rehabTypeId;
 
   return (
     <form action={formAction} className="space-y-5">
@@ -172,6 +187,32 @@ export function SpotEditor({
 
       {isCare && (
         <ServiceAreasEditor name="serviceAreasJson" options={areaOptions} initialRows={serviceAreas} homeRegionId={spot.regionId} />
+      )}
+
+      {isRehab && (
+        <section className="space-y-3 rounded-xl border border-line bg-surface p-4">
+          <div>
+            <h2 className="text-sm font-bold text-ink">보유 장비 (운동·재활)</h2>
+            <p className="mt-1 text-xs text-ink-soft">
+              직접 확인한 장비만 고릅니다. 고른 기기의 페이지에 &quot;지역별 체험 가능 업체&quot;로 함께 실립니다. 장비를 하나도 고르지 않으면 유료 상단 노출을 켤 수 없습니다.
+            </p>
+          </div>
+          {deviceOptions.length === 0 ? (
+            <p className="rounded-lg border border-dashed border-line p-4 text-xs text-ink-faint">등록된 기기가 없습니다. 먼저 기기를 등록하세요 (관리자 &gt; 기기).</p>
+          ) : (
+            <div className="grid gap-2 sm:grid-cols-2">
+              {deviceOptions.map((d) => (
+                <CheckboxField key={d.id} name="deviceIds" value={String(d.id)} label={d.label} defaultChecked={spotDeviceIds.includes(d.id)} />
+              ))}
+            </div>
+          )}
+          <CheckboxField
+            name="isHospital"
+            label="동물병원입니다 (유료 상단 노출 제외)"
+            defaultChecked={spot.isHospital ?? false}
+          />
+          <p className="text-xs text-ink-faint">병원은 장비 보유처로 무료 노출만 합니다 — 유료 상단 노출·순위·추천은 붙이지 않습니다 (claude.md 6-2).</p>
+        </section>
       )}
 
       <SeoFields defaults={spot.seo ?? {}} />

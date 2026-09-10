@@ -129,6 +129,9 @@ IP·브라우저 위치로 지역을 감지해 배너로 제안한다. 강제 �
 - **건강검진은 병원 추천이 아니라 "무엇을 물어봐야 하는가"로 쓴다.**
 - **치료·진단 기기는 주어를 병원이 아니라 기기로 둔다.** 원리와 스펙까지 서술하되 **효과를 단정하지 않는다.** "관절염에 효과적"은 의료 광고다. "○○ 목적으로 사용된다"까지만.
 - **기기 보유 병원 목록은 무료 노출 전용.** 광고 상품으로 만들지 않는다.
+- **운동·재활 유형(`rehab`)의 유료 상단 노출은 장비를 등록한 곳만.** 재활·특수 훈련 장비(`device_sites.kind='trial'`)가 하나 이상 연결돼야 한다.
+  **동물병원은 유료 상단 노출에서 제외**한다(`spots.is_hospital`) — 병원은 장비 보유처로 무료 노출만. 진료·효과가 아니라 보유 장비라는 사실만 적는다.
+- **협찬 콘텐츠는 표기와 함께.** 업체가 비용·제품을 지원한 글은 `guides.sponsor_name` 을 적어 글 머리와 기기 페이지에 "광고 · ○○ 협찬"을 붙인다. 지정은 운영자만.
 - **소비자용 모니터링 기기를 다룰 때 "이상 신호를 감지하면 병원으로"라는 결론을 반드시 포함한다.** 기기가 진단을 대체한다는 인상을 주면 진료 시기를 놓치게 만든다.
 - **장묘는 광고를 붙이지 않는다.** 사실 정보만 표시하고 순위·추천을 하지 않는다.
 - 의료 인접 편에는 수의사 감수 표기를 넣는다. 감수 전에는 발행하지 않는다.
@@ -340,6 +343,15 @@ VPC/RDS Proxy. 쓰지 않는 리소스를 미리 세우면 비용만 나간다.
 - **회원·커뮤니티 (2026-09)**: 자체 이메일·비밀번호 회원 + 서명 쿠키(0005: users 컬럼·comments·guides.author_user_id·status pending). `/signup /login /me /write`, 헤더 메뉴는 `/api/me`(ISR 유지). 회원 글은 승인 후 공개(외부 링크 nofollow ugc, 회원 글 안내문), 댓글은 즉시(평문·시간당 20건), 관리자 `/admin/members`(차단) `/admin/comments`(숨김·삭제).
 - **요청함 (2026-09, 0012)**: 사장님·파트너 쪽 절차는 전부 **요청 → 슬랙 → 관리자 처리** 하나로. `service_requests`(예전 `claims` 흡수, `kind` = 업체 등록 / 정보 관리(업체·메이커) / 지역 상단 노출(유료, A·B·C 형) / 돌봄 파트너 등록). 공개 폼 `/portal/spot`(업체 등록) · `/portal/promo?spot=`(상단 노출) · `/portal/care?type=&region=`(파트너, 주소 없이 활동 지역만) · `/claim/<대상>/<id>`(정보 관리) — 로그인 없음, 연락처는 요청함·슬랙에만, IP 해시로 시간당 5건. 관리자 `/admin/requests`: 종류·상태 필터, 바로가기(스팟 등록 `?from=` 값 채움 → 등록 시 요청에 연결·"처리 중", 편집기, 입금 확인 토글 → 노출 토글, 업체 연결), 메모. **결제는 수동**(계좌·결제 링크 안내 → 입금 확인 → 노출 켜기; PG 는 뒤로). 형별 안내문은 `/admin/settings` (`site_settings.promo_plans`). 슬랙 `SLACK_REQUESTS_WEBHOOK_URL`(없으면 예약 웹훅). `docs/운영.md` 5-12.
 - **예약·채팅·온라인 상담 (2026-09, 0015)**: 옛 비회원 예약 신청(`booking_requests`)을 `reservations` 로 흡수. 회원이 업체·돌봄 파트너(`/book/spot/[id]`)·전문가(`/consult/[슬러그]`, 주간 슬롯 시간 예약 또는 연락받기)에 요청 → 제공자(소유 회원·전문가 계정) 또는 운영자가 확인 → **결제 확인은 수동**(paid_at/paid_by, PG 는 뒤에) → `conversations/messages` 채팅(5초 폴링, `/reservations/[id]`) → 완료. `/me/received` 받은 요청, `/admin/reservations`. **노견 생활 온라인 상담** `/consult`(헤더 메뉴, 노견생활 하단 섹션): `experts`(훈련사·수의사·수의 테크니션·멘토, `/admin/experts`, 등록 요청 `/portal/expert` = 요청함 `expert_partner`). 6-2: 수의사·수의 테크니션은 생활 상담 한정 고지, 병원명·주소·순위·평점 없음, `/consult*` noindex·광고 제외. `docs/운영.md` 5-15.
+
+- **상담 개편·운동·재활·관리 도구 (2026-09, 0016·0017)**: 상담은 **훈련사·멘토 둘뿐**(수의사·수의 테크니션 제거). 회원이 `/me/expert` 에서 직접 프로필을 만들고
+  (멘토 즉시 공개, 훈련사는 자격 확인 뒤), 활동 지역(`expert_regions`, 최대 5곳)으로 돌봄 파트너와 같은 지역 지도(`/consult?kind=&region=`)에 노출된다.
+  **바로 채팅**(시범): 회원이면 결제 없이 대화가 열린다(`conversations.kind='direct'`, 하루 10개, `/chat/[id]`, 목록 `/me/chats`) — 시간 예약·유료 상담은 기존
+  예약 → 결제 확인 → 예약 채팅 흐름 그대로. `expert_partner` 요청 종류·`/portal/expert` 폼은 없어졌다.
+  **운동·재활**: 스팟 유형 `rehab` 이름은 "운동·재활"(센터라 부르지 않는다), 장비를 등록한 곳만 유료 상단 노출, 동물병원은 제외(`spots.is_hospital`).
+  **관리·재활 도구** `/device`·`/device/[슬러그]`: 기기 → 본사 → 대리점(`device_dealers`) → 지역별 체험 가능 업체(`device_sites.kind='trial'` + `spot_id`) →
+  보유 병원(무료·순위 없음) → 다룬 글(협찬 글 우선, 광고 표기). 수익은 주목 기기 슬롯(`featured_order`)과 협찬 콘텐츠(`guides.sponsor_name`), 둘 다 광고 표기.
+  `docs/운영.md` 5-16.
 - **회원 대시보드 /me (2026-09, 0014)**: 탭(개요·내 글·내 업체·브랜드·저장·신청·연락 내역·모임·내 지역·설정). 소유 확인은 `spots/makers.claimed_by`(회원 한 명이 여러 곳) — 요청함에 `service_requests.user_id` 를 붙여 관리자가 "소유자로 연결", 등록 요청으로 만든 스팟은 자동 소유. 소유자 편집(`/me/business/...`, `app/owner-actions.ts`)은 운영시간·요금·소개·링크·이미지·상품(자사몰 링크만, 쿠팡은 운영자)까지, 이름·주소·유형·지역은 요청으로만. 회원 글에 소유한 업체·상품을 연결(`guide_*_tags`, 소유 범위 안에서만 동기화) → 글 옆 링크. 저장(`reactions`, 모든 대상, 본인만)·좋아요(게시글만 수 공개), 연락하기 줄(외부 채널, `contact_logs`). `docs/운영.md` 5-14.
 - **펫모임 (2026-09, 0013)**: 회원이 내 지역(시군구 최대 3곳, `user_regions`)을 골라 그 지역 모임에 참여하거나 직접 만든다(`meetups`, 승인 없음, 관리자는 숨김만, 새 모임 슬랙 알림). **비회원에게는 지역별 "모임 n개 · m명 참여 중" 집계만** — 이름·소개는 회원, 게시판(`meetup_posts`)은 참여 회원만. `/meetup`(지도 셸 + 패널) · `/meetup/new` · `/meetup/<슬러그>`(참여·나가기·주최자 마감·수정) · `/me` 내 지역·참여 모임 · `/admin/meetups`. 장소는 짧은 문구만(주소 금지). 전부 noindex·광고 제외. `docs/운영.md` 5-13.
 - **돌봄 파트너 디렉토리 (2026-09)**: 펫시터(보호자 집 방문)·시간제 시터(`hourly-sitter`, 시터 집에 맡기는 시간 단위, 신설)·펫산책은 주소 대신 `spot_service_areas`(0008)로 노출 — `/spot/type/pet-sitter|hourly-sitter|dog-walk` 는 시설과 같은 디렉토리 셸(좌측 타일 지도 — 배지는 서비스 지역 기준 사람 수, 시군구 타일은 `/spot/시도/시군구/pet-sitter` 지역x유형 페이지 링크), 지역x유형 페이지 우측이 **5자리**(빈 자리 "비어있습니다", `MAX_EXPOSED_PER_AREA`, `components/care/care-slots.tsx`). 카드 버튼 예약 신청(`booking_requests` + 슬랙 웹훅 `SLACK_BOOKING_WEBHOOK_URL`, `app/booking-actions.ts`)·카카오톡 상담(`spot_links.kakao`). 관리자 `/admin/care`(지역별 노출 ON/OFF, 상한 검사)·`/admin/bookings`·스팟 편집기 서비스 지역. 가상 예시 2건은 `source=sample`("예시" 배지, noindex). 통칭 "돌봄 파트너", 호칭 펫시터/시간제 시터/도그워커 (`data/src/care/care.ts`). `/topic/senior-life` 하단 돌봄 배너(`components/care/care-entry-banner.tsx`: 직접 방문 유치원·데이케어·시간제 시터 / 집으로 오는 펫시터·산책). `docs/운영.md` 5-8.

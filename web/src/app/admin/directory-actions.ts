@@ -27,6 +27,7 @@ const {
   itemOffers,
   deviceModels,
   deviceSites,
+  deviceDealers,
   curations,
   curationEntries,
   rehabSites,
@@ -190,6 +191,26 @@ async function writeServiceAreas(db: Awaited<ReturnType<typeof requireDb>>, spot
   await db.insert(spotServiceAreas).values(rows.map((r, i) => ({ spotId, regionId: r.regionId, exposed: r.exposed, sortOrder: i + 1 })));
 }
 
+/** 운동·재활 유형의 "보유 장비" — 고른 기기마다 체험 가능 업체(device_sites.kind='trial') 행을 맞춘다 */
+async function writeSpotDevices(db: Awaited<ReturnType<typeof requireDb>>, spotId: number, deviceIds: number[], name: string, regionId: number) {
+  const existing = await db.select({ id: deviceSites.id, deviceModelId: deviceSites.deviceModelId }).from(deviceSites).where(and(eq(deviceSites.spotId, spotId), eq(deviceSites.kind, "trial")));
+  const keep = new Set(deviceIds);
+  const drop = existing.filter((r) => !keep.has(r.deviceModelId)).map((r) => r.id);
+  if (drop.length > 0) await db.delete(deviceSites).where(inArray(deviceSites.id, drop));
+  const have = new Set(existing.map((r) => r.deviceModelId));
+  const add = deviceIds.filter((id) => !have.has(id));
+  if (add.length > 0) {
+    await db.insert(deviceSites).values(add.map((deviceModelId) => ({ deviceModelId, facilityName: name, regionId, kind: "trial", spotId })));
+  }
+  // 업체명이 바뀌면 목록 표기도 함께
+  if (have.size > 0) await db.update(deviceSites).set({ facilityName: name, regionId, updatedAt: new Date() }).where(and(eq(deviceSites.spotId, spotId), eq(deviceSites.kind, "trial")));
+}
+
+/** 폼의 체크박스 묶음 → 정수 배열 */
+function intList(formData: FormData, name: string): number[] {
+  return [...new Set(formData.getAll(name).map((v) => Number(String(v))).filter((n) => Number.isSafeInteger(n) && n > 0))];
+}
+
 export async function createSpotAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const db = await requireDb();
 
@@ -231,6 +252,7 @@ export async function createSpotAction(_prev: ActionState, formData: FormData): 
       descriptionMd: nullable(formData, "descriptionMd"),
       dataReferenceDate: nullable(formData, "dataReferenceDate"),
       heroImageKey: hero.key,
+      isHospital: checked(formData, "isHospital"),
       ...seo.values,
     })
     .returning({ id: spots.id });
@@ -238,6 +260,7 @@ export async function createSpotAction(_prev: ActionState, formData: FormData): 
   const spotId = inserted[0]!.id;
   await replaceSpotLinks(db, spotId, links.rows);
   await writeServiceAreas(db, spotId, areas.rows);
+  await writeSpotDevices(db, spotId, intList(formData, "deviceIds"), name, regionId);
   for (const p of await careRelatedPaths(spotId)) revalidatePath(p);
 
   // 요청함에서 넘어온 등록 — 요청에 스팟을 연결하고 "처리 중"으로 (완료 표시는 운영자가 안내를 마친 뒤 직접)
@@ -294,6 +317,7 @@ export async function saveSpotAction(_prev: ActionState, formData: FormData): Pr
       parkingText: nullable(formData, "parkingText"),
       descriptionMd: nullable(formData, "descriptionMd"),
       heroImageKey: hero.key,
+      isHospital: checked(formData, "isHospital"),
       ...seo.values,
       updatedAt: new Date(),
     })
@@ -301,11 +325,13 @@ export async function saveSpotAction(_prev: ActionState, formData: FormData): Pr
 
   await replaceSpotLinks(db, id, links.rows);
   await writeServiceAreas(db, id, areas.rows);
+  await writeSpotDevices(db, id, intList(formData, "deviceIds"), name, existing.regionId);
   for (const p of new Set([...pathsBefore, ...(await careRelatedPaths(id))])) revalidatePath(p);
 
   revalidatePath(`/place/${id}-${existing.slug}`);
   revalidatePath("/admin/spots");
   revalidatePath("/admin/care");
+  revalidatePath("/device");
   return { saved: true };
 }
 
@@ -493,8 +519,9 @@ export async function saveItemAction(_prev: ActionState, formData: FormData): Pr
 // 치료·진단 기기 (주어는 병원이 아니라 기기 — claude.md 6-2)
 // ============================================================
 
+/** 보유 병원 목록 — 무료·순위 없음. 체험 가능 업체(kind='trial')는 스팟 편집기에서 연결하므로 여기서 건드리지 않는다. */
 async function replaceDeviceSites(db: Awaited<ReturnType<typeof requireDb>>, deviceModelId: number, rows: ParsedRow[]) {
-  await db.delete(deviceSites).where(eq(deviceSites.deviceModelId, deviceModelId));
+  await db.delete(deviceSites).where(and(eq(deviceSites.deviceModelId, deviceModelId), eq(deviceSites.kind, "hospital")));
   const kept = rows.filter((r) => rowString(r, "facilityName"));
   if (kept.length === 0) return;
   await db.insert(deviceSites).values(
@@ -506,38 +533,90 @@ async function replaceDeviceSites(db: Awaited<ReturnType<typeof requireDb>>, dev
         : null,
       verifiedAt: rowString(row, "verifiedAt") || null,
       note: rowString(row, "note") || null,
+      kind: "hospital",
     })),
   );
 }
 
-function deviceValues(formData: FormData) {
+/** 대리점·취급처 — 본사가 알려 준 판매·설치 창구 */
+async function replaceDeviceDealers(db: Awaited<ReturnType<typeof requireDb>>, deviceModelId: number, rows: ParsedRow[]) {
+  await db.delete(deviceDealers).where(eq(deviceDealers.deviceModelId, deviceModelId));
+  const kept = rows.filter((r) => rowString(r, "name"));
+  if (kept.length === 0) return;
+  await db.insert(deviceDealers).values(
+    kept.map((row, i) => ({
+      deviceModelId,
+      name: rowString(row, "name"),
+      regionId: Number.isSafeInteger(Number(rowString(row, "regionId"))) && Number(rowString(row, "regionId")) > 0 ? Number(rowString(row, "regionId")) : null,
+      url: rowString(row, "url") || null,
+      phone: rowString(row, "phone") || null,
+      note: rowString(row, "note") || null,
+      sortOrder: i + 1,
+    })),
+  );
+}
+
+function validateDealerRows(rows: ParsedRow[]): string | null {
+  for (const [i, row] of rows.entries()) {
+    const url = rowString(row, "url");
+    if (url && !isSafeHttpUrl(url)) return `대리점 ${i + 1}번의 주소가 http/https 형식이 아닙니다.`;
+  }
+  return null;
+}
+
+function deviceValues(formData: FormData): { error: string } | { values: Record<string, unknown> } {
+  const makerUrl = nullable(formData, "makerUrl");
+  const makerContactUrl = nullable(formData, "makerContactUrl");
+  for (const [label, url] of [["본사 사이트", makerUrl], ["본사 문의", makerContactUrl]] as const) {
+    if (url && !isSafeHttpUrl(url)) return { error: `${label} 주소가 http/https 형식이 아닙니다.` };
+  }
+  const image = readImageKey(formData, "imageKey");
+  if (image.error) return { error: image.error };
+  const featured = intOrNull(formData, "featuredOrder");
   return {
-    name: str(formData, "name"),
-    makerName: nullable(formData, "makerName"),
-    category: (str(formData, "category") || "other") as
-      | "laser"
-      | "stethoscope"
-      | "imaging"
-      | "monitor"
-      | "rehab_equipment"
-      | "other",
-    summaryMd: nullable(formData, "summaryMd"),
-    specsMd: nullable(formData, "specsMd"),
+    values: {
+      name: str(formData, "name"),
+      makerName: nullable(formData, "makerName"),
+      category: (str(formData, "category") || "other") as
+        | "laser"
+        | "stethoscope"
+        | "imaging"
+        | "monitor"
+        | "rehab_equipment"
+        | "other",
+      summaryMd: nullable(formData, "summaryMd"),
+      specsMd: nullable(formData, "specsMd"),
+      makerUrl,
+      makerContactUrl,
+      imageKey: image.key,
+      priceText: nullable(formData, "priceText"),
+      published: checked(formData, "published"),
+      homeUse: checked(formData, "homeUse"),
+      featuredOrder: featured && featured > 0 ? featured : null,
+    },
   };
 }
 
 export async function createDeviceAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const db = await requireDb();
-  const values = deviceValues(formData);
+  const parsed = deviceValues(formData);
+  if ("error" in parsed) return { error: parsed.error };
+  const values = parsed.values as { name: string } & Record<string, unknown>;
   if (values.name.length < 2) return { error: "기기명을 입력하세요." };
+  const dealerRows = parseRows(formData, "dealersJson");
+  const dealerError = validateDealerRows(dealerRows);
+  if (dealerError) return { error: dealerError };
 
   const slug = resolveSlug(formData, values.name);
   const dup = await db.select({ id: deviceModels.id }).from(deviceModels).where(eq(deviceModels.slug, slug)).limit(1);
   if (dup[0]) return { error: `슬러그 ${slug} 가 이미 사용 중입니다.` };
 
-  const inserted = await db.insert(deviceModels).values({ ...values, slug }).returning({ id: deviceModels.id });
+  const inserted = await db.insert(deviceModels).values({ ...(values as typeof deviceModels.$inferInsert), slug }).returning({ id: deviceModels.id });
   const deviceId = inserted[0]!.id;
   await replaceDeviceSites(db, deviceId, parseRows(formData, "sitesJson"));
+  await replaceDeviceDealers(db, deviceId, dealerRows);
+  revalidatePath("/device");
+  revalidatePath(`/device/${encodeURIComponent(slug)}`);
 
   redirect(`/admin/devices/${deviceId}?created=1`);
 }
@@ -550,11 +629,19 @@ export async function saveDeviceAction(_prev: ActionState, formData: FormData): 
   const existing = (await db.select().from(deviceModels).where(eq(deviceModels.id, id)).limit(1))[0];
   if (!existing) return { error: "기기를 찾을 수 없습니다." };
 
-  const values = deviceValues(formData);
+  const parsed = deviceValues(formData);
+  if ("error" in parsed) return { error: parsed.error };
+  const values = parsed.values as { name: string } & Record<string, unknown>;
   if (values.name.length < 2) return { error: "기기명을 입력하세요." };
+  const dealerRows = parseRows(formData, "dealersJson");
+  const dealerError = validateDealerRows(dealerRows);
+  if (dealerError) return { error: dealerError };
 
-  await db.update(deviceModels).set({ ...values, updatedAt: new Date() }).where(eq(deviceModels.id, id));
+  await db.update(deviceModels).set({ ...(values as Partial<typeof deviceModels.$inferInsert>), updatedAt: new Date() }).where(eq(deviceModels.id, id));
   await replaceDeviceSites(db, id, parseRows(formData, "sitesJson"));
+  await replaceDeviceDealers(db, id, dealerRows);
+  revalidatePath("/device");
+  revalidatePath(`/device/${encodeURIComponent(existing.slug)}`);
 
   return { saved: true };
 }

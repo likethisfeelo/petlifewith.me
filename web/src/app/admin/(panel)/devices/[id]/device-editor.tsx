@@ -1,9 +1,12 @@
 "use client";
 
 import { useActionState } from "react";
-import { FormMessage, SelectField, SubmitButton, TextAreaField, TextField } from "../../../_components/fields";
+import Link from "next/link";
+import { CheckboxField, FormMessage, SelectField, SubmitButton, TextAreaField, TextField } from "../../../_components/fields";
 import { RowsEditor, type RowValue } from "../../../_components/rows-editor";
+import { UploadField } from "../../../_components/upload-field";
 import { createDeviceAction, saveDeviceAction, type ActionState } from "../../../directory-actions";
+import { DEVICE_CATEGORIES, DEVICE_CATEGORY_LABEL } from "@/lib/devices";
 
 export interface DeviceFormValues {
   id?: number;
@@ -12,27 +15,37 @@ export interface DeviceFormValues {
   category: string;
   summaryMd: string | null;
   specsMd: string | null;
+  makerUrl?: string | null;
+  makerContactUrl?: string | null;
+  imageKey?: string | null;
+  priceText?: string | null;
+  published?: boolean;
+  homeUse?: boolean;
+  featuredOrder?: number | null;
 }
 
-const CATEGORY_OPTIONS = [
-  { value: "laser", label: "레이저" },
-  { value: "stethoscope", label: "청진기" },
-  { value: "imaging", label: "영상" },
-  { value: "monitor", label: "모니터링" },
-  { value: "rehab_equipment", label: "재활 장비" },
-  { value: "other", label: "기타" },
-];
+export interface TrialSiteRow {
+  spotId: number;
+  name: string;
+  regionLabel: string | null;
+}
+
+const CATEGORY_OPTIONS = DEVICE_CATEGORIES.map((c) => ({ value: c, label: DEVICE_CATEGORY_LABEL[c] }));
 
 export function DeviceEditor({
   mode,
   device,
   regions,
   sites,
+  dealers = [],
+  trials = [],
 }: {
   mode: "create" | "edit";
   device: DeviceFormValues;
   regions: Array<{ id: number; label: string }>;
   sites: RowValue[];
+  dealers?: RowValue[];
+  trials?: TrialSiteRow[];
 }) {
   const action = mode === "create" ? createDeviceAction : saveDeviceAction;
   const [state, formAction, pending] = useActionState<ActionState, FormData>(action, {});
@@ -48,6 +61,20 @@ export function DeviceEditor({
     },
     { key: "verifiedAt", label: "확인일", type: "date" as const, span: "col-span-2" },
     { key: "note", label: "메모 (선택)", span: "col-span-3" },
+  ];
+
+  const dealerFields = [
+    { key: "name", label: "대리점·취급처", span: "col-span-4", placeholder: "○○메디칼" },
+    {
+      key: "regionId",
+      label: "지역",
+      type: "select" as const,
+      span: "col-span-3",
+      options: [{ value: "", label: "선택 안 함" }, ...regions.map((r) => ({ value: String(r.id), label: r.label }))],
+    },
+    { key: "url", label: "주소 (선택)", span: "col-span-3", placeholder: "https://example.com" },
+    { key: "phone", label: "전화 (선택)", span: "col-span-2" },
+    { key: "note", label: "메모 (선택)", span: "col-span-12" },
   ];
 
   return (
@@ -67,8 +94,21 @@ export function DeviceEditor({
           {mode === "create" && <TextField name="slug" label="슬러그 (선택)" />}
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
-          <TextField name="makerName" label="제조사" defaultValue={device.makerName} />
+          <TextField name="makerName" label="제조사 (본사)" defaultValue={device.makerName} />
           <SelectField name="category" label="분류" defaultValue={device.category} options={CATEGORY_OPTIONS} />
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <TextField name="makerUrl" label="본사 사이트 (선택)" defaultValue={device.makerUrl ?? ""} placeholder="https://example.com" />
+          <TextField name="makerContactUrl" label="본사 문의 링크 (선택)" defaultValue={device.makerContactUrl ?? ""} placeholder="https://example.com/contact" />
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <TextField name="priceText" label="가격대 문구 (선택)" defaultValue={device.priceText ?? ""} placeholder="본체 300만원대 · 대여 월 15만원" hint="본사·대리점이 공개한 범위만. 최저가·할인 표현은 쓰지 않습니다." />
+          <TextField name="featuredOrder" label="주목 기기 순서 (선택)" type="number" defaultValue={device.featuredOrder != null ? String(device.featuredOrder) : ""} hint="숫자를 넣으면 허브 상단 '주목 기기'에 광고 표기와 함께 고정됩니다. 비우면 일반 노출." />
+        </div>
+        <UploadField name="imageKey" label="대표 이미지" defaultKey={device.imageKey ?? null} hint="제조사 제공 이미지는 사용 허락을 받은 것만. 출처 불명 이미지는 올리지 않습니다." />
+        <div className="flex flex-wrap gap-5">
+          <CheckboxField name="published" label="공개 (관리·재활 도구 허브에 노출)" defaultChecked={device.published ?? false} />
+          <CheckboxField name="homeUse" label="집에서 쓰는 기기" defaultChecked={device.homeUse ?? false} />
         </div>
         <TextAreaField
           name="summaryMd"
@@ -89,14 +129,48 @@ export function DeviceEditor({
       </section>
 
       <RowsEditor
+        name="dealersJson"
+        title="대리점·취급처"
+        hint="본사가 알려 준 판매·설치 창구. 가격 비교나 순위가 아니라 연락 창구를 적습니다."
+        fields={dealerFields}
+        initialRows={dealers}
+        emptyRow={{ name: "", regionId: "", url: "", phone: "", note: "" }}
+        addLabel="대리점 추가"
+        emptyHint="등록된 대리점이 없습니다."
+      />
+
+      {mode === "edit" && (
+        <section className="rounded-xl border border-line bg-surface p-4">
+          <h2 className="text-sm font-bold text-ink">지역별 체험 가능 업체 {trials.length > 0 ? `${trials.length}곳` : ""}</h2>
+          <p className="mt-1 text-xs text-ink-soft">
+            스팟(운동·재활 유형) 편집 화면의 &quot;보유 장비&quot;에서 연결합니다. 여기서는 확인만 합니다.
+          </p>
+          {trials.length === 0 ? (
+            <p className="mt-2 text-xs text-ink-faint">연결된 업체가 없습니다.</p>
+          ) : (
+            <ul className="mt-2 flex flex-wrap gap-1.5">
+              {trials.map((t) => (
+                <li key={t.spotId}>
+                  <Link href={`/admin/spots/${t.spotId}`} className="rounded-full bg-sea-soft px-2.5 py-1 text-xs font-medium text-sea hover:bg-sea hover:text-white">
+                    {t.name}
+                    {t.regionLabel ? ` · ${t.regionLabel}` : ""}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
+
+      <RowsEditor
         name="sitesJson"
-        title="보유처 (무료 노출 전용)"
-        hint="직접 확인한 곳만 넣습니다. 공공데이터에 없는 정보라 그 자체가 자산입니다. 확인일을 함께 남기세요."
+        title="보유 병원 (무료 노출 전용)"
+        hint="직접 확인한 곳만 넣습니다. 병원은 무료·순위 없는 목록으로만 싣고 유료 상단 노출을 붙이지 않습니다. 확인일을 함께 남기세요."
         fields={siteFields}
         initialRows={sites}
         emptyRow={{ facilityName: "", regionId: "", verifiedAt: "", note: "" }}
-        addLabel="보유처 추가"
-        emptyHint="확인한 보유처가 없습니다."
+        addLabel="보유 병원 추가"
+        emptyHint="확인한 보유 병원이 없습니다."
       />
 
       <FormMessage error={state.error} saved={state.saved} />

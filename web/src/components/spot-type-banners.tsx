@@ -12,7 +12,7 @@ const BLURB: Record<string, string> = {
   "dog-walk": "산책 대행·동행 서비스. 노견에게 맞는 산책 조건을 확인하고 지역에서 찾습니다.",
   "visiting-bath": "이동이 부담스러운 아이를 위한 방문·출장 목욕.",
   "visiting-groom": "집으로 오는 미용. 노령견 전문 여부를 확인합니다.",
-  rehab: "재활 운동·수중런닝머신 시설.",
+  rehab: "재활·특수 훈련 장비를 갖춘 곳 — 수중 러닝머신·밸런스 기구. 장비를 등록한 곳만 소개합니다.",
   grooming: "미용·스파 시설.",
   "self-wash": "직접 씻기는 셀프목욕 시설.",
 };
@@ -101,6 +101,42 @@ export function SpotTypeIcon({ slug, className = "h-6 w-6" }: { slug: string; cl
         <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v8a2.5 2.5 0 0 1-2.5 2.5H10l-4.5 4v-4A2.5 2.5 0 0 1 4 13.5z" />
           <path d="M12 12.2 9.6 9.9a1.6 1.6 0 0 1 2.3-2.3l.1.1.1-.1a1.6 1.6 0 0 1 2.3 2.3z" />
+        </svg>
+      );
+    case "rehab": // 러닝머신 경사면 + 발자국 (운동·재활)
+      return (
+        <svg {...common}>
+          <path d="M3 18h18" />
+          <path d="M4 15 18 9" />
+          <path d="M18 9V5.5M18 5.5h-2.5" />
+          <circle cx="8.5" cy="9.5" r="1.1" />
+          <circle cx="11" cy="8" r="1" />
+          <path d="M9.6 12.6c-1.2 0-1.9 1-1.5 1.8.3.8 2.7.8 3 0 .4-.8-.3-1.8-1.5-1.8Z" />
+        </svg>
+      );
+    case "rehab-site": // 잎 + 십자 (재활·한방 시행처)
+      return (
+        <svg {...common}>
+          <path d="M5 19c0-7 4-11 12-12-1 8-5 12-12 12Z" />
+          <path d="M5 19c3-3 5-5 8-8" />
+          <path d="M17.5 14.5v5M15 17h5" />
+        </svg>
+      );
+    case "device": // 기기 본체 + 다이얼 (관리·재활 도구)
+      return (
+        <svg {...common}>
+          <rect x="3.5" y="6" width="17" height="12" rx="2.5" />
+          <circle cx="9" cy="12" r="2.6" />
+          <path d="M14.5 9.5h3M14.5 12h3M14.5 14.5h2" />
+          <path d="M8 18v2h8v-2" />
+        </svg>
+      );
+    case "monitor": // 심박 곡선 (모니터링·측정)
+      return (
+        <svg {...common}>
+          <rect x="3" y="5" width="18" height="13" rx="2" />
+          <path d="M6 12h3l1.5-3 2.5 6 1.5-3H18" />
+          <path d="M9 21h6" />
         </svg>
       );
     default: // 핀

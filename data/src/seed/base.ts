@@ -58,7 +58,9 @@ const SPOT_TYPES = [
   { slug: "dog-walk", name: "펫산책", description: "산책 대행·동행 — 직접 발굴·업체 등록", monetizable: true, listed: true, sortOrder: 8 },
   { slug: "visiting-bath", name: "방문목욕", description: "등록 형태가 제각각 — 부분 시딩 + 직접 발굴", monetizable: true, listed: true, sortOrder: 9 },
   { slug: "visiting-groom", name: "방문미용", description: "직접 발굴", monetizable: true, listed: true, sortOrder: 10 },
-  { slug: "rehab", name: "재활·수중런닝", description: "보유 여부는 공공데이터에 없다 — 직접 발굴", monetizable: true, listed: true, sortOrder: 11 },
+  // 운동·재활 (2026-09 개편): 재활·특수 훈련 장비를 갖춘 곳만 소개한다 — 병원 부설 재활도 장비 보유처로서 등록 가능(장비 미등록이면 노출·광고 불가).
+  // 표시명에 "센터"를 쓰지 않는다. 노견생활 하단 "운동 및 재활" 섹션의 입구.
+  { slug: "rehab", name: "운동·재활", description: "재활·특수 훈련 장비 보유처 — 직접 발굴·업체 등록 (장비 등록 필수)", monetizable: true, listed: true, sortOrder: 11 },
   { slug: "transport", name: "이동·운송", description: "동물운송업 인허가 기반 시딩", monetizable: true, listed: true, sortOrder: 12 },
   { slug: "memorial", name: "장묘", description: "광고 없음. 인허가 기반 사실 정보만 담담하게 정리한다", monetizable: false, listed: true, sortOrder: 13 },
   // 의료 인접 (기획서 6-2): 광고·순위·추천 없이 사실 정보만. 프로모션 생성 불가.

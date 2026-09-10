@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { chatOpen, hmToMin, kstWeekday, minToHm, parseWeeklySlots, slotLabel, slotWindows, validateMessageBody, validateReservationInput } from "./reservations";
+import { chatOpen, hmToMin, isExpertKind, kstWeekday, minToHm, parseWeeklySlots, selfPublishes, slotLabel, slotWindows, validateMessageBody, validateReservationInput } from "./reservations";
 
 describe("validateReservationInput", () => {
   const base = { requesterName: "몽이 보호자", contact: "010-1111-2222", consent: "on" };
@@ -16,6 +16,10 @@ describe("validateReservationInput", () => {
     expect(validateMessageBody("안녕하세요")).toMatchObject({ ok: true, value: "안녕하세요" });
     expect(chatOpen("paid")).toBe(true);
     expect(chatOpen("confirmed")).toBe(false);
+    expect(isExpertKind("vet")).toBe(false);
+    expect(isExpertKind("mentor")).toBe(true);
+    expect(selfPublishes("mentor")).toBe(true);
+    expect(selfPublishes("trainer")).toBe(false);
   });
 });
 

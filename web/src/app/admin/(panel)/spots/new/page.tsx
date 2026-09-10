@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { carePersonLabel, isCareType } from "@app/data";
 import { isDbConfigured, getDb, schema } from "@/lib/db";
+import { listDeviceOptions } from "@/lib/queries/devices";
 import { getServiceRequest } from "@/lib/queries/requests";
 import { REQUEST_KIND_LABEL, type CarePartnerPayload, type SpotRegisterPayload } from "@/lib/requests";
 import { AdminPageHeader } from "../../../_components/fields";
@@ -59,9 +60,10 @@ export default async function AdminSpotNewPage({ searchParams }: Props) {
   const db = getDb();
   const { from } = await searchParams;
 
-  const [types, regionRows] = await Promise.all([
+  const [types, regionRows, deviceOptions] = await Promise.all([
     db.select({ id: spotTypes.id, slug: spotTypes.slug, name: spotTypes.name, listed: spotTypes.listed }).from(spotTypes).orderBy(spotTypes.sortOrder),
     db.select().from(regions).orderBy(regions.sidoName, regions.sigunguName),
+    listDeviceOptions(),
   ]);
 
   const fromId = Number(from);
@@ -95,6 +97,8 @@ export default async function AdminSpotNewPage({ searchParams }: Props) {
           careTypeIds={types.filter((t) => isCareType(t.slug)).map((t) => t.id)}
           areaOptions={regionRows.map((r) => ({ id: r.id, sidoName: r.sidoName, sidoSlug: r.sidoSlug, sigunguName: r.sigunguName }))}
           serviceAreas={prefill?.serviceAreas ?? []}
+          rehabTypeId={types.find((t) => t.slug === "rehab")?.id}
+          deviceOptions={deviceOptions.map((d) => ({ id: d.id, label: d.makerName ? `${d.name} · ${d.makerName}` : d.name }))}
           fromRequestId={prefill && request ? request.id : undefined}
         />
       </div>

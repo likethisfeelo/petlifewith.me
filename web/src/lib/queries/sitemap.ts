@@ -7,6 +7,7 @@ import { MIN_PLACE_INFO_ITEMS, MIN_SPOTS_FOR_INDEX, placeInfoItemCount, shouldIn
 import { CARE_TYPE_SLUGS, categoriesForTopic } from "@app/data";
 import { countRehabSites, countRehabSitesByModality } from "./rehab";
 import { resultRows } from "./tags";
+import { listIndexableDevices } from "./devices";
 
 const {
   guides,
@@ -258,4 +259,12 @@ export async function sitemapRehab(): Promise<SitemapEntry[]> {
     if (count >= MIN_SPOTS_FOR_INDEX) entries.push({ path: `/rehab/${slug}` });
   }
   return entries;
+}
+
+/** 관리·재활 도구 — 공개 + 원리 설명이 충분한 기기와 허브 (얇은 페이지 방지) */
+export async function sitemapDevices(): Promise<SitemapEntry[]> {
+  if (!isDbConfigured()) return [];
+  const devices = await listIndexableDevices();
+  if (devices.length === 0) return [];
+  return [{ path: "/device" }, ...devices.map((d) => ({ path: `/device/${encodeURIComponent(d.slug)}`, lastModified: d.updatedAt }))];
 }

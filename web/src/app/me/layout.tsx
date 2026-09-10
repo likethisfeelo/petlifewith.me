@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { getCurrentMember } from "@/lib/member";
 import { listOwnedMakers, listOwnedSpots } from "@/lib/queries/owner";
 import { countNewForMember } from "@/lib/queries/requests";
+import { countActiveChats } from "@/lib/queries/conversations";
 import { countOpenMine, countOpenReceived } from "@/lib/queries/reservations";
 import { listExpertsForUser } from "@/lib/queries/experts";
 import { MeNav, type MeNavItem } from "./me-nav";
@@ -18,13 +19,14 @@ export const metadata: Metadata = {
 export default async function MeLayout({ children }: { children: React.ReactNode }) {
   const member = await getCurrentMember();
   if (!member) redirect("/login?next=%2Fme");
-  const [spots, makers, openRequests, openMine, openReceived, myExperts] = await Promise.all([
+  const [spots, makers, openRequests, openMine, openReceived, myExperts, activeChats] = await Promise.all([
     listOwnedSpots(member.id),
     listOwnedMakers(member.id),
     countNewForMember(member.id),
     countOpenMine(member.id),
     countOpenReceived(member.id),
     listExpertsForUser(member.id),
+    countActiveChats(member.id),
   ]);
   const businessCount = spots.length + makers.length;
   const items: MeNavItem[] = [
@@ -33,7 +35,9 @@ export default async function MeLayout({ children }: { children: React.ReactNode
     { href: "/me/business", label: "내 업체·브랜드", badge: businessCount || undefined },
     { href: "/me/saved", label: "저장" },
     { href: "/me/requests", label: "신청·연락 내역", badge: openRequests + openMine || undefined },
+    { href: "/me/chats", label: "상담 채팅", badge: activeChats || undefined },
     ...(businessCount > 0 || myExperts.length > 0 || openReceived > 0 ? [{ href: "/me/received", label: "받은 요청", badge: openReceived || undefined }] : []),
+    { href: "/me/expert", label: "상담 프로필" },
     { href: "/me/meetups", label: "모임·내 지역" },
     { href: "/me/settings", label: "설정" },
   ];

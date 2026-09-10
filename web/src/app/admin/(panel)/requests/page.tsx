@@ -10,7 +10,6 @@ import {
   REQUEST_STATUSES,
   REQUEST_STATUS_LABEL,
   type CarePartnerPayload,
-  type ExpertPartnerPayload,
   type PromoSlotPayload,
   type RequestKind,
   type RequestStatus,
@@ -77,18 +76,6 @@ function payloadRows(item: RequestListItem, labels: Record<number, string>): Arr
       ["요금", p.priceText ?? "-"],
       ["활동 시간", p.hoursText ?? "-"],
       ["카카오톡", p.kakaoUrl ?? "-"],
-      ["소개", p.intro],
-    ];
-  }
-  if (kind === "expert_partner") {
-    const p = payload as ExpertPartnerPayload;
-    return [
-      ["종류", p.kind],
-      ["활동명", p.displayName],
-      ["자격·경력", p.credentialsText ?? "-"],
-      ["방식", p.modes.join(", ")],
-      ["주제", p.topics.join(", ") || "-"],
-      ["요금", p.priceText ?? "-"],
       ["소개", p.intro],
     ];
   }
@@ -258,11 +245,6 @@ function RequestCard({ item, labels }: { item: RequestListItem; labels: Record<n
               {r.kind === "care_partner" ? "파트너로 등록 (값 채워짐) →" : "스팟으로 등록 (값 채워짐) →"}
             </Link>
           ))}
-        {r.kind === "expert_partner" && r.status !== "done" && (
-          <Link href={`/admin/experts/new?from=${r.id}`} className="rounded-full bg-ink px-3 py-1 font-semibold text-white hover:opacity-90">
-            전문가로 등록 (값 채워짐) →
-          </Link>
-        )}
         {r.kind === "spot_claim" && r.spotId && (
           <Link href={`/admin/spots/${r.spotId}`} className="rounded-full bg-ink px-3 py-1 font-semibold text-white hover:opacity-90">
             편집기에서 반영 →
