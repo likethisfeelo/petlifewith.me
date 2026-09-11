@@ -98,7 +98,7 @@ const SENIOR_GROUPS: EntryGroup[] = [
   },
 ];
 
-/** 글 하단 전용 — 집으로 오는 미용·목욕 (토픽 페이지에는 두지 않는다) */
+/** 글 하단 전용 — 미용·목욕 (토픽 페이지에는 두지 않는다). 집으로 오는 쪽 / 데리고 가는 쪽 두 묶음. */
 const GROOM_GROUPS: EntryGroup[] = [
   {
     id: "care-entry-groom",
@@ -108,6 +108,16 @@ const GROOM_GROUPS: EntryGroup[] = [
     items: [
       { key: "visiting-groom", label: "방문미용", typeSlug: "visiting-groom", icon: "visiting-groom", blurb: "집에서 짧게 끝내는 미용 · 노령견 대응 여부를 먼저 확인" },
       { key: "visiting-bath", label: "방문목욕", typeSlug: "visiting-bath", icon: "visiting-bath", blurb: "출장 차량·장비가 오는 목욕 · 이동 부담이 적은 선택지" },
+    ],
+  },
+  {
+    id: "care-entry-groom-shop",
+    heading: "데리고 가서 하는 미용·목욕",
+    sub: "가까운 곳으로 짧게 다녀오거나, 보호자가 직접 씻기는 방법",
+    cols: "sm:grid-cols-2",
+    items: [
+      { key: "grooming", label: "미용·스파", typeSlug: "grooming", icon: "grooming", blurb: "동물미용업 인허가 기준 · 노령견 예약 가능 여부를 확인하세요" },
+      { key: "self-wash", label: "셀프목욕", typeSlug: "self-wash", icon: "self-wash", blurb: "보호자가 직접 씻기는 곳 · 계단 없는 욕조·건조 설비를 확인" },
     ],
   },
 ];
@@ -246,8 +256,8 @@ export const GUIDE_ENTRY_COPY: Record<GuideEntryKind, { heading: string; sub: st
     sub: "이 글에서 다룬 유형을 지도에서 지역별로 볼 수 있어요. 업체 페이지에서 바로 예약 요청을 보낼 수 있습니다.",
   },
   groom: {
-    heading: "집으로 부르는 미용·목욕, 지역별로 찾기",
-    sub: "노령견을 받아 주는 곳인지 먼저 확인하세요. 업체 페이지에서 바로 예약 요청을 보낼 수 있습니다.",
+    heading: "미용·목욕할 곳, 지역별로 찾기",
+    sub: "집으로 부르는 방법과 데리고 가는 방법을 함께 봅니다. 노령견을 받아 주는 곳인지 먼저 확인하고, 업체 페이지에서 바로 예약 요청을 보낼 수 있어요.",
   },
 };
 
@@ -265,6 +275,8 @@ const GUIDE_ENTRY_BY_TYPE: Record<string, GuideEntryKind> = {
   "dog-walk": "care",
   "visiting-groom": "groom",
   "visiting-bath": "groom",
+  grooming: "groom",
+  "self-wash": "groom",
 };
 
 /** 이 글 하단에 붙일 입구 갈래 (없으면 null) */
