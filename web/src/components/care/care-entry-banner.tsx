@@ -98,6 +98,30 @@ const SENIOR_GROUPS: EntryGroup[] = [
   },
 ];
 
+/** 글 하단 전용 — 미용·목욕 (토픽 페이지에는 두지 않는다). 집으로 오는 쪽 / 데리고 가는 쪽 두 묶음. */
+const GROOM_GROUPS: EntryGroup[] = [
+  {
+    id: "care-entry-groom",
+    heading: "집으로 오는 미용·목욕",
+    sub: "이동이 부담스러운 아이를 위해, 사람과 장비가 집으로 오는 서비스",
+    cols: "sm:grid-cols-2",
+    items: [
+      { key: "visiting-groom", label: "방문미용", typeSlug: "visiting-groom", icon: "visiting-groom", blurb: "집에서 짧게 끝내는 미용 · 노령견 대응 여부를 먼저 확인" },
+      { key: "visiting-bath", label: "방문목욕", typeSlug: "visiting-bath", icon: "visiting-bath", blurb: "출장 차량·장비가 오는 목욕 · 이동 부담이 적은 선택지" },
+    ],
+  },
+  {
+    id: "care-entry-groom-shop",
+    heading: "데리고 가서 하는 미용·목욕",
+    sub: "가까운 곳으로 짧게 다녀오거나, 보호자가 직접 씻기는 방법",
+    cols: "sm:grid-cols-2",
+    items: [
+      { key: "grooming", label: "미용·스파", typeSlug: "grooming", icon: "grooming", blurb: "동물미용업 인허가 기준 · 노령견 예약 가능 여부를 확인하세요" },
+      { key: "self-wash", label: "셀프목욕", typeSlug: "self-wash", icon: "self-wash", blurb: "보호자가 직접 씻기는 곳 · 계단 없는 욕조·건조 설비를 확인" },
+    ],
+  },
+];
+
 const PLAY_GROUPS: EntryGroup[] = [
   {
     id: "play-entry-go",
@@ -216,6 +240,61 @@ async function EntryBanner({ groups, directoryHref = "/spot" }: { groups: EntryG
 /** 노견생활 하단 — 돌봄 서비스 입구 */
 export function CareEntryBanner() {
   return <EntryBanner groups={SENIOR_GROUPS} />;
+}
+
+// ---------- 글 하단 입구 배너 ----------
+// 노견생활 글 아래에 "이 글에서 다룬 서비스를 지역별로" 큰 카드로 잇는다. 두 갈래:
+//  · care  — 유치원·데이케어·시간제 시터 / 펫시터·산책
+//  · groom — 방문미용·방문목욕
+// 어떤 갈래를 붙일지는 ① 글 슬러그 지정 ② 관리자 편집기의 "디렉토리 배너"(guides.banner_spot_types) 순으로 정한다.
+
+export type GuideEntryKind = "care" | "groom";
+
+export const GUIDE_ENTRY_COPY: Record<GuideEntryKind, { heading: string; sub: string }> = {
+  care: {
+    heading: "돌봄 맡길 곳, 지역별로 찾기",
+    sub: "이 글에서 다룬 유형을 지도에서 지역별로 볼 수 있어요. 업체 페이지에서 바로 예약 요청을 보낼 수 있습니다.",
+  },
+  groom: {
+    heading: "미용·목욕할 곳, 지역별로 찾기",
+    sub: "집으로 부르는 방법과 데리고 가는 방법을 함께 봅니다. 노령견을 받아 주는 곳인지 먼저 확인하고, 업체 페이지에서 바로 예약 요청을 보낼 수 있어요.",
+  },
+};
+
+/** 슬러그로 지정하는 글 — 관리자 배너 설정과 무관하게 붙는다 */
+const GUIDE_ENTRY_BY_SLUG: Record<string, GuideEntryKind> = {
+  "senior-visiting-groom": "groom",
+  "senior-visiting-bath": "groom",
+};
+
+/** 관리자 "디렉토리 배너"로 고른 스팟 유형 → 갈래 */
+const GUIDE_ENTRY_BY_TYPE: Record<string, GuideEntryKind> = {
+  boarding: "care",
+  "pet-sitter": "care",
+  "hourly-sitter": "care",
+  "dog-walk": "care",
+  "visiting-groom": "groom",
+  "visiting-bath": "groom",
+  grooming: "groom",
+  "self-wash": "groom",
+};
+
+/** 이 글 하단에 붙일 입구 갈래 (없으면 null) */
+export function guideEntryKind(topicSlug: string, guideSlug: string, bannerSpotTypes: string[]): GuideEntryKind | null {
+  if (topicSlug !== "senior-life") return null;
+  const bySlug = GUIDE_ENTRY_BY_SLUG[guideSlug];
+  if (bySlug) return bySlug;
+  for (const slug of bannerSpotTypes) {
+    const kind = GUIDE_ENTRY_BY_TYPE[slug];
+    if (kind) return kind;
+  }
+  return null;
+}
+
+/** 글 하단 입구 배너 — 토픽 페이지와 같은 카드 디자인, 갈래에 맞는 섹션만 */
+export function GuideEntryBanner({ kind }: { kind: GuideEntryKind }) {
+  const groups = kind === "groom" ? GROOM_GROUPS : SENIOR_GROUPS.filter((g) => g.id === "care-entry-visit" || g.id === "care-entry-home");
+  return <EntryBanner groups={groups} />;
 }
 
 /** 놀이 하단 — 같이 가는 곳 · 사람과 함께 */

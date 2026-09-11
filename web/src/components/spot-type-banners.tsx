@@ -103,6 +103,41 @@ export function SpotTypeIcon({ slug, className = "h-6 w-6" }: { slug: string; cl
           <path d="M12 12.2 9.6 9.9a1.6 1.6 0 0 1 2.3-2.3l.1.1.1-.1a1.6 1.6 0 0 1 2.3 2.3z" />
         </svg>
       );
+    case "grooming": // 빗 + 반짝임 (미용·스파)
+      return (
+        <svg {...common}>
+          <path d="M3.5 5.5h10a2 2 0 0 1 2 2v3.5h-14V7.5a2 2 0 0 1 2-2Z" />
+          <path d="M5.5 11v3.2M8.5 11v3.2M11.5 11v3.2M14.5 11v3.2" />
+          <path d="M19 4v3.4M17.3 5.7h3.4" />
+        </svg>
+      );
+    case "self-wash": // 욕조 + 물방울 (셀프목욕)
+      return (
+        <svg {...common}>
+          <path d="M3 12.5h18V15a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4v-2.5Z" />
+          <path d="M6 12.5V7a2 2 0 0 1 4 0" />
+          <path d="M6.5 19.5 6 21M17.5 19.5 18 21" />
+          <path d="M15 4.5c1.4 1.5 2.1 2.6 2.1 3.4a2.1 2.1 0 1 1-4.2 0c0-.8.7-1.9 2.1-3.4Z" />
+        </svg>
+      );
+    case "visiting-groom": // 가위 (방문미용)
+      return (
+        <svg {...common}>
+          <circle cx="6" cy="6" r="2.6" />
+          <circle cx="6" cy="18" r="2.6" />
+          <path d="M20 4 8.3 15.7" />
+          <path d="M14.6 14.4 20 19.8" />
+          <path d="M8.3 8.3 12 12" />
+        </svg>
+      );
+    case "visiting-bath": // 샤워기 + 물방울 (방문목욕)
+      return (
+        <svg {...common}>
+          <path d="M4 20V7a3 3 0 0 1 6 0v1" />
+          <path d="M9.5 10.5h9a2 2 0 0 1 2 2H7.5a2 2 0 0 1 2-2Z" />
+          <path d="M11 16v1.5M14.5 15.5V18M18 16v1.5" />
+        </svg>
+      );
     case "rehab": // 러닝머신 경사면 + 발자국 (운동·재활)
       return (
         <svg {...common}>

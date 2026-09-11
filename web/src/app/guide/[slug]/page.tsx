@@ -9,6 +9,7 @@ import { EntityTagPanels, hasEntityTags } from "@/components/entity-panels";
 import { InstagramEmbedScript } from "@/components/instagram-script";
 import { JsonLd } from "@/components/jsonld";
 import { CommentSection } from "@/components/comments";
+import { GUIDE_ENTRY_COPY, GuideEntryBanner, guideEntryKind } from "@/components/care/care-entry-banner";
 import { AffiliateDisclosure, MedicalNotice, MemberPostNote, SponsoredBadge, SponsoredNote, VetReviewBadge } from "@/components/notices";
 import { getGuideCategory } from "@app/data";
 import { SpotTypeBanners } from "@/components/spot-type-banners";
@@ -83,6 +84,8 @@ export default async function GuidePage({ params }: Props) {
   const hub = topicGuides.hub && topicGuides.hub.id !== guide.id ? topicGuides.hub : null;
   // 놀이 글: 태그된 상품·브랜드(제품 링크·홈페이지)·장소·기기를 본문 오른쪽 고정 패널로 (모바일은 본문 아래)
   const sideTags = topic.slug === "play" && hasEntityTags(tags);
+  // 글 하단 입구 배너 갈래 (돌봄 / 방문 미용·목욕)
+  const entryKind = guideEntryKind(topic.slug, guide.slug, guide.bannerSpotTypes);
 
   return (
     <div className={sideTags ? "mx-auto grid max-w-6xl gap-8 px-4 py-10 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start" : ""}>
@@ -211,6 +214,17 @@ export default async function GuidePage({ params }: Props) {
             </>
           )}
         </div>
+      )}
+
+      {/* 글 하단 입구 — 이 글에서 다룬 서비스를 지역별 디렉토리로 바로 잇는다 (돌봄 / 방문 미용·목욕) */}
+      {entryKind && (
+        <section aria-labelledby="guide-care-entry" className="mt-12 border-t border-line pt-8">
+          <h2 id="guide-care-entry" className="text-sm font-bold text-ink">{GUIDE_ENTRY_COPY[entryKind].heading}</h2>
+          <p className="mt-1 text-xs text-ink-faint">{GUIDE_ENTRY_COPY[entryKind].sub}</p>
+          <div className="mt-4">
+            <GuideEntryBanner kind={entryKind} />
+          </div>
+        </section>
       )}
 
       <CommentSection guideId={guide.id} slug={guide.slug} comments={comments} />
