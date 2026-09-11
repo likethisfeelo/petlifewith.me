@@ -218,6 +218,17 @@ export function CareEntryBanner() {
   return <EntryBanner groups={SENIOR_GROUPS} />;
 }
 
+/** 글 하단에 붙이는 돌봄 입구 — 방문 / 집 두 섹션만 (상담·운동재활·기기는 토픽 페이지에서) */
+export function GuideCareEntryBanner() {
+  return <EntryBanner groups={SENIOR_GROUPS.filter((g) => g.id === "care-entry-visit" || g.id === "care-entry-home")} />;
+}
+
+/** 이 배너를 붙일 글인지 — 노견생활 글이 상단 배너로 돌봄 유형을 지정한 경우 (관리자 게시글 편집기의 "디렉토리 배너") */
+const GUIDE_CARE_ENTRY_TYPES = ["boarding", "pet-sitter", "hourly-sitter", "dog-walk"];
+export function showsGuideCareEntry(topicSlug: string, bannerSpotTypes: string[]): boolean {
+  return topicSlug === "senior-life" && bannerSpotTypes.some((slug) => GUIDE_CARE_ENTRY_TYPES.includes(slug));
+}
+
 /** 놀이 하단 — 같이 가는 곳 · 사람과 함께 */
 export function PlayEntryBanner() {
   return <EntryBanner groups={PLAY_GROUPS} />;

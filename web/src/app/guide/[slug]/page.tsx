@@ -9,6 +9,7 @@ import { EntityTagPanels, hasEntityTags } from "@/components/entity-panels";
 import { InstagramEmbedScript } from "@/components/instagram-script";
 import { JsonLd } from "@/components/jsonld";
 import { CommentSection } from "@/components/comments";
+import { GuideCareEntryBanner, showsGuideCareEntry } from "@/components/care/care-entry-banner";
 import { AffiliateDisclosure, MedicalNotice, MemberPostNote, SponsoredBadge, SponsoredNote, VetReviewBadge } from "@/components/notices";
 import { getGuideCategory } from "@app/data";
 import { SpotTypeBanners } from "@/components/spot-type-banners";
@@ -211,6 +212,17 @@ export default async function GuidePage({ params }: Props) {
             </>
           )}
         </div>
+      )}
+
+      {/* 글 하단 돌봄 입구 — 이 글에서 다룬 유형을 지역별 디렉토리로 바로 잇는다 (돌봄 유형을 상단 배너로 지정한 노견생활 글) */}
+      {showsGuideCareEntry(topic.slug, guide.bannerSpotTypes) && (
+        <section aria-labelledby="guide-care-entry" className="mt-12 border-t border-line pt-8">
+          <h2 id="guide-care-entry" className="text-sm font-bold text-ink">돌봄 맡길 곳, 지역별로 찾기</h2>
+          <p className="mt-1 text-xs text-ink-faint">이 글에서 다룬 유형을 지도에서 지역별로 볼 수 있어요. 업체 페이지에서 바로 예약 요청을 보낼 수 있습니다.</p>
+          <div className="mt-4">
+            <GuideCareEntryBanner />
+          </div>
+        </section>
       )}
 
       <CommentSection guideId={guide.id} slug={guide.slug} comments={comments} />
