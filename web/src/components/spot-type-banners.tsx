@@ -103,6 +103,24 @@ export function SpotTypeIcon({ slug, className = "h-6 w-6" }: { slug: string; cl
           <path d="M12 12.2 9.6 9.9a1.6 1.6 0 0 1 2.3-2.3l.1.1.1-.1a1.6 1.6 0 0 1 2.3 2.3z" />
         </svg>
       );
+    case "visiting-groom": // 가위 (방문미용)
+      return (
+        <svg {...common}>
+          <circle cx="6" cy="6" r="2.6" />
+          <circle cx="6" cy="18" r="2.6" />
+          <path d="M20 4 8.3 15.7" />
+          <path d="M14.6 14.4 20 19.8" />
+          <path d="M8.3 8.3 12 12" />
+        </svg>
+      );
+    case "visiting-bath": // 샤워기 + 물방울 (방문목욕)
+      return (
+        <svg {...common}>
+          <path d="M4 20V7a3 3 0 0 1 6 0v1" />
+          <path d="M9.5 10.5h9a2 2 0 0 1 2 2H7.5a2 2 0 0 1 2-2Z" />
+          <path d="M11 16v1.5M14.5 15.5V18M18 16v1.5" />
+        </svg>
+      );
     case "rehab": // 러닝머신 경사면 + 발자국 (운동·재활)
       return (
         <svg {...common}>
