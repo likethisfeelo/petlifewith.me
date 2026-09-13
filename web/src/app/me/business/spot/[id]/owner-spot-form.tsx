@@ -1,8 +1,9 @@
 "use client";
 
 // 소유자용 업체 편집 폼 — 관리자 편집기의 부분집합. 이름·유형·지역·주소는 손대지 않는다 (요청으로).
-import { useActionState } from "react";
+
 import { saveOwnedSpotAction, type OwnerActionState } from "@/app/owner-actions";
+import { useKeptForm } from "@/app/admin/_components/use-kept-form";
 import { FormMessage, SelectField, SubmitButton, TextAreaField, TextField } from "@/app/admin/_components/fields";
 import { RowsEditor, type RowValue } from "@/app/admin/_components/rows-editor";
 import { UploadField } from "@/app/admin/_components/upload-field";
@@ -33,9 +34,9 @@ export interface OwnerSpotValues {
 }
 
 export function OwnerSpotForm({ spot, links }: { spot: OwnerSpotValues; links: RowValue[] }) {
-  const [state, formAction, pending] = useActionState<OwnerActionState, FormData>(saveOwnedSpotAction, {});
+  const { state: state, pending: pending, onSubmit } = useKeptForm<OwnerActionState>(saveOwnedSpotAction, {});
   return (
-    <form action={formAction} className="space-y-5">
+    <form onSubmit={onSubmit} className="space-y-5">
       <input type="hidden" name="id" value={spot.id} />
       <section className="space-y-4 rounded-xl border border-line bg-surface p-4">
         <div className="grid gap-4 sm:grid-cols-2">

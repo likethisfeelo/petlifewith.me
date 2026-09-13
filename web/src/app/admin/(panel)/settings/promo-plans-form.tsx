@@ -1,17 +1,18 @@
 "use client";
 
 // 지역 상단 노출 A·B·C 형 안내문 — /portal/promo 의 형 카드에 그대로 보인다. 비우면 "요청 후 안내".
-import { useActionState } from "react";
+
 import { PROMO_PLANS, PROMO_PLAN_LABEL } from "@/lib/requests";
+import { useKeptForm } from "../../_components/use-kept-form";
 import type { PromoPlanSettings } from "@/lib/settings";
 import { savePromoPlansAction } from "../../settings-actions";
 import type { ActionState } from "../../actions";
 import { FormMessage, SubmitButton, TextField } from "../../_components/fields";
 
 export function PromoPlansForm({ current }: { current: PromoPlanSettings }) {
-  const [state, formAction, pending] = useActionState<ActionState, FormData>(savePromoPlansAction, {});
+  const { state: state, pending: pending, onSubmit } = useKeptForm<ActionState>(savePromoPlansAction, {});
   return (
-    <form action={formAction} className="space-y-5">
+    <form onSubmit={onSubmit} className="space-y-5">
       <section className="space-y-4 rounded-xl border border-line bg-surface p-4">
         <h2 className="text-sm font-bold text-ink">
           지역 상단 노출 형 안내 <span className="font-normal text-ink-faint">— 요청 페이지(/portal/promo)에 보이는 문구. 비우면 &quot;요청 후 안내&quot;</span>

@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import {useState} from "react";
+import { useKeptForm } from "../../../_components/use-kept-form";
 import {
   CheckboxField,
   FormMessage,
@@ -94,13 +95,13 @@ export function SpotEditor({
   fromRequestId?: number;
 }) {
   const action = mode === "create" ? createSpotAction : saveSpotAction;
-  const [state, formAction, pending] = useActionState<ActionState, FormData>(action, {});
+  const { state: state, pending: pending, onSubmit } = useKeptForm<ActionState>(action, {});
   const [typeId, setTypeId] = useState<number | "">(spot.typeId);
   const isCare = typeId !== "" && careTypeIds.includes(typeId);
   const isRehab = typeId !== "" && rehabTypeId !== undefined && typeId === rehabTypeId;
 
   return (
-    <form action={formAction} className="space-y-5">
+    <form onSubmit={onSubmit} className="space-y-5">
       {spot.id !== undefined && <input type="hidden" name="id" value={spot.id} />}
       {fromRequestId !== undefined && <input type="hidden" name="fromRequestId" value={fromRequestId} />}
 

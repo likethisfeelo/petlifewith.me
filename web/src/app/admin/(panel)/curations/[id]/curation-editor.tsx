@@ -1,7 +1,8 @@
 "use client";
 
-import { useActionState } from "react";
+
 import { FormMessage, SelectField, SubmitButton, TextAreaField, TextField } from "../../../_components/fields";
+import { useKeptForm } from "../../../_components/use-kept-form";
 import { RowsEditor, type RowValue } from "../../../_components/rows-editor";
 import { SeoFields, type SeoDefaults } from "../../../_components/seo-fields";
 import { createCurationAction, saveCurationAction, type ActionState } from "../../../directory-actions";
@@ -62,10 +63,10 @@ export function CurationEditor({
   entries: RowValue[];
 }) {
   const action = mode === "create" ? createCurationAction : saveCurationAction;
-  const [state, formAction, pending] = useActionState<ActionState, FormData>(action, {});
+  const { state: state, pending: pending, onSubmit } = useKeptForm<ActionState>(action, {});
 
   return (
-    <form action={formAction} className="space-y-5">
+    <form onSubmit={onSubmit} className="space-y-5">
       {curation.id !== undefined && <input type="hidden" name="id" value={curation.id} />}
 
       <p className="rounded-lg border border-plum/30 bg-plum-soft px-4 py-3 text-xs leading-relaxed text-plum">

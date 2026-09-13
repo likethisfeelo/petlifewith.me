@@ -1,7 +1,8 @@
 "use client";
 
-import { useActionState } from "react";
+
 import { REHAB_MODALITIES } from "@app/data";
+import { useKeptForm } from "../../../_components/use-kept-form";
 import { CheckboxField, FormMessage, SelectField, SubmitButton, TextAreaField, TextField } from "../../../_components/fields";
 import { createRehabSiteAction, deleteRehabSiteAction, saveRehabSiteAction, type ActionState } from "../../../directory-actions";
 
@@ -38,10 +39,10 @@ const LEVEL_OPTIONS = [
 
 export function RehabEditor({ mode, site, regions }: { mode: "create" | "edit"; site: RehabFormValues; regions: Array<{ id: number; label: string }> }) {
   const action = mode === "create" ? createRehabSiteAction : saveRehabSiteAction;
-  const [state, formAction, pending] = useActionState<ActionState, FormData>(action, {});
+  const { state: state, pending: pending, onSubmit } = useKeptForm<ActionState>(action, {});
 
   return (
-    <form action={formAction} className="space-y-5">
+    <form onSubmit={onSubmit} className="space-y-5">
       {site.id !== undefined && <input type="hidden" name="id" value={site.id} />}
 
       {/* 주어는 치료법 — 병원을 평가하지 않는다 (claude.md 6-2) */}

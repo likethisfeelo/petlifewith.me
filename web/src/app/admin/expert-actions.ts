@@ -114,6 +114,7 @@ export async function saveExpertAction(_prev: ActionState, formData: FormData): 
   await writeRegions(db, id, read.regionIds);
   revalidatePath("/consult");
   revalidatePath(`/consult/${encodeURIComponent(existing.slug)}`);
+  revalidatePath(`/admin/experts/${id}`);
   revalidatePath("/admin/experts");
   return { saved: true };
 }
