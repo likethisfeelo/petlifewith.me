@@ -1,7 +1,8 @@
 "use client";
 
-import { useActionState } from "react";
+
 import { CheckboxField, FormMessage, SelectField, SubmitButton, TextAreaField, TextField } from "../../../_components/fields";
+import { useKeptForm } from "../../../_components/use-kept-form";
 import { RowsEditor, type RowValue } from "../../../_components/rows-editor";
 import { UploadField } from "../../../_components/upload-field";
 import { createExpertAction, saveExpertAction } from "../../../expert-actions";
@@ -36,9 +37,9 @@ const SLOT_FIELDS = [
 ];
 
 export function ExpertEditor({ mode, expert, slots, regions }: { mode: "create" | "edit"; expert: ExpertFormValues; slots: RowValue[]; regions: RegionOption[] }) {
-  const [state, formAction, pending] = useActionState<ActionState, FormData>(mode === "create" ? createExpertAction : saveExpertAction, {});
+  const { state: state, pending: pending, onSubmit } = useKeptForm<ActionState>(mode === "create" ? createExpertAction : saveExpertAction, {});
   return (
-    <form action={formAction} className="space-y-5">
+    <form onSubmit={onSubmit} className="space-y-5">
       {expert.id !== undefined && <input type="hidden" name="id" value={expert.id} />}
       <section className="space-y-4 rounded-xl border border-line bg-surface p-4">
         <div className="grid gap-4 sm:grid-cols-3">

@@ -329,6 +329,7 @@ export async function saveSpotAction(_prev: ActionState, formData: FormData): Pr
   for (const p of new Set([...pathsBefore, ...(await careRelatedPaths(id))])) revalidatePath(p);
 
   revalidatePath(`/place/${id}-${existing.slug}`);
+  revalidatePath(`/admin/spots/${id}`);
   revalidatePath("/admin/spots");
   revalidatePath("/admin/care");
   revalidatePath("/device");
@@ -430,6 +431,8 @@ export async function saveMakerAction(_prev: ActionState, formData: FormData): P
   await replaceMakerLinks(db, id, links.rows);
 
   revalidatePath(`/maker/${id}-${existing.slug}`);
+  revalidatePath(`/admin/makers/${id}`);
+  revalidatePath("/admin/makers");
   revalidatePath("/maker");
   return { saved: true };
 }
@@ -512,6 +515,8 @@ export async function saveItemAction(_prev: ActionState, formData: FormData): Pr
   await replaceItemOffers(db, id, offers.rows);
 
   revalidatePath(`/item/${id}-${existing.slug}`);
+  revalidatePath(`/admin/items/${id}`);
+  revalidatePath("/admin/items");
   return { saved: true };
 }
 
@@ -642,6 +647,8 @@ export async function saveDeviceAction(_prev: ActionState, formData: FormData): 
   await replaceDeviceDealers(db, id, dealerRows);
   revalidatePath("/device");
   revalidatePath(`/device/${encodeURIComponent(existing.slug)}`);
+  revalidatePath(`/admin/devices/${id}`);
+  revalidatePath("/admin/devices");
 
   return { saved: true };
 }
@@ -774,6 +781,8 @@ export async function saveCurationAction(_prev: ActionState, formData: FormData)
   await replaceCurationEntries(db, id, entries.rows);
 
   revalidatePath(`/curation/${existing.themeSlug}`);
+  revalidatePath(`/admin/curations/${id}`);
+  revalidatePath("/admin/curations");
   revalidatePath("/curation");
   return { saved: true };
 }
@@ -857,6 +866,7 @@ export async function saveRehabSiteAction(_prev: ActionState, formData: FormData
     .set({ ...values, regionId: values.regionId!, updatedAt: new Date() })
     .where(eq(rehabSites.id, id));
   revalidateRehab();
+  revalidatePath(`/admin/rehab/${id}`);
   return { saved: true };
 }
 

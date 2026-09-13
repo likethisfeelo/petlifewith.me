@@ -1,7 +1,8 @@
 "use client";
 
-import { useActionState } from "react";
+
 import Link from "next/link";
+import { useKeptForm } from "../../../_components/use-kept-form";
 import { CheckboxField, FormMessage, SelectField, SubmitButton, TextAreaField, TextField } from "../../../_components/fields";
 import { RowsEditor, type RowValue } from "../../../_components/rows-editor";
 import { UploadField } from "../../../_components/upload-field";
@@ -48,7 +49,7 @@ export function DeviceEditor({
   trials?: TrialSiteRow[];
 }) {
   const action = mode === "create" ? createDeviceAction : saveDeviceAction;
-  const [state, formAction, pending] = useActionState<ActionState, FormData>(action, {});
+  const { state: state, pending: pending, onSubmit } = useKeptForm<ActionState>(action, {});
 
   const siteFields = [
     { key: "facilityName", label: "보유처 이름", span: "col-span-4", placeholder: "○○ 동물병원" },
@@ -78,7 +79,7 @@ export function DeviceEditor({
   ];
 
   return (
-    <form action={formAction} className="space-y-5">
+    <form onSubmit={onSubmit} className="space-y-5">
       {device.id !== undefined && <input type="hidden" name="id" value={device.id} />}
 
       {/* 주어를 병원이 아니라 기기로 둔다 (claude.md 6-2) */}

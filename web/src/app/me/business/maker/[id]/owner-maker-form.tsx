@@ -1,8 +1,9 @@
 "use client";
 
 // 소유자용 브랜드 편집 — 소개·대표 이미지·링크. 이름·분류·공개 여부는 운영자가.
-import { useActionState } from "react";
+
 import { saveOwnedMakerAction, type OwnerActionState } from "@/app/owner-actions";
+import { useKeptForm } from "@/app/admin/_components/use-kept-form";
 import { FormMessage, SubmitButton, TextAreaField } from "@/app/admin/_components/fields";
 import { RowsEditor, type RowValue } from "@/app/admin/_components/rows-editor";
 import { UploadField } from "@/app/admin/_components/upload-field";
@@ -15,9 +16,9 @@ const LINK_FIELDS = [
 ];
 
 export function OwnerMakerForm({ maker, links }: { maker: { id: number; storyMd: string | null; heroImageKey: string | null }; links: RowValue[] }) {
-  const [state, formAction, pending] = useActionState<OwnerActionState, FormData>(saveOwnedMakerAction, {});
+  const { state: state, pending: pending, onSubmit } = useKeptForm<OwnerActionState>(saveOwnedMakerAction, {});
   return (
-    <form action={formAction} className="space-y-5">
+    <form onSubmit={onSubmit} className="space-y-5">
       <input type="hidden" name="id" value={maker.id} />
       <section className="space-y-4 rounded-xl border border-line bg-surface p-4">
         <TextAreaField name="storyMd" label="브랜드 소개 (마크다운)" defaultValue={maker.storyMd} rows={8} hint="만든 이유와 과정, 성분·소재를 어떻게 고르는지. 대표자 개인명·상세 주소는 넣지 않습니다." />

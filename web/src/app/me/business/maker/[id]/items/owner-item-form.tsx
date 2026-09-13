@@ -1,8 +1,9 @@
 "use client";
 
 // 소유자용 상품 폼 — 등록·수정 공용. 구매 링크는 자사몰·기타만 (쿠팡 제휴 링크는 운영자가 단다).
-import { useActionState } from "react";
+
 import { createOwnedItemAction, deleteOwnedItemAction, saveOwnedItemAction, type OwnerActionState } from "@/app/owner-actions";
+import { useKeptForm } from "@/app/admin/_components/use-kept-form";
 import { FormMessage, SelectField, SubmitButton, TextAreaField, TextField } from "@/app/admin/_components/fields";
 import { RowsEditor, type RowValue } from "@/app/admin/_components/rows-editor";
 import { UploadField } from "@/app/admin/_components/upload-field";
@@ -34,10 +35,10 @@ export interface OwnerItemValues {
 }
 
 export function OwnerItemForm({ mode, item, offers }: { mode: "create" | "edit"; item: OwnerItemValues; offers: RowValue[] }) {
-  const [state, formAction, pending] = useActionState<OwnerActionState, FormData>(mode === "create" ? createOwnedItemAction : saveOwnedItemAction, {});
+  const { state: state, pending: pending, onSubmit } = useKeptForm<OwnerActionState>(mode === "create" ? createOwnedItemAction : saveOwnedItemAction, {});
   return (
     <>
-      <form action={formAction} className="space-y-5">
+      <form onSubmit={onSubmit} className="space-y-5">
         {item.id !== undefined && <input type="hidden" name="id" value={item.id} />}
         <input type="hidden" name="makerId" value={item.makerId} />
         <section className="space-y-4 rounded-xl border border-line bg-surface p-4">

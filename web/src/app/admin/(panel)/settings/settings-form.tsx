@@ -1,8 +1,9 @@
 "use client";
 
 // 회원 미디어·승인 설정 폼 — 0 은 "제한 없음". 용량은 MB, 길이는 분 단위로 보여 준다.
-import { useActionState } from "react";
+
 import { MAX_IMAGE_BYTES, MAX_VIDEO_BYTES } from "@/lib/media";
+import { useKeptForm } from "../../_components/use-kept-form";
 import type { MemberMediaSettings } from "@/lib/settings";
 import { saveMemberMediaSettingsAction } from "../../settings-actions";
 import type { ActionState } from "../../actions";
@@ -11,9 +12,9 @@ import { CheckboxField, FormMessage, SubmitButton, TextField } from "../../_comp
 const mb = (bytes: number) => (bytes > 0 ? String(Math.round((bytes / (1024 * 1024)) * 10) / 10) : "0");
 
 export function SettingsForm({ current }: { current: MemberMediaSettings }) {
-  const [state, formAction, pending] = useActionState<ActionState, FormData>(saveMemberMediaSettingsAction, {});
+  const { state: state, pending: pending, onSubmit } = useKeptForm<ActionState>(saveMemberMediaSettingsAction, {});
   return (
-    <form action={formAction} className="space-y-5">
+    <form onSubmit={onSubmit} className="space-y-5">
       <section className="space-y-4 rounded-xl border border-line bg-surface p-4">
         <h2 className="text-sm font-bold text-ink">회원 글 미디어 한도 <span className="font-normal text-ink-faint">— 0 은 제한 없음 (처음 값)</span></h2>
         <div className="grid gap-4 sm:grid-cols-2">

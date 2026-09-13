@@ -1,7 +1,8 @@
 "use client";
 
 // 내 상담 프로필 — 멘토는 저장 즉시 공개(본인이 끌 수 있음), 훈련사는 자격 확인 뒤 운영자가 공개.
-import { useActionState, useState } from "react";
+import {useState} from "react";
+import { useKeptForm } from "@/app/admin/_components/use-kept-form";
 import { saveMyExpertAction, type ExpertSelfState } from "@/app/expert-self-actions";
 import { CheckboxField, SelectField, SubmitButton, TextAreaField, TextField } from "@/app/admin/_components/fields";
 import { RowsEditor, type RowValue } from "@/app/admin/_components/rows-editor";
@@ -31,10 +32,10 @@ const SLOT_FIELDS = [
 ];
 
 export function MyExpertForm({ initial, regions, slots, isNew }: { initial: MyExpertValues; regions: RegionOption[]; slots: RowValue[]; isNew: boolean }) {
-  const [state, formAction, pending] = useActionState<ExpertSelfState, FormData>(saveMyExpertAction, {});
+  const { state: state, pending: pending, onSubmit } = useKeptForm<ExpertSelfState>(saveMyExpertAction, {});
   const [kind, setKind] = useState<ExpertKind>(initial.kind);
   return (
-    <form action={formAction} className="space-y-5">
+    <form onSubmit={onSubmit} className="space-y-5">
       <section className="space-y-4 rounded-xl border border-line bg-surface p-4">
         <div>
           <span className="block text-sm font-medium text-ink">어떤 프로필인가요</span>

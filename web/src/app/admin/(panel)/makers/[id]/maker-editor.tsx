@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState } from "react";
+import {useEffect, useState} from "react";
+import { useKeptForm } from "../../../_components/use-kept-form";
 import {
   CheckboxField,
   FormMessage,
@@ -67,10 +68,16 @@ export function MakerEditor({
   links: RowValue[];
 }) {
   const action = mode === "create" ? createMakerAction : saveMakerAction;
-  const [state, formAction, pending] = useActionState<ActionState, FormData>(action, {});
+  const { state: state, pending: pending, onSubmit } = useKeptForm<ActionState>(action, {});
+  // 공개 상태는 제어 컴포넌트로 둔다 — React 는 서버 액션이 끝나면 폼을 리셋하는데,
+  // 그때 고른 값이 예전 값으로 되돌아가면 "저장이 안 됐다"고 오해해 다시 저장하다 비공개로 되돌리게 된다.
+  const [status, setStatus] = useState(maker.status);
+  useEffect(() => {
+    setStatus(maker.status);
+  }, [maker.status]);
 
   return (
-    <form action={formAction} className="space-y-5">
+    <form onSubmit={onSubmit} className="space-y-5">
       {maker.id !== undefined && <input type="hidden" name="id" value={maker.id} />}
 
       <section className="space-y-4 rounded-xl border border-line bg-surface p-4">
@@ -81,7 +88,7 @@ export function MakerEditor({
           )}
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2">
           <SelectField name="category" label="분류" defaultValue={maker.category} options={CATEGORY_OPTIONS} />
           <SelectField
             name="regionId"
@@ -91,7 +98,6 @@ export function MakerEditor({
             options={regions.map((r) => ({ value: r.id, label: r.label }))}
             hint="상세 주소와 대표자명은 표시하지 않습니다."
           />
-          <SelectField name="status" label="공개 상태" defaultValue={maker.status} options={STATUS_OPTIONS} />
         </div>
 
         <TextAreaField
@@ -162,8 +168,23 @@ export function MakerEditor({
         />
       </section>
 
-      <FormMessage error={state.error} saved={state.saved} />
-      <SubmitButton pending={pending} label={mode === "create" ? "등록" : "저장"} />
+      {/* 저장 줄 — 공개 상태를 저장 버튼 옆에 둔다. 무엇을 켠 채 저장하는지 보이게. */}
+      <section className="rounded-xl border border-line bg-surface p-4">
+        <div className="flex flex-wrap items-end gap-4">
+          <div className="min-w-[12rem]">
+            <SelectField name="status" label="공개 상태" value={status} onChange={setStatus} options={STATUS_OPTIONS} />
+          </div>
+          <SubmitButton pending={pending} label={mode === "create" ? "등록" : "저장"} />
+          <p className="text-xs text-ink-faint">
+            {status === "published"
+              ? "저장하면 메이커 목록(/maker)에 바로 보입니다. 소개가 비어 있으면 노출은 되지만 색인되지 않습니다."
+              : "비공개로 저장하면 목록과 개별 페이지에서 빠집니다."}
+          </p>
+        </div>
+        <div className="mt-3">
+          <FormMessage error={state.error} saved={state.saved} />
+        </div>
+      </section>
     </form>
   );
 }

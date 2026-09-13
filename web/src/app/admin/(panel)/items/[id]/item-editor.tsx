@@ -1,7 +1,8 @@
 "use client";
 
-import { useActionState } from "react";
+
 import { FormMessage, SelectField, SubmitButton, TextAreaField, TextField } from "../../../_components/fields";
+import { useKeptForm } from "../../../_components/use-kept-form";
 import { RowsEditor, type RowValue } from "../../../_components/rows-editor";
 import { SeoFields, type SeoDefaults } from "../../../_components/seo-fields";
 import { UploadField } from "../../../_components/upload-field";
@@ -57,10 +58,10 @@ export function ItemEditor({
   offers: RowValue[];
 }) {
   const action = mode === "create" ? createItemAction : saveItemAction;
-  const [state, formAction, pending] = useActionState<ActionState, FormData>(action, {});
+  const { state: state, pending: pending, onSubmit } = useKeptForm<ActionState>(action, {});
 
   return (
-    <form action={formAction} className="space-y-5">
+    <form onSubmit={onSubmit} className="space-y-5">
       {item.id !== undefined && <input type="hidden" name="id" value={item.id} />}
 
       <section className="space-y-4 rounded-xl border border-line bg-surface p-4">
