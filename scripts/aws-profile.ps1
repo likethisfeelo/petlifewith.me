@@ -23,6 +23,8 @@
 .EXAMPLE
     .\scripts\aws-profile.ps1                     # status: profiles, active one, identity
     .\scripts\aws-profile.ps1 -All                # also verify identity of every profile
+    .\scripts\aws-profile.ps1 -Pick               # whoami for every profile, pick one by number
+    .\scripts\aws-profile.ps1 -Pick -Persist      # same, and make it the default for new windows
     .\scripts\aws-profile.ps1 -Use petlife        # switch this window to 'petlife' (verified first)
     .\scripts\aws-profile.ps1 -Use petlife -Persist   # also make it the default for new windows
     .\scripts\aws-profile.ps1 -Clear              # back to the 'default' profile in this window
@@ -39,6 +41,10 @@ param(
     [Parameter(ParameterSetName = 'Use', Mandatory = $true, Position = 0)]
     [string]$Use,
 
+    # List every profile with its identity (whoami), numbered, and switch to the chosen one.
+    [Parameter(ParameterSetName = 'Pick', Mandatory = $true)]
+    [switch]$Pick,
+
     # Stop overriding AWS_PROFILE in this window.
     [Parameter(ParameterSetName = 'Clear', Mandatory = $true)]
     [switch]$Clear,
@@ -46,6 +52,7 @@ param(
     # With -Use: also write the user-level AWS_PROFILE (new windows).
     # With -Clear: also remove the user-level AWS_PROFILE.
     [Parameter(ParameterSetName = 'Use')]
+    [Parameter(ParameterSetName = 'Pick')]
     [Parameter(ParameterSetName = 'Clear')]
     [switch]$Persist
 )
@@ -123,18 +130,27 @@ function Get-ProfileRegion {
     return '(not set)'
 }
 
-# Prints who a profile is. Returns $true when the credentials work.
-function Show-Identity {
+# Runs sts get-caller-identity for a profile.
+# Returns @{ Ok = $true; Id = <identity> } or @{ Ok = $false; Error = <first line> }.
+function Get-Identity {
     param([string]$ProfileName)
     $cliArgs = @('sts', 'get-caller-identity', '--output', 'json')
     if ($ProfileName -and $ProfileName -ne 'default') { $cliArgs += @('--profile', $ProfileName) }
     $r = Invoke-Aws $cliArgs
     if ($r.ExitCode -ne 0) {
         $firstLine = ($r.Text -split "`n" | Where-Object { $_.Trim() } | Select-Object -First 1)
-        Write-Warn2 "identity check failed: $firstLine"
-        return $false
+        return @{ Ok = $false; Error = "$firstLine" }
     }
-    try { $id = $r.Text | ConvertFrom-Json } catch { Write-Warn2 "unexpected STS output: $($r.Text)"; return $false }
+    try { return @{ Ok = $true; Id = ($r.Text | ConvertFrom-Json) } }
+    catch { return @{ Ok = $false; Error = "unexpected STS output: $($r.Text)" } }
+}
+
+# Prints who a profile is. Returns $true when the credentials work.
+function Show-Identity {
+    param([string]$ProfileName)
+    $r = Get-Identity $ProfileName
+    if (-not $r.Ok) { Write-Warn2 "identity check failed: $($r.Error)"; return $false }
+    $id = $r.Id
     Write-Host "    account : $($id.Account)"
     Write-Host "    arn     : $($id.Arn)"
     Write-Host "    region  : $(Get-ProfileRegion $ProfileName)"
@@ -145,6 +161,20 @@ function Show-Identity {
         Write-Ok "matches the project account ($ProjectAccountId)"
     }
     return $true
+}
+
+# Activates a profile in this window (and optionally for new windows).
+function Set-ActiveProfile {
+    param([string]$ProfileName, [bool]$PersistIt)
+    $env:AWS_PROFILE = $ProfileName
+    Write-Ok "This window now uses AWS_PROFILE=$ProfileName (until the window closes)."
+    if ($PersistIt) {
+        setx AWS_PROFILE $ProfileName | Out-Null
+        Write-Ok 'Persisted for NEW windows too (setx, user level).'
+        Write-Warn2 'If you also do other AWS work under a different account, undo with: .\scripts\aws-profile.ps1 -Clear -Persist'
+    }
+    Write-Host ''
+    Write-Host "  Check anytime:  aws sts get-caller-identity"
 }
 
 function Get-EffectiveProfile {
@@ -194,16 +224,56 @@ if ($PSCmdlet.ParameterSetName -eq 'Use') {
         Fail "Credentials for '$Use' do not work - not switching. Re-run: aws configure --profile $Use"
     }
 
-    $env:AWS_PROFILE = $Use
-    Write-Ok "This window now uses AWS_PROFILE=$Use (until the window closes)."
+    Set-ActiveProfile $Use $Persist.IsPresent
+    exit 0
+}
 
-    if ($Persist) {
-        setx AWS_PROFILE $Use | Out-Null
-        Write-Ok 'Persisted for NEW windows too (setx, user level).'
-        Write-Warn2 'If you also do other AWS work under a different account, undo with: .\scripts\aws-profile.ps1 -Clear -Persist'
+# --------------------------------------------------------------------
+# -Pick : whoami for every profile, choose by number
+# --------------------------------------------------------------------
+
+if ($PSCmdlet.ParameterSetName -eq 'Pick') {
+    Test-AwsCli | Out-Null
+    $profiles = @(Get-AwsProfiles)
+    if ($profiles.Count -eq 0) {
+        Fail "No profiles found. Register the project profile:  aws configure --profile $ProjectProfile"
     }
+    $active = Get-EffectiveProfile
+
+    Write-Head 'Who am I - every profile'
+    $ids = @{}
+    for ($i = 0; $i -lt $profiles.Count; $i++) {
+        $p = $profiles[$i]
+        $n = $i + 1
+        $mark = if ($p -eq $active) { '*' } else { ' ' }
+        $r = Get-Identity $p
+        $ids[$p] = $r
+        if (-not $r.Ok) {
+            Write-Host ("  {0} [{1}] {2,-16} (credentials fail: {3})" -f $mark, $n, $p, $r.Error) -ForegroundColor DarkGray
+            continue
+        }
+        $tag = if ($r.Id.Account -eq $ProjectAccountId) { 'PROJECT' } else { 'other account' }
+        $color = if ($p -eq $active) { 'Green' } elseif ($r.Id.Account -eq $ProjectAccountId) { 'White' } else { 'Yellow' }
+        Write-Host ("  {0} [{1}] {2,-16} {3}  {4}  ({5})" -f $mark, $n, $p, $r.Id.Account, $r.Id.Arn, $tag) -ForegroundColor $color
+    }
+    Write-Host "  (* = active in this window: $active)"
     Write-Host ''
-    Write-Host "  Check anytime:  aws sts get-caller-identity"
+
+    $answer = Read-Host "Profile number to use (Enter = keep '$active')"
+    $answer = "$answer".Trim()
+    if (-not $answer) { Write-Ok "Kept '$active'."; exit 0 }
+    $num = 0
+    if (-not [int]::TryParse($answer, [ref]$num) -or $num -lt 1 -or $num -gt $profiles.Count) {
+        Fail "Enter a number between 1 and $($profiles.Count)."
+    }
+    $chosen = $profiles[$num - 1]
+    if (-not $ids[$chosen].Ok) {
+        Fail "Credentials for '$chosen' do not work - not switching. Re-run: aws configure --profile $chosen"
+    }
+    if ($ids[$chosen].Id.Account -ne $ProjectAccountId) {
+        Write-Warn2 "'$chosen' is NOT the project account ($ProjectAccountId) - do not deploy this project with it."
+    }
+    Set-ActiveProfile $chosen $Persist.IsPresent
     exit 0
 }
 
@@ -253,4 +323,5 @@ if ($All) {
 }
 
 Write-Host ''
+Write-Host 'Pick:    .\scripts\aws-profile.ps1 -Pick            (whoami for all, choose by number)'
 Write-Host 'Switch:  .\scripts\aws-profile.ps1 -Use petlife     Undo:  .\scripts\aws-profile.ps1 -Clear'

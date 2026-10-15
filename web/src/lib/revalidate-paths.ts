@@ -15,7 +15,7 @@ export async function guideRelatedPaths(guideId: number): Promise<string[]> {
       .limit(1)
   )[0];
   if (!row) return ["/"];
-  const paths = [`/guide/${row.slug}`, `/topic/${row.topicSlug}`, "/"];
+  const paths = [`/guide/${row.slug}`, `/topic/${row.topicSlug}`, `/topic/${row.topicSlug}/curated`, `/topic/${row.topicSlug}/challenge`, "/"];
   if (row.category) paths.push(`/topic/${row.topicSlug}/${row.category}`);
   for (const t of row.tags) paths.push(`/tag/${encodeURIComponent(t)}`);
   return paths;
