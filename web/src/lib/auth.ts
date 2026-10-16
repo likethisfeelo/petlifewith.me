@@ -7,7 +7,7 @@
 //    users 행과 맞춘 뒤(lib/identity.ts) 여기서 사이트 세션 쿠키를 굽는다.
 //  - 회원: HMAC 서명 쿠키 (member_session_v2, 상위 도메인 — 메인·사장님 대시보드 등 같은 계정 공유).
 //    쿠키에는 users.id 와 session_version 만. 차단·비밀번호 변경으로 버전이 오르면 즉시 끊긴다.
-//  - 관리자: Cognito admin 그룹 + 2단계 인증으로 로그인한 회원(kind=cognito, users 행 대조)
+//  - 관리자: Cognito admin 그룹 회원(kind=cognito, users 행 대조). 2단계 인증은 선택
 //    또는 전환 기간 비상용 ADMIN_TOKEN(kind=token). 쿠키 admin_session_v2, 상위 도메인.
 //  - 로그인 중간 상태(2단계 인증 코드 대기·카카오 state 등)는 짧은 서명 쿠키(auth_flow)에.
 // ============================================================
@@ -44,7 +44,7 @@ const SESSION_TTL_SEC = 60 * 60 * 24 * 7; // 7일
 
 export interface Session {
   role: "admin";
-  /** token: 비상용 ADMIN_TOKEN, cognito: Cognito admin 그룹 + 2단계 인증 회원 */
+  /** token: 비상용 ADMIN_TOKEN, cognito: Cognito admin 그룹 회원 */
   kind?: "token" | "cognito";
   /** 표시용 라벨 — 토큰은 "라벨:토큰"의 라벨, Cognito 는 이메일 */
   sub: string;
@@ -145,7 +145,7 @@ async function setAdminCookie(session: Session, secret: string): Promise<void> {
   });
 }
 
-/** Cognito 관리자 로그인 — 그룹·2단계 인증 확인은 호출하는 쪽(lib/identity.ts)이 끝낸 뒤 부른다 */
+/** Cognito 관리자 로그인 — 그룹 확인은 호출하는 쪽(lib/identity.ts)이 끝낸 뒤 부른다 */
 export async function startCognitoAdminSession(user: { id: string; email: string | null; sessionVersion: number }): Promise<void> {
   const secret = authSecret();
   if (!secret) throw new Error("AUTH_SECRET 미설정");

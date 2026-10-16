@@ -5,7 +5,7 @@
 //   가입: 이메일·닉네임·비밀번호 → 메일 확인 코드 → 로그인 화면
 //   비밀번호 찾기: 이메일 → 코드 + 새 비밀번호
 //   설정: 비밀번호 변경 · 인증 앱(TOTP) 켜기/끄기 · 탈퇴
-// 관리자 로그인은 같은 흐름에 admin=1 — Cognito admin 그룹 + 2단계 인증을 거친 경우만 관리자 세션을 준다.
+// 관리자 로그인은 같은 흐름에 admin=1 — Cognito admin 그룹이면 관리자 세션을 준다(2단계 인증은 선택).
 import QRCode from "qrcode";
 import { redirect } from "next/navigation";
 import { eq, sql } from "drizzle-orm";
@@ -264,7 +264,7 @@ export async function totpDisableAction(_prev: AuthActionState, formData: FormDa
   if (!check.ok) return { error: check.error ?? "비밀번호가 올바르지 않습니다." };
   const res = await disableTotp(email);
   if (res.error) return { error: res.error };
-  return { saved: true, notice: "2단계 인증을 껐습니다. 관리자 계정이면 관리자 화면에 들어갈 수 없게 됩니다." };
+  return { saved: true, notice: "2단계 인증을 껐습니다." };
 }
 
 /**

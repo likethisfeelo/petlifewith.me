@@ -318,7 +318,7 @@ users
 - 카카오는 **OIDC 공급자**(`kauth.kakao.com`)로 Cognito 에 붙인다 — 연동 사용자는 월 50명 무료, 이후 MAU 당 약 $0.015.
   동의 항목은 닉네임(선택)뿐. 카카오 Redirect URI 는 `https://petlifewithme-<stage>.auth.ap-northeast-2.amazoncognito.com/oauth2/idpresponse`.
 - 세션: 로그인 순간에만 Cognito 토큰을 검증하고(`lib/identity.ts`) 사이트 쿠키를 굽는다 — ISR·`/api/me` 구조 그대로.
-- 관리자: Cognito `admin` 그룹 + 2단계 인증 로그인만. `ADMIN_TOKEN` 은 전환 기간 비상 로그인으로만 남긴다.
+- 관리자: Cognito `admin` 그룹이면 로그인(2단계 인증은 선택 — 2026-10 운영 결정). `ADMIN_TOKEN` 은 전환 기간 비상 로그인으로만 남긴다.
 - 자체 비밀번호(`users.password_hash`, scrypt)는 쓰지 않는다(컬럼만 남음). 전환 전 회원은 테스트 계정뿐이라 이전하지 않았다.
 
 ### 10-6. Vercel 전용 기능을 쓰지 않는다
