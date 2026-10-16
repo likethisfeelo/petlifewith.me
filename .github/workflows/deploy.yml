@@ -5,6 +5,9 @@
 # 그래서 배포는 여기(리눅스)에서 한다. 실행: GitHub → Actions → deploy →
 # Run workflow → 브랜치 선택 → stage 선택.
 #
+# 자동 배포: dev 브랜치에 push(머지)되면 dev 스테이지, main 이면 prod 스테이지로 배포한다.
+# 문서·로컬 스크립트만 바뀐 push 는 배포하지 않는다 (paths-ignore).
+#
 # 필요한 저장소 Secrets (Settings → Secrets and variables → Actions):
 #   AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY  - petlife IAM 사용자 액세스 키
 #   ENV_DEPLOY_DEV                             - 로컬 .env.deploy.dev 파일 내용 전체
@@ -12,6 +15,12 @@
 name: deploy
 
 on:
+  push:
+    branches: [main, dev]
+    paths-ignore:
+      - "docs/**"
+      - "**/*.md"
+      - "scripts/**"
   workflow_dispatch:
     inputs:
       stage:
@@ -24,7 +33,7 @@ on:
           - prod
 
 concurrency:
-  group: deploy-${{ inputs.stage }}
+  group: deploy-${{ inputs.stage || (github.ref_name == 'main' && 'prod' || 'dev') }}
   cancel-in-progress: false
 
 jobs:
@@ -32,6 +41,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 40
     env:
+      # 수동 실행은 고른 stage, push 는 브랜치로 정한다 (main → prod, dev → dev)
+      STAGE: ${{ inputs.stage || (github.ref_name == 'main' && 'prod' || 'dev') }}
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_REGION: ap-northeast-2
@@ -60,7 +71,6 @@ jobs:
           # prod 시크릿이 비었을 때 dev 값으로 대체돼 운영이 dev DB 를 보게 된다.
           ENV_DEPLOY_DEV: ${{ secrets.ENV_DEPLOY_DEV }}
           ENV_DEPLOY_PROD: ${{ secrets.ENV_DEPLOY_PROD }}
-          STAGE: ${{ inputs.stage }}
         run: |
           if [ "$STAGE" = "prod" ]; then ENV_FILE="$ENV_DEPLOY_PROD"; else ENV_FILE="$ENV_DEPLOY_DEV"; fi
           FILE=".env.deploy.$STAGE"
@@ -78,9 +88,9 @@ jobs:
 
       - name: Migrate + base seed
         run: |
-          export DATABASE_URL="$(grep -m1 '^DATABASE_URL=' ".env.deploy.${{ inputs.stage }}" | cut -d= -f2-)"
+          export DATABASE_URL="$(grep -m1 '^DATABASE_URL=' ".env.deploy.$STAGE" | cut -d= -f2-)"
           pnpm --filter @app/data db:migrate
           pnpm --filter @app/data seed:base
 
       - name: sst deploy
-        run: pnpm exec sst deploy --stage ${{ inputs.stage }}
+        run: pnpm exec sst deploy --stage "$STAGE"
