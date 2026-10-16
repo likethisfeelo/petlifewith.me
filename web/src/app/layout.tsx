@@ -5,6 +5,7 @@ import { SiteHeader } from "@/components/site-header";
 import { TopicTaglineProvider } from "@/components/site-tagline";
 import { JsonLd } from "@/components/jsonld";
 import { AdSense, Analytics, GtmNoScript } from "@/components/analytics";
+import { Tracker } from "@/components/tracker";
 import {
   adsenseClientId,
   apexDomain,
@@ -63,6 +64,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <SiteFooter />
         </TopicTaglineProvider>
         <JsonLd data={websiteLd()} />
+        {/* 측정 이벤트(dataLayer) — GTM 이 없는 환경에서는 쌓이기만 하고 어디로도 가지 않는다 */}
+        <Tracker />
         {analytics && <Analytics gtmId={gtmId} gaId={gaId} apexDomain={apexDomain()} />}
         {adsId && <AdSense clientId={adsId} apexDomain={apexDomain()} />}
       </body>

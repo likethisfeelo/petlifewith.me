@@ -11,7 +11,7 @@ function ItemTagCard({ tagged }: { tagged: TaggedItem }) {
     <div className="rounded-xl border border-line bg-surface p-4">
       {contextLabel && <p className="text-xs font-medium text-accent-deep">{contextLabel}</p>}
       <div className="mt-1 flex items-baseline justify-between gap-2">
-        <Link href={idSlugPath("item", item.id, item.slug)} className="font-bold text-ink hover:underline">
+        <Link href={idSlugPath("item", item.id, item.slug)} className="font-bold text-ink hover:underline" data-track="entity_click" data-track-entity-type="item" data-track-entity-id={String(item.id)} data-track-link-area="guide_panel">
           {item.name}
         </Link>
         <span className="shrink-0 text-xs text-ink-faint">{ITEM_CATEGORY_LABEL[item.category] ?? item.category}</span>
@@ -26,6 +26,12 @@ function ItemTagCard({ tagged }: { tagged: TaggedItem }) {
               href={o.url}
               target="_blank"
               rel={o.isAffiliate ? "sponsored noopener noreferrer" : "noopener noreferrer"}
+              data-track="purchase_click"
+              data-track-vendor={o.vendor}
+              data-track-is-affiliate={String(Boolean(o.isAffiliate))}
+              data-track-entity-type="item"
+              data-track-entity-id={String(item.id)}
+              data-track-link-area="guide_panel"
               className="rounded-full border border-accent/30 bg-accent-soft px-3 py-1 text-xs font-medium text-accent-deep transition-colors hover:bg-accent hover:text-white"
             >
               {o.label ?? OFFER_VENDOR_LABEL[o.vendor] ?? "구매처"} ↗
@@ -43,7 +49,7 @@ function SpotTagCard({ tagged }: { tagged: TaggedSpot }) {
     <div className="rounded-xl border border-line bg-surface p-4">
       {contextLabel && <p className="text-xs font-medium text-sea">{contextLabel}</p>}
       <div className="mt-1 flex items-baseline justify-between gap-2">
-        <Link href={idSlugPath("place", spot.id, spot.slug)} className="font-bold text-ink hover:underline">
+        <Link href={idSlugPath("place", spot.id, spot.slug)} className="font-bold text-ink hover:underline" data-track="entity_click" data-track-entity-type="spot" data-track-entity-id={String(spot.id)} data-track-link-area="guide_panel">
           {spot.name}
         </Link>
         <span className="shrink-0 text-xs text-ink-faint">{typeName}</span>
@@ -65,7 +71,7 @@ function MakerTagCard({ tagged }: { tagged: TaggedMaker }) {
     <div className="rounded-xl border border-line bg-surface p-4">
       {contextLabel && <p className="text-xs font-medium text-honey">{contextLabel}</p>}
       <div className="mt-1 flex items-baseline justify-between gap-2">
-        <Link href={idSlugPath("maker", maker.id, maker.slug)} className="font-bold text-ink hover:underline">
+        <Link href={idSlugPath("maker", maker.id, maker.slug)} className="font-bold text-ink hover:underline" data-track="entity_click" data-track-entity-type="maker" data-track-entity-id={String(maker.id)} data-track-link-area="guide_panel">
           {maker.name}
         </Link>
         <span className="shrink-0 text-xs text-ink-faint">{MAKER_CATEGORY_LABEL[maker.category] ?? maker.category}</span>

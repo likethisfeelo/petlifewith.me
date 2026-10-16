@@ -134,9 +134,81 @@ export default $config({
     });
     const assetBase = $interpolate`https://${media.nodes.bucket.bucketRegionalDomainName}`;
 
+    // ---------- 회원 인증 — Cognito 사용자 풀 (claude.md 10-5) ----------
+    // 사이트 화면은 우리 것(web/src/app/login 등), 뒤에서 Cognito API 를 부른다 → 관리형 로그인 화면이 필요 없어 LITE 등급.
+    // 만든 뒤 바꿀 수 없는 것: usernames(이메일 로그인), 필수 속성(없음 — 카카오는 이메일을 주지 않는다).
+    // prod 는 앱 전체 protect + 삭제 보호(ACTIVE)로 이중 보호한다.
+    const auth = new sst.aws.CognitoUserPool("Auth", {
+      usernames: ["email"],
+      mfa: "optional", // 회원·관리자 모두 선택 (켠 계정은 로그인 때 코드를 묻는다)
+      softwareToken: true, // 인증 앱(TOTP)만 — 문자 인증은 쓰지 않는다
+      verify: {
+        emailSubject: "[펫라이프위드미] 인증 코드",
+        emailMessage: "펫라이프위드미 인증 코드는 {####} 입니다. 10분 안에 입력해 주세요.",
+      },
+      // OAuth 엔드포인트(카카오 연동)용 프리픽스 도메인 — 카카오 Redirect URI 는 <도메인>/oauth2/idpresponse
+      domain: { prefix: `petlifewithme-${stage}` },
+      transform: {
+        userPool: (args) => {
+          args.userPoolTier = "LITE";
+          args.deletionProtection = stage === "prod" ? "ACTIVE" : "INACTIVE";
+          args.accountRecoverySetting = { recoveryMechanisms: [{ name: "verified_email", priority: 1 }] };
+          args.passwordPolicy = {
+            minimumLength: 8,
+            requireLowercase: false,
+            requireUppercase: false,
+            requireNumbers: true,
+            requireSymbols: false,
+            temporaryPasswordValidityDays: 7,
+          };
+        },
+      },
+    });
+    // 카카오 — .env.deploy.<stage> 에 키가 있을 때만 붙인다 (Kakao Developers 등록 전에도 배포가 되게)
+    const kakao =
+      deployEnv.KAKAO_REST_API_KEY && deployEnv.KAKAO_CLIENT_SECRET
+        ? auth.addIdentityProvider("Kakao", {
+            type: "oidc",
+            details: {
+              client_id: deployEnv.KAKAO_REST_API_KEY,
+              client_secret: deployEnv.KAKAO_CLIENT_SECRET,
+              authorize_scopes: "openid profile_nickname",
+              oidc_issuer: "https://kauth.kakao.com",
+              attributes_request_method: "GET",
+            },
+            // 동의 항목 최소화: 회원번호(sub)와 선택 동의 닉네임뿐 — 이메일은 받지 않는다
+            attributes: { username: "sub", nickname: "nickname" },
+          })
+        : undefined;
+    const callbackUrls = [`${site.url}/api/auth/callback`, ...(stage === "dev" ? ["http://localhost:3000/api/auth/callback"] : [])];
+    // 이름 주의: "Web" 은 Nextjs 컴포넌트가 쓴다 (SST 컴포넌트 이름은 앱 전체에서 유일해야 한다)
+    const authClient = auth.addClient("AuthWebClient", {
+      providers: ["COGNITO", ...(kakao ? [kakao.providerName] : [])],
+      callbackUrls,
+      transform: {
+        client: (args) => {
+          args.generateSecret = true; // 서버(Lambda)에서만 쓰는 기밀 클라이언트
+          args.explicitAuthFlows = ["ALLOW_USER_PASSWORD_AUTH", "ALLOW_REFRESH_TOKEN_AUTH"];
+          args.allowedOauthFlows = ["code"];
+          args.allowedOauthScopes = ["openid", "email", "profile"];
+          args.preventUserExistenceErrors = "ENABLED";
+          args.logoutUrls = [site.url];
+        },
+      },
+    });
+    // 관리자 그룹 — 이 그룹에 속한 계정만 관리자 세션을 받는다
+    new aws.cognito.UserGroup("AuthAdminGroup", {
+      userPoolId: auth.id,
+      name: "admin",
+      description: "펫라이프위드미 운영자 (관리자 화면 접근)",
+    });
+
     const web = new sst.aws.Nextjs("Web", {
       path: "web",
-      link: [media], // 서버 함수 실행 역할에 버킷 권한 부여 (presign·삭제)
+      link: [media, auth], // 버킷(presign·삭제) + 사용자 풀(cognito-idp:* — 관리자 API) 권한
+      // 저장·삭제 뒤 CloudFront 캐시 비우기(web/src/lib/cdn.ts) — CreateInvalidation 은 SST 가 기본으로 주고,
+      // 배포 ID 를 별칭으로 찾는 목록 조회만 더한다 (배포 ID 를 env 로 넘기면 순환 참조)
+      permissions: [{ actions: ["cloudfront:ListDistributions"], resources: ["*"] }],
       domain: site.domain,
       warm: site.warm,
       server: {
@@ -157,6 +229,13 @@ export default $config({
         STORAGE_ACCESS_KEY_ID: "", // Lambda 실행 역할(기본 자격 증명 체인)을 쓴다
         STORAGE_SECRET_ACCESS_KEY: "",
         NEXT_PUBLIC_ASSET_BASE_URL: assetBase,
+        // 회원 인증 (web/src/lib/cognito.ts)
+        COGNITO_REGION: REGION,
+        COGNITO_USER_POOL_ID: auth.id,
+        COGNITO_CLIENT_ID: authClient.id,
+        COGNITO_CLIENT_SECRET: authClient.secret,
+        COGNITO_DOMAIN_URL: $interpolate`https://petlifewithme-${stage}.auth.${REGION}.amazoncognito.com`,
+        COGNITO_KAKAO_PROVIDER: kakao ? kakao.providerName : "",
       },
     });
 
@@ -164,6 +243,9 @@ export default $config({
       site: web.url,
       mediaBucket: media.name,
       mediaBaseUrl: assetBase,
+      userPoolId: auth.id,
+      // Kakao Developers → 카카오 로그인 → Redirect URI 에 이 값을 등록한다
+      kakaoRedirectUri: $interpolate`https://petlifewithme-${stage}.auth.${REGION}.amazoncognito.com/oauth2/idpresponse`,
     };
   },
 });

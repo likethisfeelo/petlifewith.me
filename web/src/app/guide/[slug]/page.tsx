@@ -1,3 +1,4 @@
+import { TrackContext } from "@/components/tracker";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -95,6 +96,16 @@ export default async function GuidePage({ params }: Props) {
       <TopicTagline topic={topic.slug} />
       {/* 관리자 세션일 때만 보인다 — 편집·보관·반려·삭제 */}
       <AdminGuideBar guideId={guide.id} isMemberPost={isMemberPost} />
+      <TrackContext
+        page_type="guide"
+        content_group={isMemberPost ? "community" : "content"}
+        topic={topic.slug}
+        category={guide.category ?? undefined}
+        entity_type="guide"
+        entity_id={String(guide.id)}
+        is_sponsored={Boolean(guide.sponsorName)}
+        is_member_post={isMemberPost}
+      />
       <Breadcrumbs
         crumbs={[
           { name: "홈", path: "/" },

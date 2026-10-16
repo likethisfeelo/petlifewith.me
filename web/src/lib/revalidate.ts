@@ -24,6 +24,8 @@ export const REVALIDATE = {
   maker: 21600,
   /** 큐레이션 */
   curation: 86400,
+  /** 뉴스 (발행·수정 때 관리자 저장이 재검증한다) */
+  news: 86400,
   /** 사이트맵 (분할 인덱스 + 섹션) */
   sitemap: 3600,
 } as const;

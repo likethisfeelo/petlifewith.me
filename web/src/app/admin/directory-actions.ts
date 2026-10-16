@@ -3,7 +3,7 @@
 // 디렉토리 등록·편집 서버 액션 — 스팟 / 메이커 / 상품 / 기기 / 큐레이션.
 // 인증은 lib/auth.ts 만 거친다. 규칙(배지 기준일, 큐레이션 출처 표기, 장묘 무광고)은
 // DB 제약 이전에 여기서 사람이 읽을 수 있는 메시지로 막는다.
-import { revalidatePath } from "next/cache";
+import { revalidatePath } from "@/lib/cdn";
 import { redirect } from "next/navigation";
 import { and, eq, inArray } from "drizzle-orm";
 import { MAX_EXPOSED_PER_AREA, REHAB_MODALITIES, isCareType, slugify } from "@app/data";

@@ -209,6 +209,8 @@ async function EntryBanner({ groups, directoryHref = "/spot" }: { groups: EntryG
                   <Link
                     key={item.key}
                     href={href}
+                    data-track="directory_banner_click"
+                    data-track-banner={`entry_${item.key}`}
                     className="group flex h-full flex-col rounded-2xl border border-line bg-cream px-5 py-5 transition-all hover:border-sea/60 hover:bg-surface hover:shadow-md"
                   >
                     <span className="flex items-center gap-3">

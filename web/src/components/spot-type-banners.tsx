@@ -194,6 +194,9 @@ export function SpotTypeBanners({ types, counts }: { types: SpotTypeRow[]; count
           <Link
             key={t.id}
             href={`/spot/type/${t.slug}`}
+            data-track="directory_banner_click"
+            data-track-spot-type={t.slug}
+            data-track-banner="guide_top"
             className="group flex items-start gap-3 rounded-2xl border border-line bg-surface p-4 transition-shadow hover:border-sea/50 hover:shadow-md"
           >
             <span className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sea-soft text-sea">

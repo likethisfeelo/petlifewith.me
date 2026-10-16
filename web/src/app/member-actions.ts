@@ -1,17 +1,19 @@
 "use server";
 
-// 회원 서버 액션 — 가입·로그인·프로필·회원 글·댓글.
+import { queueClientEvent } from "@/lib/client-events";
+
+// 회원 서버 액션 — 프로필(닉네임)·회원 글·댓글. 가입·로그인·비밀번호는 app/auth-actions.ts (Cognito).
 // 인증은 lib/auth.ts(세션)·lib/member.ts(현재 회원)만 거친다.
 // 회원 글은 pending 으로 시작해 관리자가 승인(published)해야 노출된다 — 관리자 설정(member_media.requireApproval)을
 // 끄면 저장 즉시 공개된다. 본문의 사진·영상은 자기 자산만, 외부 영상은 창작자·원본 링크가 있어야 한다.
 import { randomInt } from "node:crypto";
-import { revalidatePath } from "next/cache";
+import { revalidatePath } from "@/lib/cdn";
 import { redirect } from "next/navigation";
 import { and, eq, gt, inArray, sql } from "drizzle-orm";
 import { categoriesForTopic, slugify } from "@app/data";
 import { getDb, isDbConfigured, schema } from "@/lib/db";
-import { endMemberSession, startMemberSession } from "@/lib/auth";
-import { getCurrentMember, safeNextPath } from "@/lib/member";
+import { DISPLAY_NAME_RE } from "@/lib/identity";
+import { getCurrentMember } from "@/lib/member";
 import {
   COMMENT_MAX,
   MAX_COMMENTS_PER_HOUR,
@@ -22,7 +24,6 @@ import {
   POST_TITLE_MAX,
 } from "@/lib/member-limits";
 import { extractEmbeds, parseMediaRef, sameRef, uploadedKeysIn, videoEmbeds } from "@/lib/media-ref";
-import { hashPassword, passwordPolicyError, verifyPassword } from "@/lib/password";
 import { findAssetsByKeys } from "@/lib/queries/media";
 import { listOwnedEntityOptions } from "@/lib/queries/owner";
 import { getMemberMediaSettings } from "@/lib/queries/settings";
@@ -44,11 +45,7 @@ export interface MemberActionState {
   values?: Record<string, string>;
 }
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const DISPLAY_NAME_RE = /^[0-9A-Za-z가-힣][0-9A-Za-z가-힣 _.-]{1,19}$/; // 2~20자
 
-// 존재하지 않는 이메일로 로그인해도 검증 시간이 비슷하도록 더미 해시를 한 번 만들어 둔다
-const DUMMY_HASH = hashPassword(`dummy-${randomInt(1e9)}`);
 
 function str(formData: FormData, name: string): string {
   const v = formData.get(name);
@@ -60,68 +57,6 @@ function isUniqueViolation(e: unknown, constraint: string): boolean {
   const code = err?.code ?? err?.cause?.code;
   const name = err?.constraint ?? err?.cause?.constraint;
   return code === "23505" && name === constraint;
-}
-
-// ---------- 가입 · 로그인 ----------
-
-export async function signupAction(_prev: MemberActionState, formData: FormData): Promise<MemberActionState> {
-  if (!isDbConfigured()) return { error: "저장소가 설정되지 않았습니다." };
-  const email = str(formData, "email").toLowerCase();
-  const displayName = str(formData, "displayName");
-  const password = String(formData.get("password") ?? "");
-  const confirm = String(formData.get("passwordConfirm") ?? "");
-  const next = safeNextPath(str(formData, "next"));
-
-  const values = { email, displayName, agree: formData.get("agree") === "on" ? "on" : "" };
-  if (!EMAIL_RE.test(email) || email.length > 254) return { error: "이메일 형식을 확인해 주세요.", values };
-  if (!DISPLAY_NAME_RE.test(displayName)) return { error: "닉네임은 2~20자로, 한글·영문·숫자·공백·._- 만 쓸 수 있습니다.", values };
-  const policy = passwordPolicyError(password);
-  if (policy) return { error: policy, values };
-  if (password !== confirm) return { error: "비밀번호 확인이 일치하지 않습니다.", values };
-  if (formData.get("agree") !== "on") return { error: "안내 사항을 확인하고 동의해 주세요.", values };
-
-  const db = getDb();
-  let created: { id: string; sessionVersion: number } | undefined;
-  try {
-    created = (
-      await db
-        .insert(users)
-        .values({ email, displayName, role: "member", passwordHash: hashPassword(password), lastLoginAt: new Date() })
-        .returning({ id: users.id, sessionVersion: users.sessionVersion })
-    )[0];
-  } catch (e) {
-    if (isUniqueViolation(e, "users_email_unique")) return { error: "이미 가입된 이메일입니다. 로그인해 주세요.", values };
-    if (isUniqueViolation(e, "users_display_name_lower_uq")) return { error: "이미 쓰이는 닉네임입니다. 다른 닉네임을 골라 주세요.", values };
-    throw e;
-  }
-  if (!created) return { error: "가입에 실패했습니다. 다시 시도해 주세요.", values };
-  await startMemberSession(created.id, created.sessionVersion);
-  redirect(next);
-}
-
-export async function memberLoginAction(_prev: MemberActionState, formData: FormData): Promise<MemberActionState> {
-  if (!isDbConfigured()) return { error: "저장소가 설정되지 않았습니다." };
-  const email = str(formData, "email").toLowerCase();
-  const password = String(formData.get("password") ?? "");
-  const next = safeNextPath(str(formData, "next"));
-  const values = { email };
-  if (!email || !password) return { error: "이메일과 비밀번호를 입력해 주세요.", values };
-
-  const db = getDb();
-  const row = (await db.select().from(users).where(eq(users.email, email)).limit(1))[0];
-  const ok = row?.passwordHash ? verifyPassword(password, row.passwordHash) : verifyPassword(password, DUMMY_HASH);
-  if (!row || !row.passwordHash || !ok) return { error: "이메일 또는 비밀번호가 올바르지 않습니다.", values };
-  if (row.blockedAt) return { error: "이용이 제한된 계정입니다. 문의해 주세요.", values };
-  if (!row.displayName) return { error: "닉네임이 없는 계정입니다. 문의해 주세요.", values };
-
-  await db.update(users).set({ lastLoginAt: new Date() }).where(eq(users.id, row.id));
-  await startMemberSession(row.id, row.sessionVersion);
-  redirect(next);
-}
-
-export async function memberLogoutAction(): Promise<void> {
-  await endMemberSession();
-  redirect("/");
 }
 
 // ---------- 프로필 ----------
@@ -147,28 +82,6 @@ export async function updateProfileAction(_prev: MemberActionState, formData: Fo
     .innerJoin(guides, eq(comments.guideId, guides.id))
     .where(eq(comments.userId, member.id));
   for (const g of [...myGuides, ...commented]) revalidatePath(`/guide/${g.slug}`);
-  return { saved: true };
-}
-
-export async function changePasswordAction(_prev: MemberActionState, formData: FormData): Promise<MemberActionState> {
-  const member = await getCurrentMember();
-  if (!member) return { error: "로그인이 필요합니다." };
-  const current = String(formData.get("currentPassword") ?? "");
-  const next = String(formData.get("newPassword") ?? "");
-  const confirm = String(formData.get("newPasswordConfirm") ?? "");
-  const policy = passwordPolicyError(next);
-  if (policy) return { error: policy };
-  if (next !== confirm) return { error: "새 비밀번호 확인이 일치하지 않습니다." };
-  const db = getDb();
-  const row = (await db.select().from(users).where(eq(users.id, member.id)).limit(1))[0];
-  if (!row || !verifyPassword(current, row.passwordHash)) return { error: "현재 비밀번호가 올바르지 않습니다." };
-  const version = row.sessionVersion + 1;
-  await db
-    .update(users)
-    .set({ passwordHash: hashPassword(next), sessionVersion: version, updatedAt: new Date() })
-    .where(eq(users.id, member.id));
-  // 다른 기기의 세션은 버전 불일치로 끊기고, 이 기기는 새 쿠키를 받는다
-  await startMemberSession(member.id, version);
   return { saved: true };
 }
 
@@ -347,6 +260,7 @@ export async function createMemberPostAction(_prev: MemberActionState, formData:
     revalidatePath(`/topic/${input.topicSlug}/challenge`);
     revalidatePath(`/topic/${input.topicSlug}/curated`);
   }
+  await queueClientEvent("post_submit", { topic: input.topicSlug, has_video: Boolean(input.heroMedia) });
   redirect(requireApproval ? "/me?submitted=1" : "/me?published=1");
 }
 

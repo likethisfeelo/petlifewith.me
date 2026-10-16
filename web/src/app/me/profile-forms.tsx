@@ -1,7 +1,8 @@
 "use client";
 
 import { useActionState } from "react";
-import { changePasswordAction, updateProfileAction, type MemberActionState } from "@/app/member-actions";
+import { changePasswordAction, type AuthActionState } from "@/app/auth-actions";
+import { updateProfileAction, type MemberActionState } from "@/app/member-actions";
 import { FormMessage, SubmitButton, TextField } from "@/app/admin/_components/fields";
 
 const pw = "mt-1 w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm outline-none focus:border-ink";
@@ -18,7 +19,7 @@ export function ProfileForm({ displayName }: { displayName: string }) {
 }
 
 export function PasswordForm() {
-  const [state, formAction, pending] = useActionState<MemberActionState, FormData>(changePasswordAction, {});
+  const [state, formAction, pending] = useActionState<AuthActionState, FormData>(changePasswordAction, {});
   return (
     <form action={formAction} className="space-y-3">
       {[

@@ -1,10 +1,12 @@
 "use server";
 
+import { queueClientEvent } from "@/lib/client-events";
+
 // 펫모임 회원 액션 — 내 지역 저장, 모임 만들기·수정·열기/마감, 참여·나가기, 게시판 글.
 // 승인 없음: 모임은 만들면 바로 열린다(관리자는 숨김만). 새 모임은 슬랙으로 알린다.
 // 비회원은 아무것도 못 한다. 게시판은 참여 회원만 쓴다.
 import { randomBytes } from "node:crypto";
-import { revalidatePath } from "next/cache";
+import { revalidatePath } from "@/lib/cdn";
 import { redirect } from "next/navigation";
 import { and, eq, gt, inArray, sql } from "drizzle-orm";
 import { getDb, isDbConfigured, schema } from "@/lib/db";
@@ -118,6 +120,7 @@ export async function createMeetupAction(_prev: MeetupActionState, formData: For
   );
 
   for (const p of meetupPaths(slug)) revalidatePath(p);
+  await queueClientEvent("meetup_create");
   redirect(`${meetupPath(slug)}?created=1`);
 }
 
@@ -175,6 +178,7 @@ export async function joinMeetupAction(formData: FormData): Promise<void> {
   if (!row || row.status !== "open" || row.hiddenAt || isFull(row.n, row.capacity)) return;
   await db.insert(meetupMembers).values({ meetupId: id, userId: member.id }).onConflictDoNothing();
   for (const p of meetupPaths(row.slug)) revalidatePath(p);
+  await queueClientEvent("meetup_join");
 }
 
 export async function leaveMeetupAction(formData: FormData): Promise<void> {

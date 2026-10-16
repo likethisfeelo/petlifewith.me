@@ -3,7 +3,8 @@
 import { useActionState } from "react";
 import { loginAction, type ActionState } from "../actions";
 
-export function LoginForm() {
+// 비상 로그인 — 전환 기간에만 남기는 ADMIN_TOKEN 경로 (Cognito 장애·설정 실수 대비). 안정화 후 제거한다.
+export function TokenLoginForm() {
   const [state, formAction, pending] = useActionState<ActionState, FormData>(loginAction, {});
 
   return (
@@ -21,8 +22,7 @@ export function LoginForm() {
           className="mt-1 w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm outline-none focus:border-ink"
         />
         <p className="mt-1 text-xs text-ink-faint">
-          발급받은 관리자 토큰 (로컬은 .env.local, 배포는 .env.deploy.&lt;스테이지&gt; 의 ADMIN_TOKEN).
-          Cognito 전환 전 임시 인증입니다.
+          .env.deploy.&lt;스테이지&gt; 의 ADMIN_TOKEN. Cognito 로그인을 쓸 수 없을 때만 쓰는 비상 경로입니다.
         </p>
       </div>
       {state.error && (
@@ -33,7 +33,7 @@ export function LoginForm() {
         disabled={pending}
         className="w-full rounded-full bg-ink px-5 py-2.5 text-sm font-medium text-cream hover:opacity-90 disabled:opacity-50"
       >
-        {pending ? "확인 중..." : "로그인"}
+        {pending ? "확인 중..." : "토큰으로 로그인"}
       </button>
     </form>
   );

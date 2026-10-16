@@ -11,6 +11,7 @@ const NAV = [
   { href: "/spot", label: "스팟" },
   { href: "/maker", label: "메이커" },
   { href: "/curation", label: "큐레이션" },
+  { href: "/news", label: "뉴스" },
 ];
 
 /** 토픽별 태그라인 — env 로 덮어쓴 경우 모두 같은 문구가 된다 */

@@ -6,6 +6,7 @@
 import Link from "next/link";
 import { useEffect, useState, type KeyboardEvent } from "react";
 import type { GuideCategoryDef } from "@app/data";
+import { track } from "@/components/tracker";
 
 export interface MapPost {
   slug: string;
@@ -98,6 +99,7 @@ export function SeniorBodyMap({
   const select = (slug: string) => {
     const next = selected === slug ? null : slug;
     setSelected(next);
+    if (next) track("body_map_click", { category: next });
     try {
       window.history.replaceState(null, "", next ? `#${next}` : window.location.pathname);
     } catch {

@@ -22,6 +22,7 @@ const NAV = [
   { href: "/admin/experts", label: "전문가" },
   { href: "/admin/meetups", label: "펫모임" },
   { href: "/admin/curations", label: "큐레이션" },
+  { href: "/admin/news", label: "뉴스" },
   { href: "/admin/media", label: "미디어" },
   { href: "/admin/members", label: "회원" },
   { href: "/admin/comments", label: "댓글" },

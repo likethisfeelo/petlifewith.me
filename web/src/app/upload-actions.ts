@@ -5,7 +5,7 @@
 //  - 관리자(세션): 시스템 상한(lib/media.ts)만.
 //  - 회원(로그인): 관리자 설정(lib/settings.ts member_media)의 용량 상한 + 시간당 업로드 수 제한. 자산에 uploader_user_id 가 남는다.
 //  - 영상은 포스터(첫 화면) 이미지 키와 길이를 함께 등록한다 — 카드 섬네일과 길이 상한 검사에 쓴다.
-import { revalidatePath } from "next/cache";
+import { revalidatePath } from "@/lib/cdn";
 import { and, eq } from "drizzle-orm";
 import { getDb, isDbConfigured, schema } from "@/lib/db";
 import { getSession } from "@/lib/auth";

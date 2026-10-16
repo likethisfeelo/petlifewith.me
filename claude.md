@@ -311,6 +311,16 @@ users
 
 **인증 호출을 흩뿌리지 않는다.** `lib/auth.ts` 하나로 감싸고, 컴포넌트나 라우트에서 Cognito SDK를 직접 부르지 않는다.
 
+**2026-10 갱신 — Cognito 로 전환했다.** 이유: 2단계 인증, 앱별 로그인(사장님 대시보드 등)이 같은 계정을 쓰는 구조.
+- 사용자 풀은 SST(`sst.config.ts` `Auth`, 스테이지별, prod 삭제 보호). **LITE 등급** — 화면은 우리 사이트이고 뒤에서
+  Cognito API(`lib/cognito.ts`)를 부르므로 관리형 로그인(Essentials)이 필요 없다. 월 1만 MAU 무료.
+- **되돌릴 수 없게 정한 것**: 이메일이 사용자 이름(`usernames: ["email"]`), **필수 속성 없음**(카카오는 이메일을 주지 않는다).
+- 카카오는 **OIDC 공급자**(`kauth.kakao.com`)로 Cognito 에 붙인다 — 연동 사용자는 월 50명 무료, 이후 MAU 당 약 $0.015.
+  동의 항목은 닉네임(선택)뿐. 카카오 Redirect URI 는 `https://petlifewithme-<stage>.auth.ap-northeast-2.amazoncognito.com/oauth2/idpresponse`.
+- 세션: 로그인 순간에만 Cognito 토큰을 검증하고(`lib/identity.ts`) 사이트 쿠키를 굽는다 — ISR·`/api/me` 구조 그대로.
+- 관리자: Cognito `admin` 그룹이면 로그인(2단계 인증은 선택 — 2026-10 운영 결정). `ADMIN_TOKEN` 은 전환 기간 비상 로그인으로만 남긴다.
+- 자체 비밀번호(`users.password_hash`, scrypt)는 쓰지 않는다(컬럼만 남음). 전환 전 회원은 테스트 계정뿐이라 이전하지 않았다.
+
 ### 10-6. Vercel 전용 기능을 쓰지 않는다
 
 Vercel KV, Blob, Edge Config, `@vercel/*` 패키지에 의존하지 않는다. Edge Runtime 전용 API도 피한다 — OpenNext 배포에서 동작이 달라진다.
