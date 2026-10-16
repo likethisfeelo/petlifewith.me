@@ -1,7 +1,7 @@
 "use server";
 
 // 펫모임 관리자 액션 — 숨김만 한다(승인 없음). 모임 숨김은 목록·페이지에서 사라지고 참여 회원도 못 본다.
-import { revalidatePath } from "next/cache";
+import { revalidatePath } from "@/lib/cdn";
 import { redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { getDb, isDbConfigured, schema } from "@/lib/db";

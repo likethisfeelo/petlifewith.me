@@ -1,7 +1,7 @@
 "use server";
 
 // 상담 전문가 관리 액션 — 프로필 등록·수정·공개, 주간 슬롯, 회원 계정 연결(이메일).
-import { revalidatePath } from "next/cache";
+import { revalidatePath } from "@/lib/cdn";
 import { redirect } from "next/navigation";
 import { eq, inArray } from "drizzle-orm";
 import { slugify } from "@app/data";

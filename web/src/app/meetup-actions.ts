@@ -4,7 +4,7 @@
 // 승인 없음: 모임은 만들면 바로 열린다(관리자는 숨김만). 새 모임은 슬랙으로 알린다.
 // 비회원은 아무것도 못 한다. 게시판은 참여 회원만 쓴다.
 import { randomBytes } from "node:crypto";
-import { revalidatePath } from "next/cache";
+import { revalidatePath } from "@/lib/cdn";
 import { redirect } from "next/navigation";
 import { and, eq, gt, inArray, sql } from "drizzle-orm";
 import { getDb, isDbConfigured, schema } from "@/lib/db";

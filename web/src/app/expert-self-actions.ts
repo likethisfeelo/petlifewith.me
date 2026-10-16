@@ -3,7 +3,7 @@
 // 회원 셀프 상담 프로필 — 멘토(선배 보호자)는 누구나 만들어 바로 공개하고, 훈련사는 자격 확인 뒤 운영자가 공개한다.
 // 한 계정에 프로필 하나. 활동 지역(최대 5곳)·주간 슬롯·방식·요금·소개. 연락처는 운영자 확인용(비공개).
 import { randomInt } from "node:crypto";
-import { revalidatePath } from "next/cache";
+import { revalidatePath } from "@/lib/cdn";
 import { redirect } from "next/navigation";
 import { and, eq, inArray, ne } from "drizzle-orm";
 import { slugify } from "@app/data";

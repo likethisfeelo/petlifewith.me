@@ -5,7 +5,7 @@
 //   보관: status → archived. 공개에서 내려가고 관리자 게시글 목록에 남는다(언제든 다시 발행).
 //   반려: 회원 글만. status → draft. 회원은 /me/posts 에서 "반려됨"으로 보고 고쳐 다시 올리거나 지운다.
 //   삭제: 행 삭제(태그·댓글은 FK cascade, 좋아요·저장은 여기서 함께 지운다). 되돌릴 수 없다.
-import { revalidatePath } from "next/cache";
+import { revalidatePath } from "@/lib/cdn";
 import { and, eq } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 import { getDb, isDbConfigured, schema } from "@/lib/db";
