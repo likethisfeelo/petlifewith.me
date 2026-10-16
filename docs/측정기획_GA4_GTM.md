@@ -179,6 +179,24 @@ utm_content=<게시물 구분>      예) joint-card-01
 ```
 프로필 링크·스토리 링크는 전부 이 규칙. 사장님 포털 홍보는 `utm_campaign=partner-*` 로 구분.
 
+### 6-4. AI 어시스턴트 유입 (ChatGPT · Perplexity · Gemini · Copilot · Claude …)
+
+AI 답변 속 출처 링크로 들어오는 방문. 기본 GA4 에서는 "추천(Referral)"에 섞여 있으므로 **맞춤 채널 그룹**으로 떼어 본다.
+
+- **GA4 관리 → 데이터 표시 → 채널 그룹 → 새로 만들기**(기본 그룹 복사) → 채널 `AI 어시스턴트` 추가
+  - 조건: 세션 소스 **정규식 일치**
+    `.*(chatgpt|openai|perplexity|copilot\.microsoft|gemini\.google|bard\.google|claude\.ai|deepseek|grok|meta\.ai|you\.com|phind|poe\.com|wrtn|clova-x).*`
+  - **"추천" 채널보다 위로** 순서를 올린다(위에서부터 먼저 맞는 채널로 분류된다). 맞춤 채널 그룹은 지난 데이터에도 적용된다.
+- 보는 곳
+  - 획득 → 트래픽 획득: 기본 채널 그룹을 새 그룹으로 바꿔 AI 유입 세션·참여율·핵심 이벤트를 다른 채널과 비교
+  - 탐색 분석(자유 형식): 행 = 세션 소스 · 방문 페이지, 필터 = 채널 `AI 어시스턴트` → **AI 가 어떤 글·업체 페이지를 인용하는지**
+- 입점사 리포트에도 넣는다: 비콘(`/api/collect`)이 `document.referrer` 의 도메인을 위 목록으로 분류해 `entity_stats_daily.views_ai` 로 센다 → "AI 검색에서 소개돼 들어온 방문 n회".
+- 한계
+  - **질문(프롬프트)은 알 수 없다** — AI 서비스가 넘기지 않는다.
+  - 앱·일부 브라우저는 리퍼러를 안 넘겨 "직접"으로 잡힌다(실제보다 적게 보인다). ChatGPT 는 링크에 `utm_source=chatgpt.com` 을 붙이는 경우가 많아 비교적 잘 잡힌다.
+  - 구글 검색 결과 안의 AI 요약(AI 개요)은 구분되지 않고 "자연 검색(google)"으로 잡힌다.
+- AI 가 사이트를 **읽어 가는 횟수**(GPTBot·OAI-SearchBot·ChatGPT-User·PerplexityBot·ClaudeBot 등)는 GA4 에 안 보인다(자바스크립트를 실행하지 않음). 필요하면 CloudFront 로그·서버에서 User-Agent 로 센다. 지금 `robots.txt` 는 이 봇들을 막지 않는다(인용되려면 열어 두는 것이 맞다).
+
 ---
 
 ## 7. 입점사 리포트 (자체 집계)
