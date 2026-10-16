@@ -28,7 +28,8 @@ export default async function EditPostPage({ params }: { params: Promise<{ id: s
   const guide = (await getDb().select().from(guides).where(eq(guides.id, guideId)).limit(1))[0];
   // 내 글이 아니면 존재 자체를 드러내지 않는다
   if (!guide || guide.authorUserId !== member.id) notFound();
-  const editable = guide.status === "pending" || guide.status === "published";
+  // draft = 관리자가 반려한 글 — 고쳐서 다시 올릴 수 있다
+  const editable = guide.status === "pending" || guide.status === "published" || guide.status === "draft";
   const [topics, limits, popular, owned, links] = await Promise.all([
     listTopics().then((ts) => ts.filter((t) => t.slug !== "spot")),
     getMemberMediaSettings(),
@@ -46,6 +47,11 @@ export default async function EditPostPage({ params }: { params: Promise<{ id: s
         </p>
       ) : (
         <div className="mt-6">
+          {guide.status === "draft" && (
+            <p className="mb-4 rounded-lg border border-accent/30 bg-accent-soft px-4 py-3 text-sm text-accent-deep">
+              운영진이 반려한 글입니다. 진단·처방 단정이나 광고로 보이는 부분을 고쳐 저장하면 다시 확인을 거쳐 공개됩니다.
+            </p>
+          )}
           <MemberPostForm
             mode="edit"
             post={{

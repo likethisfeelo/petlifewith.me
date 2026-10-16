@@ -9,11 +9,15 @@ import { listGuideLinkNames } from "@/lib/queries/owner";
 const STATUS_STYLE: Record<string, string> = {
   published: "bg-sage-soft text-sage-deep",
   pending: "bg-honey-soft text-honey",
+  draft: "bg-accent-soft text-accent-deep",
 };
+// 회원 글의 draft 는 관리자가 반려한 글이다 (회원은 draft 를 만들지 않는다)
+const MEMBER_STATUS_LABEL: Record<string, string> = { ...GUIDE_STATUS_LABEL, draft: "반려됨 — 고쳐서 다시 올려 주세요", pending: "승인 대기" };
 const FILTERS = [
   { key: "", label: "전체" },
   { key: "published", label: "발행됨" },
   { key: "pending", label: "승인 대기" },
+  { key: "draft", label: "반려됨" },
   { key: "archived", label: "보관" },
 ];
 
@@ -46,7 +50,7 @@ export default async function MePostsPage({ searchParams }: { searchParams: Prom
           {posts.map(({ guide, topicName }) => (
             <li key={guide.id} className="px-4 py-3 text-sm">
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_STYLE[guide.status] ?? "bg-sand text-ink-soft"}`}>{GUIDE_STATUS_LABEL[guide.status] ?? guide.status}</span>
+                <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_STYLE[guide.status] ?? "bg-sand text-ink-soft"}`}>{MEMBER_STATUS_LABEL[guide.status] ?? guide.status}</span>
                 <span className="font-medium text-ink">{guide.title}</span>
                 <span className="text-xs text-ink-faint">
                   {topicName} · {formatDate(guide.updatedAt)}
@@ -57,12 +61,12 @@ export default async function MePostsPage({ searchParams }: { searchParams: Prom
                       보기
                     </Link>
                   )}
-                  {(guide.status === "pending" || guide.status === "published") && (
+                  {(guide.status === "pending" || guide.status === "published" || guide.status === "draft") && (
                     <Link href={`/write/${guide.id}`} className="text-ink-soft hover:underline">
                       수정
                     </Link>
                   )}
-                  {guide.status === "pending" && (
+                  {(guide.status === "pending" || guide.status === "draft") && (
                     <form action={deleteMemberPostAction}>
                       <input type="hidden" name="id" value={guide.id} />
                       <button type="submit" className="text-ink-faint hover:text-accent-deep">
