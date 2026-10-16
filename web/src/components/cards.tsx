@@ -90,9 +90,17 @@ export function GuideCard({
 
 export function SpotCard({ item }: { item: SpotWithMeta }) {
   const { spot, typeName, region, promoted } = item;
+  // 측정: 상단 노출(유료) 카드는 노출·클릭을 따로 센다 — 입점사 리포트·재계약 근거 (docs/측정기획_GA4_GTM.md)
+  const trackAttrs = promoted
+    ? { "data-track": "promo_click", "data-track-impression": "promo_impression" }
+    : { "data-track": "entity_click", "data-track-link-area": "directory_list" };
   return (
     <Link
       href={idSlugPath("place", spot.id, spot.slug)}
+      {...trackAttrs}
+      data-track-entity-type="spot"
+      data-track-entity-id={String(spot.id)}
+      data-track-region-sigungu={region.sigunguName ?? undefined}
       className="group flex h-full flex-col rounded-xl border border-line bg-surface p-5 transition-shadow hover:shadow-md"
     >
       <div className="flex items-center gap-2 text-xs text-ink-soft">

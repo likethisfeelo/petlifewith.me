@@ -18,7 +18,12 @@ export function useCurrentMember(): { loading: boolean; member: MeResponse["memb
     let alive = true;
     fetch("/api/me", { cache: "no-store", credentials: "same-origin" })
       .then((r) => (r.ok ? (r.json() as Promise<MeResponse>) : { member: null }))
-      .then((d) => alive && setState({ loading: false, member: d.member }))
+      .then((d) => {
+        if (!alive) return;
+        setState({ loading: false, member: d.member });
+        // 측정용 로그인 상태(사용자 범위 측정기준) — 회원 정보는 넣지 않는다
+        (window.dataLayer = window.dataLayer || []).push({ login_state: d.member ? "member" : "guest" });
+      })
       .catch(() => alive && setState({ loading: false, member: null }));
     return () => {
       alive = false;

@@ -1,5 +1,7 @@
 "use server";
 
+import { queueClientEvent } from "@/lib/client-events";
+
 // 예약·상담 액션 — 회원이 업체·돌봄 파트너·전문가에게 요청하고, 제공자(소유자·전문가 계정)나 관리자가 확인·결제 확인·완료·취소한다.
 // 결제 확인은 수동(PG 는 뒤에): 확인되면 대화가 열린다. 채팅은 요청 회원·제공자 계정·관리자만.
 // 신청자 이름·연락처는 관리자·슬랙에만 — 제공자에게는 닉네임과 요청 내용만 보인다.
@@ -154,6 +156,7 @@ export async function createReservationAction(_prev: ReservationActionState, for
   if (sent) await db.update(reservations).set({ slackSentAt: new Date() }).where(eq(reservations.id, id));
   revalidatePath("/me/requests");
   revalidatePath("/me/received");
+  await queueClientEvent("reservation_request", { kind: insert.kind });
   redirect(`/reservations/${id}?created=1`);
 }
 

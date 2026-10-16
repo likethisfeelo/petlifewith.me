@@ -1,3 +1,4 @@
+import { TrackContext } from "@/components/tracker";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -110,6 +111,15 @@ export default async function PlacePage({ params }: Props) {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">
+      <TrackContext
+        page_type="place"
+        content_group="directory"
+        entity_type="spot"
+        entity_id={String(spot.id)}
+        spot_type={found.typeSlug}
+        region_sido={region.sidoName}
+        region_sigungu={region.sigunguName}
+      />
       <RememberRegion
         region={{ sidoSlug: region.sidoSlug, sigunguSlug: region.sigunguSlug, label: `${region.sidoName} ${region.sigunguName}` }}
       />

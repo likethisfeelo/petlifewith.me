@@ -10,6 +10,7 @@
 // ============================================================
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { setAuthFlow, startCognitoAdminSession, startMemberSession } from "./auth";
+import { queueClientEvent } from "./client-events";
 import { verifyIdToken, type CognitoTokens } from "./cognito";
 import { getDb, schema } from "./db";
 
@@ -44,7 +45,9 @@ export async function completeSignIn(
       row = (await db.update(users).set({ cognitoSub: id.sub, updatedAt: new Date() }).where(eq(users.id, legacy.id)).returning())[0];
     }
   }
+  let created = false;
   if (!row) {
+    created = true;
     const email = id.email && id.emailVerified ? id.email : null;
     const emailTaken = email ? (await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1)).length > 0 : false;
     row = (await db.insert(users).values({ cognitoSub: id.sub, email: emailTaken ? null : email, role: "member" }).returning())[0];
@@ -76,6 +79,8 @@ export async function completeSignIn(
     return { redirectTo: "/admin" };
   }
 
+  // 측정: 처음 만든 계정이면 가입, 아니면 로그인 (방식만 — 계정 정보는 넣지 않는다)
+  await queueClientEvent(created ? "sign_up" : "login", { method: id.provider ? id.provider.toLowerCase() : "email" });
   if (!row.displayName) {
     await setAuthFlow({ step: "profile", uid: row.id, next: opts.next });
     return { redirectTo: "/signup/profile" };
