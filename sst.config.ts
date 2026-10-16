@@ -140,7 +140,7 @@ export default $config({
     // prod 는 앱 전체 protect + 삭제 보호(ACTIVE)로 이중 보호한다.
     const auth = new sst.aws.CognitoUserPool("Auth", {
       usernames: ["email"],
-      mfa: "optional", // 회원은 선택, 관리자는 앱이 2단계 인증 로그인만 받는다 (web/src/app/admin/login)
+      mfa: "optional", // 회원·관리자 모두 선택 (켠 계정은 로그인 때 코드를 묻는다)
       softwareToken: true, // 인증 앱(TOTP)만 — 문자 인증은 쓰지 않는다
       verify: {
         emailSubject: "[펫라이프위드미] 인증 코드",
@@ -196,7 +196,7 @@ export default $config({
         },
       },
     });
-    // 관리자 그룹 — 이 그룹 + 2단계 인증으로 로그인한 계정만 관리자 세션을 받는다
+    // 관리자 그룹 — 이 그룹에 속한 계정만 관리자 세션을 받는다
     new aws.cognito.UserGroup("AuthAdminGroup", {
       userPoolId: auth.id,
       name: "admin",

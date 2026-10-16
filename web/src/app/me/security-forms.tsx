@@ -47,7 +47,7 @@ export function TotpForm({ enabled }: { enabled: boolean }) {
 
   return (
     <form action={startAction} className="space-y-3">
-      <p className="text-sm text-ink-soft">비밀번호 외에 휴대폰 인증 앱의 6자리 코드를 한 번 더 확인합니다. 관리자 계정은 반드시 켜야 합니다.</p>
+      <p className="text-sm text-ink-soft">비밀번호 외에 휴대폰 인증 앱의 6자리 코드를 한 번 더 확인합니다. 관리자 계정은 켜 두기를 권합니다.</p>
       <PasswordInput name="password" label="비밀번호 확인" autoComplete="current-password" />
       <FormMessage error={start.error} />
       <SubmitButton pending={starting} label="인증 앱 등록 시작" pendingLabel="준비 중..." />

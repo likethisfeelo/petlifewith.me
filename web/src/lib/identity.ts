@@ -69,10 +69,8 @@ export async function completeSignIn(
     )[0] ?? row;
 
   if (opts.admin) {
+    // 관리자는 admin 그룹이면 된다 — 2단계 인증은 필수가 아니다(켜 둔 계정은 로그인 때 코드를 묻는다)
     if (!isAdminGroup) return { error: "관리자 권한이 없는 계정입니다." };
-    if (!opts.mfaUsed) {
-      return { error: "관리자는 2단계 인증으로 로그인해야 합니다. 사이트의 내 정보 → 설정에서 인증 앱을 등록한 뒤 다시 로그인해 주세요." };
-    }
     await startCognitoAdminSession({ id: row.id, email: row.email ?? id.email, sessionVersion: row.sessionVersion });
     if (row.displayName) await startMemberSession(row.id, row.sessionVersion);
     return { redirectTo: "/admin" };

@@ -21,7 +21,7 @@ export default async function AdminLoginPage() {
       {cognito ? (
         <>
           <p className="mt-2 text-sm text-ink-soft">
-            사이트 회원 계정으로 로그인합니다. 관리자 그룹에 속하고 <b>2단계 인증</b>을 켠 계정만 들어올 수 있습니다.
+            사이트 회원 계정(이메일)으로 로그인합니다. 관리자 그룹에 속한 계정만 들어올 수 있습니다. 2단계 인증을 켜 두면 코드를 함께 묻습니다.
           </p>
           <LoginForm next="/admin" admin forgotHref={`${siteUrl()}/login/forgot`} />
           <details className="mt-10 rounded-lg border border-dashed border-line p-3">
