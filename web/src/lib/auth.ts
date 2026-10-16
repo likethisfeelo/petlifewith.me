@@ -2,17 +2,20 @@
 // 인증 진입점 — 컴포넌트·라우트에서 이 파일 밖의 인증 API 를 직접 부르지 않는다.
 // (claude.md 10-5: Cognito 전환 시 이 파일만 교체한다)
 //
-// 현재 구현:
-//  - 관리자: ADMIN_TOKEN 비교 로그인 + HMAC 서명 쿠키 (admin_session_v2, 상위 도메인 — admin. 과 메인 사이트가 공유)
-//  - 회원: 이메일·비밀번호(lib/password.ts) + HMAC 서명 쿠키 (member_session).
-//    쿠키에는 사용자 id 와 session_version 만 담는다. 비밀번호 변경·차단으로 버전이 오르면
-//    기존 쿠키가 즉시 죽는다. Cognito 로 옮길 때 바꾸는 것은 startMemberSession 을
-//    호출하는 로그인 액션과 이 파일뿐이다 (claude.md 10-5).
-// 세션은 무상태 JWT 전략과 동일 — Lambda 에서 세션 조회 DB 왕복이 없다.
+// 현재 구현 (2026-10 Cognito 전환):
+//  - 계정·비밀번호·2단계 인증·카카오는 Cognito(lib/cognito.ts). 로그인 순간에 ID 토큰을 검증하고
+//    users 행과 맞춘 뒤(lib/identity.ts) 여기서 사이트 세션 쿠키를 굽는다.
+//  - 회원: HMAC 서명 쿠키 (member_session_v2, 상위 도메인 — 메인·사장님 대시보드 등 같은 계정 공유).
+//    쿠키에는 users.id 와 session_version 만. 차단·비밀번호 변경으로 버전이 오르면 즉시 끊긴다.
+//  - 관리자: Cognito admin 그룹 + 2단계 인증으로 로그인한 회원(kind=cognito, users 행 대조)
+//    또는 전환 기간 비상용 ADMIN_TOKEN(kind=token). 쿠키 admin_session_v2, 상위 도메인.
+//  - 로그인 중간 상태(2단계 인증 코드 대기·카카오 state 등)는 짧은 서명 쿠키(auth_flow)에.
 // ============================================================
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
+import { eq } from "drizzle-orm";
 import { adminAccounts, apexDomain, authSecret, isHttpsSite, siteEnv } from "./config";
+import { getDb, isDbConfigured, schema } from "./db";
 
 // v2: 상위 도메인 쿠키로 바꾸며 이름도 바꿨다 — 예전 호스트 전용 쿠키(admin_session)는 읽지 않으므로
 // 로그아웃 뒤 옛 쿠키가 남아 로그인 상태로 보이는 일이 없다 (전환 시 한 번 다시 로그인)
@@ -41,10 +44,15 @@ const SESSION_TTL_SEC = 60 * 60 * 24 * 7; // 7일
 
 export interface Session {
   role: "admin";
-  /** 계정 라벨 — 여러 관리자를 구분한다 (ADMIN_TOKEN 의 "라벨:토큰") */
+  /** token: 비상용 ADMIN_TOKEN, cognito: Cognito admin 그룹 + 2단계 인증 회원 */
+  kind?: "token" | "cognito";
+  /** 표시용 라벨 — 토큰은 "라벨:토큰"의 라벨, Cognito 는 이메일 */
   sub: string;
-  /** 토큰 지문 — 계정을 빼거나 토큰을 교체하면 기존 세션이 즉시 무효가 된다 */
+  /** token: 토큰 지문(회수·교체 즉시 무효). cognito: "c" */
   fp: string;
+  /** cognito: users.id 와 session_version — 차단·버전 변경·관리자 해제 시 즉시 무효 */
+  uid?: string;
+  v?: number;
   exp: number; // epoch seconds
 }
 
@@ -91,6 +99,7 @@ function decodeSession(value: string, secret: string): Session | null {
     if (parsed.role !== "admin") return null;
     if (parsed.exp * 1000 < Date.now()) return null;
     if (!parsed.sub || !parsed.fp) return null;
+    if (parsed.kind === "cognito") return typeof parsed.uid === "string" && typeof parsed.v === "number" ? parsed : null;
     // 계정이 아직 존재하고 토큰이 그대로인지 확인 — 회수·교체 즉시 반영된다
     const account = adminAccounts().find((a) => a.label === parsed.sub);
     if (!account || fingerprint(account.token) !== parsed.fp) return null;
@@ -115,10 +124,16 @@ export async function loginWithToken(token: string): Promise<boolean> {
 
   const session: Session = {
     role: "admin",
+    kind: "token",
     sub: matched.label,
     fp: fingerprint(matched.token),
     exp: Math.floor(Date.now() / 1000) + SESSION_TTL_SEC,
   };
+  await setAdminCookie(session, secret);
+  return true;
+}
+
+async function setAdminCookie(session: Session, secret: string): Promise<void> {
   const store = await cookies();
   store.set(adminCookieName(), encodeSession(session, secret), {
     httpOnly: true,
@@ -128,7 +143,24 @@ export async function loginWithToken(token: string): Promise<boolean> {
     maxAge: SESSION_TTL_SEC,
     domain: adminCookieDomain(),
   });
-  return true;
+}
+
+/** Cognito 관리자 로그인 — 그룹·2단계 인증 확인은 호출하는 쪽(lib/identity.ts)이 끝낸 뒤 부른다 */
+export async function startCognitoAdminSession(user: { id: string; email: string | null; sessionVersion: number }): Promise<void> {
+  const secret = authSecret();
+  if (!secret) throw new Error("AUTH_SECRET 미설정");
+  await setAdminCookie(
+    {
+      role: "admin",
+      kind: "cognito",
+      sub: user.email ?? "admin",
+      fp: "c",
+      uid: user.id,
+      v: user.sessionVersion,
+      exp: Math.floor(Date.now() / 1000) + SESSION_TTL_SEC,
+    },
+    secret,
+  );
 }
 
 export async function logout(): Promise<void> {
@@ -142,7 +174,20 @@ export async function getSession(): Promise<Session | null> {
   const store = await cookies();
   const value = store.get(adminCookieName())?.value;
   if (!value) return null;
-  return decodeSession(value, secret);
+  const session = decodeSession(value, secret);
+  if (!session || session.kind !== "cognito") return session;
+  // Cognito 관리자 — 아직 관리자이고 차단·버전 변경이 없는지 DB 로 대조 (관리자 쿠키가 있는 요청에서만)
+  if (!isDbConfigured() || !session.uid) return null;
+  const { users } = schema;
+  const row = (
+    await getDb()
+      .select({ role: users.role, blockedAt: users.blockedAt, sessionVersion: users.sessionVersion })
+      .from(users)
+      .where(eq(users.id, session.uid))
+      .limit(1)
+  )[0];
+  if (!row || row.role !== "admin" || row.blockedAt || row.sessionVersion !== session.v) return null;
+  return session;
 }
 
 export async function isAdmin(): Promise<boolean> {
@@ -151,7 +196,10 @@ export async function isAdmin(): Promise<boolean> {
 
 // ---------- 회원 세션 ----------
 
-const MEMBER_COOKIE_NAME = "member_session";
+// v2: 상위 도메인 쿠키(사장님 대시보드 등 여러 앱이 같은 계정) — 스테이지별 이름으로 운영·dev 가 섞이지 않게
+function memberCookieName(): string {
+  return siteEnv() === "preview" ? "member_session_v2_preview" : "member_session_v2";
+}
 const MEMBER_SESSION_TTL_SEC = 60 * 60 * 24 * 30; // 30일
 
 export interface MemberSession {
@@ -195,18 +243,19 @@ export async function startMemberSession(userId: string, sessionVersion: number)
   };
   const payload = b64url(Buffer.from(JSON.stringify(session), "utf8"));
   const store = await cookies();
-  store.set(MEMBER_COOKIE_NAME, `${payload}.${sign(payload, secret)}`, {
+  store.set(memberCookieName(), `${payload}.${sign(payload, secret)}`, {
     httpOnly: true,
     sameSite: "lax",
     secure: isHttpsSite(),
     path: "/",
     maxAge: MEMBER_SESSION_TTL_SEC,
+    domain: adminCookieDomain(),
   });
 }
 
 export async function endMemberSession(): Promise<void> {
   const store = await cookies();
-  store.delete(MEMBER_COOKIE_NAME);
+  store.set(memberCookieName(), "", { path: "/", maxAge: 0, domain: adminCookieDomain() });
 }
 
 /** 쿠키만 본다 (DB 조회 없음). 실제 사용자 상태(차단·버전)는 lib/member.ts getCurrentMember 가 대조한다. */
@@ -214,7 +263,73 @@ export async function getMemberSession(): Promise<MemberSession | null> {
   const secret = authSecret();
   if (!secret) return null;
   const store = await cookies();
-  const value = store.get(MEMBER_COOKIE_NAME)?.value;
+  const value = store.get(memberCookieName())?.value;
   if (!value) return null;
   return decodeMemberSession(value, secret);
+}
+
+// ---------- 로그인 중간 상태 (2단계 인증 대기 · 새 비밀번호 · 닉네임 정하기 · 카카오 state · 인증 앱 등록) ----------
+
+export interface AuthFlow {
+  step: "mfa" | "new_password" | "profile" | "kakao" | "totp_setup";
+  /** 로그인 이메일 (Cognito 사용자 이름) */
+  email?: string;
+  /** Cognito 챌린지 세션 문자열 */
+  session?: string;
+  /** 로그인 뒤 돌아갈 곳 */
+  next?: string;
+  /** 관리자 로그인 흐름인지 */
+  admin?: boolean;
+  /** profile: 닉네임을 정할 users.id */
+  uid?: string;
+  /** kakao: CSRF state */
+  state?: string;
+  /** totp_setup: 인증 앱 등록에 쓰는 액세스 토큰(10분) */
+  accessToken?: string;
+  exp: number;
+}
+
+const FLOW_COOKIE = "auth_flow";
+const FLOW_TTL_SEC = 10 * 60;
+
+/** 서명만 하고 암호화하지 않는다 — httpOnly·10분, 담기는 것은 Cognito 세션 문자열·state 같은 일회성 값뿐 */
+export async function setAuthFlow(flow: Omit<AuthFlow, "exp">): Promise<void> {
+  const secret = authSecret();
+  if (!secret) throw new Error("AUTH_SECRET 미설정");
+  const payload = b64url(Buffer.from(JSON.stringify({ ...flow, exp: Math.floor(Date.now() / 1000) + FLOW_TTL_SEC }), "utf8"));
+  const store = await cookies();
+  store.set(FLOW_COOKIE, `${payload}.${sign(payload, secret)}`, {
+    httpOnly: true,
+    sameSite: "lax", // 카카오에서 돌아오는 최상위 이동(GET)에도 실려야 한다
+    secure: isHttpsSite(),
+    path: "/",
+    maxAge: FLOW_TTL_SEC,
+  });
+}
+
+export async function getAuthFlow(step?: AuthFlow["step"]): Promise<AuthFlow | null> {
+  const secret = authSecret();
+  if (!secret) return null;
+  const store = await cookies();
+  const value = store.get(FLOW_COOKIE)?.value;
+  if (!value) return null;
+  const dot = value.lastIndexOf(".");
+  if (dot < 0) return null;
+  const payload = value.slice(0, dot);
+  const a = Buffer.from(value.slice(dot + 1));
+  const b = Buffer.from(sign(payload, secret));
+  if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
+  try {
+    const flow = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as AuthFlow;
+    if (flow.exp * 1000 < Date.now()) return null;
+    if (step && flow.step !== step) return null;
+    return flow;
+  } catch {
+    return null;
+  }
+}
+
+export async function clearAuthFlow(): Promise<void> {
+  const store = await cookies();
+  store.set(FLOW_COOKIE, "", { path: "/", maxAge: 0 });
 }
