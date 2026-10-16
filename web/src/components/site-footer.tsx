@@ -22,6 +22,7 @@ export function SiteFooter() {
               <li><Link className="hover:text-ink" href="/topic/senior-life">노견생활</Link></li>
               <li><Link className="hover:text-ink" href="/topic/play">놀이</Link></li>
               <li><Link className="hover:text-ink" href="/curation">크리에이터 큐레이션</Link></li>
+              <li><Link className="hover:text-ink" href="/news">뉴스</Link></li>
             </ul>
           </div>
           <div>

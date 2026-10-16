@@ -446,6 +446,21 @@
                   {
                     "type": "TEMPLATE",
                     "key": "parameter",
+                    "value": "tool"
+                  },
+                  {
+                    "type": "TEMPLATE",
+                    "key": "parameterValue",
+                    "value": "{{DLV - tool}}"
+                  }
+                ]
+              },
+              {
+                "type": "MAP",
+                "map": [
+                  {
+                    "type": "TEMPLATE",
+                    "key": "parameter",
                     "value": "login_state"
                   },
                   {
@@ -535,7 +550,7 @@
               {
                 "type": "TEMPLATE",
                 "key": "arg1",
-                "value": "^(page_view|entity_click|body_map_click|directory_banner_click|contact_click|purchase_click|promo_impression|promo_click|reservation_request|direct_chat_start|sign_up|login|post_submit|comment|save|like|meetup_join|meetup_create|request_submit|share)$"
+                "value": "^(page_view|entity_click|body_map_click|directory_banner_click|contact_click|purchase_click|promo_impression|promo_click|reservation_request|direct_chat_start|sign_up|login|post_submit|comment|save|like|meetup_join|meetup_create|request_submit|share|tool_action)$"
               }
             ]
           }
@@ -1123,6 +1138,30 @@
         "accountId": "0",
         "containerId": "0",
         "variableId": "124",
+        "name": "DLV - tool",
+        "type": "v",
+        "parameter": [
+          {
+            "type": "INTEGER",
+            "key": "dataLayerVersion",
+            "value": "2"
+          },
+          {
+            "type": "BOOLEAN",
+            "key": "setDefaultValue",
+            "value": "false"
+          },
+          {
+            "type": "TEMPLATE",
+            "key": "name",
+            "value": "tool"
+          }
+        ]
+      },
+      {
+        "accountId": "0",
+        "containerId": "0",
+        "variableId": "125",
         "name": "DLV - login_state",
         "type": "v",
         "parameter": [
@@ -1146,7 +1185,7 @@
       {
         "accountId": "0",
         "containerId": "0",
-        "variableId": "125",
+        "variableId": "126",
         "name": "DLV - page_location",
         "type": "v",
         "parameter": [
@@ -1170,7 +1209,7 @@
       {
         "accountId": "0",
         "containerId": "0",
-        "variableId": "126",
+        "variableId": "127",
         "name": "DLV - page_path",
         "type": "v",
         "parameter": [
@@ -1194,7 +1233,7 @@
       {
         "accountId": "0",
         "containerId": "0",
-        "variableId": "127",
+        "variableId": "128",
         "name": "DLV - page_title",
         "type": "v",
         "parameter": [

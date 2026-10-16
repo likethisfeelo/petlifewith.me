@@ -20,6 +20,7 @@ const {
   guideItemTags,
   curations,
   curationEntries,
+  newsPosts,
   spotLinks,
   spotServiceAreas,
 } = schema;
@@ -247,6 +248,16 @@ export async function sitemapCurations(): Promise<SitemapEntry[]> {
   return rows
     .filter((c) => c.entryCount > 0)
     .map((c) => ({ path: `/curation/${c.themeSlug}`, lastModified: c.updatedAt }));
+}
+
+/** 뉴스 — 발행된 글 전부 (관리자만 쓰므로 품질 게이트가 따로 없다) */
+export async function sitemapNews(): Promise<SitemapEntry[]> {
+  if (!isDbConfigured()) return [];
+  const rows = await getDb()
+    .select({ slug: newsPosts.slug, updatedAt: newsPosts.updatedAt })
+    .from(newsPosts)
+    .where(eq(newsPosts.status, "published"));
+  return rows.map((n) => ({ path: `/news/${n.slug}`, lastModified: n.updatedAt }));
 }
 
 /** 재활·한방·특수치료 — 허브와 치료법 페이지. 시행처 3곳 이상인 것만 (지역 페이지와 같은 게이트) */
