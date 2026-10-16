@@ -1,7 +1,7 @@
 // 섹션별 사이트맵 — noindex 게이트를 통과한 URL 만 내보낸다 (lib/queries/sitemap.ts)
 import { notFound } from "next/navigation";
 import { siteUrl } from "@/lib/config";
-import { sitemapCategoryBoards, sitemapCurations, sitemapDevices, sitemapGuides, sitemapItems, sitemapMakers, sitemapPlaces, sitemapRegions, sitemapRehab, sitemapTags, sitemapTopicBoards, sitemapTopics, type SitemapEntry } from "@/lib/queries/sitemap";
+import { sitemapCategoryBoards, sitemapCurations, sitemapDevices, sitemapGuides, sitemapItems, sitemapMakers, sitemapNews, sitemapPlaces, sitemapRegions, sitemapRehab, sitemapTags, sitemapTopicBoards, sitemapTopics, type SitemapEntry } from "@/lib/queries/sitemap";
 
 export const revalidate = 3600; // REVALIDATE.sitemap
 
@@ -13,7 +13,7 @@ async function entriesFor(section: string): Promise<SitemapEntry[] | null> {
   switch (section) {
     case "core": {
       const [topics, boards, topicBoards, tags] = await Promise.all([sitemapTopics(), sitemapCategoryBoards(), sitemapTopicBoards(), sitemapTags()]);
-      return [{ path: "/" }, { path: "/maker" }, { path: "/curation" }, ...topics, ...topicBoards, ...boards, ...tags];
+      return [{ path: "/" }, { path: "/maker" }, { path: "/curation" }, { path: "/news" }, ...topics, ...topicBoards, ...boards, ...tags];
     }
     case "guides":
       return sitemapGuides();
@@ -27,8 +27,11 @@ async function entriesFor(section: string): Promise<SitemapEntry[] | null> {
       return sitemapMakers();
     case "items":
       return sitemapItems();
-    case "curations":
-      return sitemapCurations();
+    case "curations": {
+      // 큐레이션 + 뉴스 (편집 콘텐츠 묶음 — 사이트맵 색인 목록을 늘리지 않으려고 같은 파일에 싣는다)
+      const [c, n] = await Promise.all([sitemapCurations(), sitemapNews()]);
+      return [...c, ...n];
+    }
     default:
       return null;
   }

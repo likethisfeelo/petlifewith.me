@@ -117,6 +117,7 @@ dataLayer.push({
 | `meetup_join` / `meetup_create` | 모임 | `region_sigungu` |
 | `request_submit` | 요청함 접수 | `request_kind`(spot_register·spot_claim·maker_claim·promo_slot·care_partner), `plan`(A·B·C) |
 | `share` | 공유 버튼(생기면) | `method` |
+| `tool_action` | 뉴스 글의 도구에서 인쇄·이미지 저장·파일 저장·결과물 저장 | `kind`(print·download·download_png·save), `tool` |
 
 **보내지 않는 것**: 이메일·닉네임·연락처·메시지 본문·예약 내용·건강 상태 서술. 의료 인접 글은 `category`(부위)까지만.
 
@@ -128,7 +129,7 @@ dataLayer.push({
 |---|---|---|
 | 태그 | Google 태그 (GA4) | `G-54XBW1L9KE`, 트리거 **Initialization – All Pages**, `send_page_view: false` (페이지뷰는 아래 이벤트로) |
 | 태그 | GA4 이벤트 – 공통 | 이벤트 이름 `{{Event}}`, 파라미터는 아래 데이터 영역 변수 전부, 트리거 "GA4 이벤트 목록" |
-| 트리거 | GA4 이벤트 목록 | 맞춤 이벤트, 정규식 `^(page_view|entity_click|body_map_click|directory_banner_click|contact_click|purchase_click|promo_impression|promo_click|reservation_request|direct_chat_start|sign_up|login|post_submit|comment|save|like|meetup_join|meetup_create|request_submit|share)$` |
+| 트리거 | GA4 이벤트 목록 | 맞춤 이벤트, 정규식 `^(page_view|entity_click|body_map_click|directory_banner_click|contact_click|purchase_click|promo_impression|promo_click|reservation_request|direct_chat_start|sign_up|login|post_submit|comment|save|like|meetup_join|meetup_create|request_submit|share|tool_action)$` |
 | 변수 | DLV – page_type, content_group, topic, category, spot_type, region_sido, region_sigungu, entity_type, entity_id, is_sponsored, is_promoted, is_member_post, login_state, channel, vendor, is_affiliate, kind, method, request_kind, plan, link_area | 데이터 영역 변수(버전 2) |
 | 태그(나중) | Meta 픽셀 | 인스타 광고를 집행할 때만, 개인정보처리방침 고지 후 |
 

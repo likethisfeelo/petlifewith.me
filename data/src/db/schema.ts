@@ -1044,3 +1044,50 @@ export const rehabSites = pgTable(
     index("rehab_sites_published_idx").on(t.published, t.name),
   ],
 );
+
+// ---------- 뉴스 · 도구 ----------
+// 뉴스: 관리자만 쓰는 블로그형 글 (/news). 글 하나에 "도구"를 붙일 수 있다.
+//  - tool_key: 사이트에 내장된 도구 (web/src/components/tools — 로그인·저장·로고 등 사이트 기능을 쓰는 것)
+//  - tool_html: 관리자가 올린 HTML 도구 — 공개 페이지에서 sandbox iframe(allow-same-origin 없음)으로만 띄운다
+// 도구 메뉴는 따로 두지 않고 뉴스 글로 노출한다. 나중에 사장님(포털) 영역에서 같은 글을 다시 묶는다.
+
+export const newsPosts = pgTable(
+  "news_posts",
+  {
+    id: bigint("id", { mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
+    slug: text("slug").notNull().unique(),
+    title: text("title").notNull(),
+    summary: text("summary"), // 목록·검색 설명에 쓰는 한두 문장
+    bodyMd: text("body_md"),
+    heroImageKey: text("hero_image_key"),
+    category: text("category").notNull().default("news"), // news | briefing(사장님 브리핑) | tool
+    toolKey: text("tool_key"), // 내장 도구 키 (예: cctv-sign)
+    toolHtml: text("tool_html"), // 업로드한 HTML 도구
+    toolHeight: integer("tool_height"), // HTML 도구 최소 높이(px) — 자동 높이를 못 받을 때
+    status: guideStatus("status").notNull().default("draft"),
+    seoTitle: text("seo_title"),
+    seoDescription: text("seo_description"),
+    ogImageKey: text("og_image_key"),
+    publishedAt: timestamp("published_at", { withTimezone: true }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index("news_posts_status_published_idx").on(t.status, t.publishedAt)],
+);
+
+// 회원이 도구에서 만든 결과물 (예: CCTV 안내판) — 도구마다 data 구조가 다르다
+export const toolSaves = pgTable(
+  "tool_saves",
+  {
+    id: bigint("id", { mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    toolKey: text("tool_key").notNull(),
+    title: text("title").notNull(),
+    data: jsonb("data").notNull(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index("tool_saves_user_tool_idx").on(t.userId, t.toolKey, t.updatedAt)],
+);

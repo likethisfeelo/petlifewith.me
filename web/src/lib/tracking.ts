@@ -27,6 +27,7 @@ export const TRACK_EVENTS = [
   "meetup_create",
   "request_submit",
   "share",
+  "tool_action",
 ] as const;
 
 export type TrackEvent = (typeof TRACK_EVENTS)[number];
@@ -81,6 +82,8 @@ export function pageContextForPath(pathname: string): PageContext {
       return { page_type: "tag", content_group: "content" };
     case "curation":
       return { page_type: "curation", content_group: "content" };
+    case "news":
+      return b ? { page_type: "news", content_group: "content", entity_type: "news" } : { page_type: "news_list", content_group: "content" };
     case "spot": {
       if (!b) return { page_type: "spot_hub", content_group: "directory" };
       if (b === "type") return { page_type: "spot_type", content_group: "directory", spot_type: c };
@@ -150,6 +153,7 @@ export const EVENT_PARAM_KEYS = [
   "banner",
   "has_video",
   "from_page_type",
+  "tool",
 ] as const;
 
 /** GTM 데이터 영역 변수로 만들 전체 키 (GA4 이벤트 태그 파라미터) */
