@@ -4,7 +4,7 @@
 // 관리자 편집기와 같은 검증(링크 http/https, 이미지 키)을 쓰되 범위는 좁다: 이름·유형·지역·주소는 요청함으로만 바꾼다.
 // 브랜드 공개(status) 는 관리자만. 상품은 브랜드가 공개 상태면 저장 즉시 보인다. 쿠팡 제휴 링크는 운영자만 단다.
 import { randomInt } from "node:crypto";
-import { revalidatePath } from "next/cache";
+import { revalidatePath } from "@/lib/cdn";
 import { redirect } from "next/navigation";
 import { and, eq, sql } from "drizzle-orm";
 import { slugify } from "@app/data";

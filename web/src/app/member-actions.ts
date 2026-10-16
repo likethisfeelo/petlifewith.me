@@ -5,7 +5,7 @@
 // 회원 글은 pending 으로 시작해 관리자가 승인(published)해야 노출된다 — 관리자 설정(member_media.requireApproval)을
 // 끄면 저장 즉시 공개된다. 본문의 사진·영상은 자기 자산만, 외부 영상은 창작자·원본 링크가 있어야 한다.
 import { randomInt } from "node:crypto";
-import { revalidatePath } from "next/cache";
+import { revalidatePath } from "@/lib/cdn";
 import { redirect } from "next/navigation";
 import { and, eq, gt, inArray, sql } from "drizzle-orm";
 import { categoriesForTopic, slugify } from "@app/data";

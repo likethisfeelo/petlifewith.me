@@ -137,6 +137,9 @@ export default $config({
     const web = new sst.aws.Nextjs("Web", {
       path: "web",
       link: [media], // 서버 함수 실행 역할에 버킷 권한 부여 (presign·삭제)
+      // 저장·삭제 뒤 CloudFront 캐시 비우기(web/src/lib/cdn.ts) — CreateInvalidation 은 SST 가 기본으로 주고,
+      // 배포 ID 를 별칭으로 찾는 목록 조회만 더한다 (배포 ID 를 env 로 넘기면 순환 참조)
+      permissions: [{ actions: ["cloudfront:ListDistributions"], resources: ["*"] }],
       domain: site.domain,
       warm: site.warm,
       server: {

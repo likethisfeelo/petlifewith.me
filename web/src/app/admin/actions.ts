@@ -1,7 +1,7 @@
 "use server";
 
 // 관리자 서버 액션 — 인증은 lib/auth.ts 만 거친다.
-import { revalidatePath } from "next/cache";
+import { revalidatePath } from "@/lib/cdn";
 import { redirect } from "next/navigation";
 import { and, eq, ne } from "drizzle-orm";
 import { getDb, isDbConfigured, schema } from "@/lib/db";

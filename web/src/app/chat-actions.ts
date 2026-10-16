@@ -4,7 +4,7 @@
 //  · direct: 상담 프로필에서 회원이 바로 여는 대화 (테스트 운영 — 결제 없이 열린다, 회원만)
 //  · reservation: 예약·상담 요청에 딸린 대화 (결제 확인 뒤 열린다)
 // 권한 판단은 lib/queries/conversations.ts 가 하고, 여기서는 쓰기와 제한만 본다.
-import { revalidatePath } from "next/cache";
+import { revalidatePath } from "@/lib/cdn";
 import { redirect } from "next/navigation";
 import { and, eq, gt, sql } from "drizzle-orm";
 import { getSession } from "@/lib/auth";

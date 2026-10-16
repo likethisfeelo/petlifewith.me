@@ -2,7 +2,7 @@
 
 // 미디어 라이브러리 관리자 액션 — 삭제·목록. 업로드(presign·등록)는 관리자·회원 공용 app/upload-actions.ts.
 import { desc, eq } from "drizzle-orm";
-import { revalidatePath } from "next/cache";
+import { revalidatePath } from "@/lib/cdn";
 import { redirect } from "next/navigation";
 import { getDb, isDbConfigured, schema } from "@/lib/db";
 import { getSession } from "@/lib/auth";

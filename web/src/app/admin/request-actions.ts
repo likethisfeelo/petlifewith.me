@@ -2,7 +2,7 @@
 
 // 요청함 처리 액션 — /admin/requests. 상태 바꾸기·메모·입금 확인·업체 연결.
 // "처리"의 실체는 다른 화면에서 일어난다(스팟 등록·편집·상단 노출 토글) — 여기서는 요청의 상태만 기록한다.
-import { revalidatePath } from "next/cache";
+import { revalidatePath } from "@/lib/cdn";
 import { redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { getDb, isDbConfigured, schema } from "@/lib/db";
