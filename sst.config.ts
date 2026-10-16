@@ -181,7 +181,8 @@ export default $config({
           })
         : undefined;
     const callbackUrls = [`${site.url}/api/auth/callback`, ...(stage === "dev" ? ["http://localhost:3000/api/auth/callback"] : [])];
-    const authClient = auth.addClient("Web", {
+    // 이름 주의: "Web" 은 Nextjs 컴포넌트가 쓴다 (SST 컴포넌트 이름은 앱 전체에서 유일해야 한다)
+    const authClient = auth.addClient("AuthWebClient", {
       providers: ["COGNITO", ...(kakao ? [kakao.providerName] : [])],
       callbackUrls,
       transform: {
