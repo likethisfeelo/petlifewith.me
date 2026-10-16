@@ -3,7 +3,8 @@
 // 요청함 공개 폼의 공통 껍데기 — 종류(hidden)·봇 함정·종류별 칸(children)·담당자 칸·동의·전송·접수 안내.
 // 서버 액션 하나(createServiceRequestAction)로 모든 종류가 들어간다. 에러가 나면 입력값을 되돌려 채운다.
 import type { ReactNode } from "react";
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
+import { track } from "@/components/tracker";
 import { createServiceRequestAction, type RequestActionState } from "@/app/request-actions";
 import { REQUEST_LIMITS, type RequestKind } from "@/lib/requests";
 
@@ -38,6 +39,10 @@ export function RequestForm({
   children: (v: Record<string, string>) => ReactNode;
 }) {
   const [state, formAction, pending] = useActionState<RequestActionState, FormData>(createServiceRequestAction, {});
+  // 측정: 요청함 접수 (종류만)
+  useEffect(() => {
+    if (state.savedId) track("request_submit", { request_kind: kind });
+  }, [state.savedId, kind]);
   const v = state.values ?? {};
 
   if (state.savedId) {

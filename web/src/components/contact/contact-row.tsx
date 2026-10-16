@@ -26,6 +26,10 @@ export function ContactRow({ links, spotId, makerId, compact = false }: { links:
           onClick={() => {
             void logContactAction({ spotId, makerId, channel: l.kind }).catch(() => {});
           }}
+          data-track="contact_click"
+          data-track-channel={l.kind}
+          data-track-entity-type={spotId ? "spot" : "maker"}
+          data-track-entity-id={String(spotId ?? makerId ?? "")}
           className={`rounded-full font-semibold transition-colors ${pad} ${l.kind === "kakao" ? KAKAO : "border border-line bg-surface text-ink hover:bg-sand"}`}
         >
           {l.label} ↗

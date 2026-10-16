@@ -8,6 +8,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useRef } from "react";
+import { track } from "@/components/tracker";
 import { addCommentAction, deleteOwnCommentAction, type MemberActionState } from "@/app/member-actions";
 import { COMMENT_MAX } from "@/lib/member-limits";
 import type { PublicComment } from "@/lib/queries/comments";
@@ -21,6 +22,7 @@ export function CommentSection({ guideId, slug, comments }: { guideId: number; s
 
   useEffect(() => {
     if (state.saved) {
+      track("comment", { entity_type: "guide" });
       formRef.current?.reset();
       router.refresh();
     }

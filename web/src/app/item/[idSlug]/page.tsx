@@ -1,3 +1,4 @@
+import { TrackContext } from "@/components/tracker";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -52,6 +53,7 @@ export default async function ItemPage({ params }: Props) {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">
+      <TrackContext page_type="item" content_group="directory" entity_type="item" entity_id={String(item.id)} />
       <Breadcrumbs
         crumbs={[
           { name: "홈", path: "/" },

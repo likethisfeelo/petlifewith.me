@@ -4,6 +4,7 @@
 // 비회원이 누르면 로그인으로 보낸다(돌아올 경로 포함). 좋아요 수는 게시글에만 보인다.
 import { useEffect, useState, useTransition } from "react";
 import { getReactionStateAction, toggleReactionAction } from "@/app/reaction-actions";
+import { track } from "@/components/tracker";
 import { reactionKey, type ReactionKind, type ReactionTarget } from "@/lib/reactions";
 
 export function ReactionButtons({
@@ -54,6 +55,7 @@ export function ReactionButtons({
         return;
       }
       setMine((m) => ({ ...m, [kind]: r.active }));
+      if (r.active) track(kind, { entity_type: target, entity_id: String(id) });
       if (kind === "like") setLikes(r.likes);
     });
   };

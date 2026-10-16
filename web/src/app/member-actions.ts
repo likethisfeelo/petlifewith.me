@@ -1,5 +1,7 @@
 "use server";
 
+import { queueClientEvent } from "@/lib/client-events";
+
 // 회원 서버 액션 — 프로필(닉네임)·회원 글·댓글. 가입·로그인·비밀번호는 app/auth-actions.ts (Cognito).
 // 인증은 lib/auth.ts(세션)·lib/member.ts(현재 회원)만 거친다.
 // 회원 글은 pending 으로 시작해 관리자가 승인(published)해야 노출된다 — 관리자 설정(member_media.requireApproval)을
@@ -258,6 +260,7 @@ export async function createMemberPostAction(_prev: MemberActionState, formData:
     revalidatePath(`/topic/${input.topicSlug}/challenge`);
     revalidatePath(`/topic/${input.topicSlug}/curated`);
   }
+  await queueClientEvent("post_submit", { topic: input.topicSlug, has_video: Boolean(input.heroMedia) });
   redirect(requireApproval ? "/me?submitted=1" : "/me?published=1");
 }
 

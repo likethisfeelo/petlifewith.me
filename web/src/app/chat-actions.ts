@@ -1,5 +1,7 @@
 "use server";
 
+import { queueClientEvent } from "@/lib/client-events";
+
 // 상담 채팅 액션 — 대화(conversations) 기준. 두 갈래가 같은 함수를 쓴다.
 //  · direct: 상담 프로필에서 회원이 바로 여는 대화 (테스트 운영 — 결제 없이 열린다, 회원만)
 //  · reservation: 예약·상담 요청에 딸린 대화 (결제 확인 뒤 열린다)
@@ -76,6 +78,7 @@ export async function startConsultChatAction(formData: FormData): Promise<void> 
     slackRequestsWebhookUrl(),
   );
   revalidatePath("/me/chats");
+  await queueClientEvent("direct_chat_start", { entity_type: "expert", entity_id: String(expert.id) });
   redirect(`/chat/${convId}?started=1`);
 }
 
