@@ -2,31 +2,35 @@
 
 import Link from "next/link";
 import { useActionState } from "react";
-import { signupAction, type MemberActionState } from "@/app/member-actions";
+import { signupAction, type AuthActionState } from "@/app/auth-actions";
 import { CheckboxField, FormMessage, SubmitButton, TextField } from "@/app/admin/_components/fields";
+import { ConfirmCodeStep, PasswordInput } from "@/app/login/login-form";
 
-const pw = "mt-1 w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm outline-none focus:border-ink";
-
-export function SignupForm({ next }: { next: string }) {
-  const [state, formAction, pending] = useActionState<MemberActionState, FormData>(signupAction, {});
+export function SignupForm({ next, kakao = false }: { next: string; kakao?: boolean }) {
+  const [state, formAction, pending] = useActionState<AuthActionState, FormData>(signupAction, {});
+  if (state.step === "confirm" && state.values?.email) return <ConfirmCodeStep email={state.values.email} next={next} notice={state.notice} />;
   return (
+    <>
+    {kakao && (
+      <div className="mt-6 space-y-4">
+        <a
+          href={`/api/auth/kakao?next=${encodeURIComponent(next)}`}
+          className="flex w-full items-center justify-center gap-2 rounded-full bg-[#FEE500] px-5 py-2.5 text-sm font-semibold text-[#191919] hover:opacity-90"
+        >
+          <span aria-hidden>💬</span> 카카오로 시작하기
+        </a>
+        <p className="text-center text-xs text-ink-faint">카카오는 회원번호와 (동의하면) 닉네임만 받습니다. 이메일·전화번호는 받지 않습니다.</p>
+        <div className="flex items-center gap-3 text-xs text-ink-faint">
+          <span className="h-px flex-1 bg-line" /> 또는 이메일로 가입 <span className="h-px flex-1 bg-line" />
+        </div>
+      </div>
+    )}
     <form action={formAction} className="mt-6 space-y-4">
       <input type="hidden" name="next" value={next} />
       <TextField name="email" label="이메일" type="text" required placeholder="you@example.com" defaultValue={state.values?.email} hint="로그인과 계정 안내에만 쓰고 공개하지 않습니다." />
       <TextField name="displayName" label="닉네임" required placeholder="2~20자" defaultValue={state.values?.displayName} hint="글과 댓글에 공개되는 이름입니다. 실명을 쓸 필요는 없습니다." />
-      <div>
-        <label className="block text-sm font-medium text-ink" htmlFor="password">
-          비밀번호 <span className="text-accent">*</span>
-        </label>
-        <input id="password" name="password" type="password" required minLength={8} autoComplete="new-password" className={pw} />
-        <p className="mt-1 text-xs text-ink-faint">8자 이상. 다른 사이트와 같은 비밀번호는 피하세요.</p>
-      </div>
-      <div>
-        <label className="block text-sm font-medium text-ink" htmlFor="passwordConfirm">
-          비밀번호 확인 <span className="text-accent">*</span>
-        </label>
-        <input id="passwordConfirm" name="passwordConfirm" type="password" required minLength={8} autoComplete="new-password" className={pw} />
-      </div>
+      <PasswordInput name="password" label="비밀번호" autoComplete="new-password" hint="8자 이상, 숫자 1개 이상. 다른 사이트와 같은 비밀번호는 피하세요." />
+      <PasswordInput name="passwordConfirm" label="비밀번호 확인" autoComplete="new-password" />
       <div className="rounded-lg border border-line bg-sand px-4 py-3 text-xs leading-relaxed text-ink-soft">
         <p className="font-semibold text-ink">글·댓글 안내</p>
         <ul className="mt-1 list-disc space-y-0.5 pl-4">
@@ -37,7 +41,7 @@ export function SignupForm({ next }: { next: string }) {
       </div>
       <CheckboxField name="agree" label="위 안내를 확인했고, 이메일·닉네임을 위 용도로 쓰는 데 동의합니다." defaultChecked={state.values?.agree === "on"} />
       <FormMessage error={state.error} />
-      <SubmitButton pending={pending} label="가입하기" pendingLabel="가입 중..." />
+      <SubmitButton pending={pending} label="가입하고 확인 코드 받기" pendingLabel="가입 중..." />
       <p className="text-sm text-ink-soft">
         이미 계정이 있나요?{" "}
         <Link href={`/login?next=${encodeURIComponent(next)}`} className="font-medium text-sea underline">
@@ -45,5 +49,6 @@ export function SignupForm({ next }: { next: string }) {
         </Link>
       </p>
     </form>
+    </>
   );
 }

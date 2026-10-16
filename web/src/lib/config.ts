@@ -193,6 +193,34 @@ export function authSecret(): string | undefined {
   return getOptionalEnv("AUTH_SECRET");
 }
 
+// ---------- 회원 인증 — Cognito (sst.config.ts 가 배포 env 로 넣는다, 로컬은 dev 풀 값을 .env.local 에) ----------
+
+export interface CognitoConfig {
+  region: string;
+  userPoolId: string;
+  clientId: string;
+  clientSecret: string;
+  /** OAuth 엔드포인트 — https://<prefix>.auth.<region>.amazoncognito.com (카카오 연동) */
+  domainUrl?: string;
+  /** 카카오 OIDC 공급자 이름 — 비어 있으면 카카오 버튼을 숨긴다 */
+  kakaoProvider?: string;
+}
+
+export function cognitoConfig(): CognitoConfig | null {
+  const userPoolId = getOptionalEnv("COGNITO_USER_POOL_ID");
+  const clientId = getOptionalEnv("COGNITO_CLIENT_ID");
+  const clientSecret = getOptionalEnv("COGNITO_CLIENT_SECRET");
+  if (!userPoolId || !clientId || !clientSecret) return null;
+  return {
+    region: getOptionalEnv("COGNITO_REGION") ?? userPoolId.split("_")[0] ?? "ap-northeast-2",
+    userPoolId,
+    clientId,
+    clientSecret,
+    domainUrl: getOptionalEnv("COGNITO_DOMAIN_URL")?.replace(/\/$/, ""),
+    kakaoProvider: getOptionalEnv("COGNITO_KAKAO_PROVIDER"),
+  };
+}
+
 // ---------- 스토리지 (S3 전제 — 로컬은 MinIO) ----------
 
 export interface StorageConfig {

@@ -5,7 +5,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { memberLogoutAction } from "@/app/member-actions";
+import { memberLogoutAction } from "@/app/auth-actions";
 
 export interface MeResponse {
   member: { id: string; displayName: string } | null;
