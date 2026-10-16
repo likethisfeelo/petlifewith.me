@@ -358,7 +358,8 @@ export async function updateMemberPostAction(_prev: MemberActionState, formData:
   const db = getDb();
   const existing = (await db.select().from(guides).where(eq(guides.id, id)).limit(1))[0];
   if (!existing || existing.authorUserId !== member.id) return { error: "내 글이 아닙니다." };
-  if (existing.status !== "pending" && existing.status !== "published") return { error: "지금 상태에서는 수정할 수 없습니다. 문의해 주세요." };
+  // draft = 관리자가 반려한 글. 고치면 다시 승인 대기(또는 승인 대기를 끈 경우 바로 공개)로 올라간다
+  if (existing.status !== "pending" && existing.status !== "published" && existing.status !== "draft") return { error: "지금 상태에서는 수정할 수 없습니다. 문의해 주세요." };
 
   const { error, values, input } = await readPostInput(formData, member.id);
   if (error || !input) return { error: error ?? "입력을 확인해 주세요.", values };
@@ -367,7 +368,7 @@ export async function updateMemberPostAction(_prev: MemberActionState, formData:
   // 발행된 글을 고치면 다시 승인 대기로 — 승인된 내용이 조용히 바뀌지 않게. 승인 대기가 꺼져 있으면 그대로 공개 유지
   const wasPublished = existing.status === "published";
   const backToPending = requireApproval;
-  const nextStatus = backToPending ? "pending" : existing.status === "pending" ? "published" : existing.status;
+  const nextStatus = backToPending ? "pending" : existing.status === "pending" || existing.status === "draft" ? "published" : existing.status;
   await db
     .update(guides)
     .set({
@@ -403,7 +404,8 @@ export async function deleteMemberPostAction(formData: FormData): Promise<void> 
   if (!Number.isSafeInteger(id)) return;
   const db = getDb();
   const existing = (await db.select().from(guides).where(eq(guides.id, id)).limit(1))[0];
-  if (!existing || existing.authorUserId !== member.id || existing.status !== "pending") return;
+  // 승인 대기·반려(draft) 글만 본인이 지운다 — 공개된 글은 운영진 확인 없이 사라지지 않게
+  if (!existing || existing.authorUserId !== member.id || (existing.status !== "pending" && existing.status !== "draft")) return;
   await db.delete(guides).where(eq(guides.id, id));
   redirect("/me?deleted=1");
 }

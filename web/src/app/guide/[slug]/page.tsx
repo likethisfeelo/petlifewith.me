@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { AdminGuideBar } from "@/components/admin-guide-bar";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { ReactionButtons } from "@/components/reactions/reaction-buttons";
 import { TopicTagline } from "@/components/site-tagline";
@@ -92,6 +93,8 @@ export default async function GuidePage({ params }: Props) {
     <article className={sideTags ? "min-w-0 max-w-3xl" : "mx-auto max-w-3xl px-4 py-10"}>
       {/* 머리글·푸터 태그라인에 이 글의 토픽을 알린다 (놀이 → "즐거운 삶") */}
       <TopicTagline topic={topic.slug} />
+      {/* 관리자 세션일 때만 보인다 — 편집·보관·반려·삭제 */}
+      <AdminGuideBar guideId={guide.id} isMemberPost={isMemberPost} />
       <Breadcrumbs
         crumbs={[
           { name: "홈", path: "/" },
