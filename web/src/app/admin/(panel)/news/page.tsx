@@ -5,6 +5,8 @@ import { GUIDE_STATUS_LABEL, formatDate } from "@/lib/format";
 import { builtinTool, newsCategoryLabel } from "@/lib/tools";
 import { AdminPageHeader } from "../../_components/fields";
 import { insertStarterNewsAction } from "../../news-actions";
+import { getNewsBanners } from "@/lib/queries/settings";
+import { NewsBannersForm } from "./news-banners-form";
 
 const { newsPosts } = schema;
 
@@ -24,6 +26,7 @@ export default async function AdminNewsPage({ searchParams }: { searchParams: Pr
     })
     .from(newsPosts)
     .orderBy(desc(newsPosts.updatedAt));
+  const banners = await getNewsBanners();
   const slugs = new Set(rows.map((r) => r.slug));
   const missingStarter = !slugs.has("cctv-checklist") || !slugs.has("cctv-sign");
 
@@ -52,6 +55,8 @@ export default async function AdminNewsPage({ searchParams }: { searchParams: Pr
           </button>
         </form>
       )}
+
+      <NewsBannersForm banners={banners} />
 
       <div className="mt-4 overflow-x-auto rounded-xl border border-line bg-surface">
         <table className="w-full min-w-[640px] text-sm">
