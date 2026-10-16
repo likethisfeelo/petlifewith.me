@@ -11,6 +11,9 @@ import { getSession } from "@/lib/auth";
 import { isValidObjectKey } from "@/lib/assets";
 import { TOOL_HTML_MAX_BYTES, builtinTool, isNewsCategory } from "@/lib/tools";
 import { STARTER_NEWS } from "@/lib/tools/starter-news";
+import { NEWS_BANNER_SLOTS, isInternalPath, normalizeNewsBanners } from "@/lib/news-banners";
+import { saveNewsBanners } from "@/lib/queries/settings";
+import { isSafeHttpUrl } from "@/lib/links";
 
 const { newsPosts } = schema;
 
@@ -168,4 +171,29 @@ export async function insertStarterNewsAction(): Promise<void> {
   }
   revalidatePath("/admin/news");
   redirect("/admin/news?starter=1");
+}
+
+/** 뉴스 우측 배너 2칸 저장 */
+export async function saveNewsBannersAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  await requireDb();
+  const raw = [];
+  for (let i = 0; i < NEWS_BANNER_SLOTS; i++) {
+    const p = `banner${i}.`;
+    const href = str(formData, `${p}href`);
+    if (href && !isInternalPath(href) && !isSafeHttpUrl(href)) {
+      return { error: `배너 ${i + 1}: 링크는 /로 시작하는 사이트 주소나 http(s):// 주소만 쓸 수 있습니다.` };
+    }
+    const pcImageKey = nullable(formData, `${p}pcImageKey`);
+    const mobileImageKey = nullable(formData, `${p}mobileImageKey`);
+    if ((pcImageKey && !isValidObjectKey(pcImageKey)) || (mobileImageKey && !isValidObjectKey(mobileImageKey))) {
+      return { error: `배너 ${i + 1}: 이미지 키가 올바르지 않습니다.` };
+    }
+    const active = formData.get(`${p}active`) === "on";
+    if (active && !pcImageKey && !mobileImageKey) return { error: `배너 ${i + 1}: 켜려면 이미지를 하나 이상 올리세요.` };
+    raw.push({ active, pcImageKey, mobileImageKey, href: href || null, alt: str(formData, `${p}alt`), sponsored: formData.get(`${p}sponsored`) === "on" });
+  }
+  await saveNewsBanners(normalizeNewsBanners(raw));
+  revalidatePath("/news");
+  revalidatePath("/admin/news");
+  return { saved: true };
 }

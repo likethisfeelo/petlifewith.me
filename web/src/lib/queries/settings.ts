@@ -1,6 +1,7 @@
 // 사이트 설정 조회·저장 — site_settings(key, value jsonb). 기본값·정규화는 lib/settings.ts.
 import { eq } from "drizzle-orm";
 import { getDb, isDbConfigured, schema } from "../db";
+import { NEWS_BANNERS_KEY, normalizeNewsBanners, type NewsBanner } from "../news-banners";
 import { MEMBER_MEDIA_KEY, PROMO_PLANS_KEY, normalizeMemberMedia, normalizePromoPlans, type MemberMediaSettings, type PromoPlanSettings } from "../settings";
 
 const { siteSettings } = schema;
@@ -31,5 +32,20 @@ export async function savePromoPlanSettings(next: PromoPlanSettings): Promise<vo
   await getDb()
     .insert(siteSettings)
     .values({ key: PROMO_PLANS_KEY, value })
+    .onConflictDoUpdate({ target: siteSettings.key, set: { value, updatedAt: new Date() } });
+}
+
+// ---------- 뉴스 우측 배너 (news_banners) ----------
+export async function getNewsBanners(): Promise<NewsBanner[]> {
+  if (!isDbConfigured()) return normalizeNewsBanners(null);
+  const row = (await getDb().select({ value: siteSettings.value }).from(siteSettings).where(eq(siteSettings.key, NEWS_BANNERS_KEY)).limit(1))[0];
+  return normalizeNewsBanners(row?.value ?? null);
+}
+
+export async function saveNewsBanners(next: NewsBanner[]): Promise<void> {
+  const value = normalizeNewsBanners(next);
+  await getDb()
+    .insert(siteSettings)
+    .values({ key: NEWS_BANNERS_KEY, value })
     .onConflictDoUpdate({ target: siteSettings.key, set: { value, updatedAt: new Date() } });
 }
