@@ -65,6 +65,8 @@ export default async function SidoPage({ params }: Props) {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10">
+      <SpotRegisterBanner regionLabel={sidoName} />
+
       <Breadcrumbs
         crumbs={[
           { name: "홈", path: "/" },
@@ -135,7 +137,6 @@ export default async function SidoPage({ params }: Props) {
         </SpotDirectory>
       </div>
 
-      <SpotRegisterBanner regionLabel={sidoName} />
     </div>
   );
 }

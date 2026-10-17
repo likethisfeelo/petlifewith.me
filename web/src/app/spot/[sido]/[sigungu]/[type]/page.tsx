@@ -83,6 +83,8 @@ export default async function RegionTypePage({ params }: Props) {
     const realProviders = inArea.filter((p) => p.source !== "sample");
     return (
       <div className="mx-auto max-w-6xl px-4 py-10">
+        <SpotRegisterBanner regionLabel={`${region.sidoName} ${region.sigunguName}`} regionId={region.id} typeSlug={spotType.slug} typeName={person} care />
+
         <RememberRegion region={remember} />
         <Breadcrumbs
           crumbs={[
@@ -123,7 +125,6 @@ export default async function RegionTypePage({ params }: Props) {
           지역(시군구)만 표기합니다.
         </p>
 
-        <SpotRegisterBanner regionLabel={`${region.sidoName} ${region.sigunguName}`} regionId={region.id} typeSlug={spotType.slug} typeName={person} care />
 
         {realProviders.length > 0 && (
           <JsonLd
@@ -146,6 +147,11 @@ export default async function RegionTypePage({ params }: Props) {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10">
+      {/* 장묘·약국·B2B 유형은 광고·영업 유도를 붙이지 않는다 */}
+      {spotType.listed && spotType.monetizable && (
+        <SpotRegisterBanner regionLabel={`${region.sidoName} ${region.sigunguName}`} regionId={region.id} typeSlug={spotType.slug} typeName={spotType.name} />
+      )}
+
       <RememberRegion region={remember} />
       <Breadcrumbs
         crumbs={[
@@ -205,10 +211,6 @@ export default async function RegionTypePage({ params }: Props) {
         하며, 각 장소 페이지에 출처·기준일을 표기합니다.
       </p>
 
-      {/* 장묘·약국·B2B 유형은 광고·영업 유도를 붙이지 않는다 */}
-      {spotType.listed && spotType.monetizable && (
-        <SpotRegisterBanner regionLabel={`${region.sidoName} ${region.sigunguName}`} regionId={region.id} typeSlug={spotType.slug} typeName={spotType.name} />
-      )}
 
       {spots.length > 0 && (
         <JsonLd
