@@ -20,6 +20,7 @@ import {
 } from "@/lib/queries/spots";
 import { buildMeta, itemListLd, robotsMeta, shouldIndexRegionPage } from "@/lib/seo";
 import { idSlugPath } from "@/lib/format";
+import { SpotRegisterBanner } from "@/components/spot-register-banner";
 
 export const revalidate = 21600; // REVALIDATE.spotDirectory
 
@@ -153,6 +154,8 @@ export default async function SigunguPage({ params }: Props) {
         시설 정보는 행정안전부 지방행정 인허가데이터(공공데이터포털 data.go.kr)와 직접 확인을 바탕으로
         하며, 각 장소 페이지에 출처·기준일을 표기합니다.
       </p>
+
+      <SpotRegisterBanner regionLabel={`${region.sidoName} ${region.sigunguName}`} regionId={region.id} />
 
       {spots.length > 0 && (
         <JsonLd

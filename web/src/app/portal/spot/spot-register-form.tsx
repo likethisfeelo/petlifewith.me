@@ -2,12 +2,25 @@
 
 // 내 업체 등록 요청 폼 — spot_register. 운영자가 확인한 뒤 /admin/spots/new?from=<요청> 으로 스팟을 만든다.
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { RegionSelect, selectClass } from "@/components/requests/region-picker";
 import { Req, RequestForm, inputClass, labelClass } from "@/components/requests/request-form";
 import type { RegionOption, SpotTypeOption } from "@/lib/queries/requests";
 import { REQUEST_LIMITS } from "@/lib/requests";
 
 export function SpotRegisterForm({ types, regions }: { types: SpotTypeOption[]; regions: RegionOption[] }) {
+  // 지역 스팟 페이지의 등록 배너에서 오면 지역·업종을 미리 채운다 (?region=<id>&type=<slug>)
+  const [prefill, setPrefill] = useState<{ regionId: number | null; typeSlug: string }>({ regionId: null, typeSlug: "" });
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+    const id = Number(q.get("region"));
+    const type = q.get("type") ?? "";
+    setPrefill({
+      regionId: regions.some((r) => r.id === id) ? id : null,
+      typeSlug: types.some((t) => t.slug === type) ? type : "",
+    });
+  }, [regions, types]);
+
   return (
     <RequestForm
       kind="spot_register"
@@ -41,7 +54,14 @@ export function SpotRegisterForm({ types, regions }: { types: SpotTypeOption[]; 
                 <Req />
               </label>
               {/* key — React 19 가 액션 뒤 폼을 초기화할 때 select 는 처음 defaultValue 로 돌아가므로, 되돌려 받은 값으로 다시 마운트한다 */}
-              <select key={v.typeSlug ?? ""} id="typeSlug" name="typeSlug" required defaultValue={v.typeSlug ?? ""} className={`${selectClass} mt-1`}>
+              <select
+                key={`${v.typeSlug ?? ""}|${prefill.typeSlug}`}
+                id="typeSlug"
+                name="typeSlug"
+                required
+                defaultValue={v.typeSlug ?? prefill.typeSlug}
+                className={`${selectClass} mt-1`}
+              >
                 <option value="">선택하세요</option>
                 {types.map((t) => (
                   <option key={t.slug} value={t.slug}>
@@ -57,7 +77,13 @@ export function SpotRegisterForm({ types, regions }: { types: SpotTypeOption[]; 
               <Req />
             </span>
             <div className="mt-1">
-              <RegionSelect name="regionId" options={regions} defaultRegionId={v.regionId ? Number(v.regionId) : null} required />
+              <RegionSelect
+                key={`${v.regionId ?? ""}|${prefill.regionId ?? ""}`}
+                name="regionId"
+                options={regions}
+                defaultRegionId={v.regionId ? Number(v.regionId) : prefill.regionId}
+                required
+              />
             </div>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
