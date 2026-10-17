@@ -40,6 +40,9 @@ const SCALE: PetsegwonLevel[] = ["much_lower", "lower", "average", "higher", "mu
 const SCALE_FILL: Record<string, string> = { much_lower: "bg-sea", lower: "bg-sea/50", average: "bg-ink-soft", higher: "bg-accent/60", much_higher: "bg-accent" };
 const SCALE_SHORT: Record<string, string> = { much_lower: "많이 낮음", lower: "조금 낮음", average: "평균", higher: "조금 높음", much_higher: "많이 높음" };
 
+/** 시군구 칩 — 접힌 상태에서 보여 줄 수 */
+const SGG_PREVIEW = 9;
+
 const selectClass =
   "mt-1 block w-full rounded-xl border border-line bg-cream px-3.5 py-3 text-[15px] font-semibold text-ink focus:border-ink focus:outline-none disabled:opacity-50";
 
@@ -189,9 +192,10 @@ export function PetsegwonTool({ stats }: { stats: PetsegwonStats }) {
           {!hasSigungu && <span className="text-ink-faint"> 지금은 시·도 단위로 분석합니다 (시군구는 준비 중).</span>}
         </p>
 
-        <div className="mt-5 grid gap-3 sm:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+        <div className="mt-5 grid gap-3 sm:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] sm:items-end">
           <div className="text-xs font-medium text-ink-soft">
-            <span id="pet-region-label">지역{hasSigungu && <span className="font-normal text-ink-faint"> · 시군구 이름으로 검색</span>}</span>
+            <span id="pet-region-label">지역</span>
+            {hasSigungu && <span className="mt-0.5 block font-normal text-ink-faint">자세한 지역명을 검색하면 더 자세히 볼 수 있어요 (예: 영통구, 강남구, 동래구)</span>}
             <div className="mt-1">
               <RegionSearch
                 stats={stats}
@@ -220,7 +224,7 @@ export function PetsegwonTool({ stats }: { stats: PetsegwonStats }) {
         {sigungus.length > 0 && (
           <div className="mt-3">
             <p className="text-xs text-ink-faint">{sido} 시군구 {sigungus.length}곳 — 눌러서 바로 보기</p>
-            <div className={`mt-2 flex flex-wrap gap-1.5 overflow-hidden ${showAllSgg ? "" : "max-h-[4.6rem]"}`}>
+            <div className="mt-2 flex flex-wrap gap-1.5">
               <button
                 type="button"
                 onClick={() => setSigungu("")}
@@ -229,7 +233,8 @@ export function PetsegwonTool({ stats }: { stats: PetsegwonStats }) {
               >
                 {sido} 전체
               </button>
-              {sigungus.map((g) => (
+              {/* 접힌 상태에서는 앞쪽 몇 곳만 (고른 시군구는 늘 보이게) */}
+              {(showAllSgg ? sigungus : sigungus.filter((g, i) => i < SGG_PREVIEW || g.sigungu === region)).map((g) => (
                 <button
                   key={g.sigungu}
                   type="button"
@@ -241,9 +246,9 @@ export function PetsegwonTool({ stats }: { stats: PetsegwonStats }) {
                 </button>
               ))}
             </div>
-            {sigungus.length > 10 && (
-              <button type="button" onClick={() => setShowAllSgg((v) => !v)} className="mt-1.5 text-xs text-ink-soft underline hover:text-ink">
-                {showAllSgg ? "접기" : "모두 보기"}
+            {sigungus.length > SGG_PREVIEW && (
+              <button type="button" onClick={() => setShowAllSgg((v) => !v)} className="mt-2 text-xs text-ink-soft underline hover:text-ink">
+                {showAllSgg ? "접기" : `${sigungus.length - SGG_PREVIEW}곳 더 보기`}
               </button>
             )}
           </div>

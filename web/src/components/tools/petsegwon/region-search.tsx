@@ -46,7 +46,7 @@ export function RegionSearch({
         autoComplete="off"
         // 닫혀 있을 때는 고른 지역을, 열면 입력한 키워드를 보여 준다
         value={open ? text : value}
-        placeholder={hasSigungu ? "시군구 이름 입력 (예: 강남, 수원, 여수)" : "시·도 이름 입력"}
+        placeholder={hasSigungu ? "지역명 검색" : "시·도 이름 검색"}
         onFocus={() => {
           setText("");
           setActive(0);
