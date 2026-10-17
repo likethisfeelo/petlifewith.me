@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { slackRequestText, validateCarePartner, validatePromoSlot, validateRequester, validateSpotRegister } from "./requests";
+import { validateInfoRequest, slackRequestText, validateCarePartner, validatePromoSlot, validateRequester, validateSpotRegister } from "./requests";
 
 const base = { requesterName: "김사장", contact: "010-1234-5678", consent: "on" };
 
@@ -38,5 +38,26 @@ describe("슬랙 문구", () => {
   it("종류·요약·담당자·링크를 담고 내용은 한 줄로 자른다", () => {
     const text = slackRequestText({ id: 7, kind: "care_partner", requesterName: "지영", contact: "kakao:jy", summary: ["도그워커 · 산책하는 지영", "지역: 서울 마포구, 서대문구"], message: "아침\n\n산책", adminUrl: "https://x/admin/requests" });
     expect(text.split("\n")).toEqual(["📮 요청함 #7 · 돌봄 파트너 등록", "• 도그워커 · 산책하는 지영", "• 지역: 서울 마포구, 서대문구", "• 담당자: 지영 / kakao:jy", "• 내용: 아침 산책", "→ https://x/admin/requests"]);
+  });
+});
+
+describe("자료 요청 (이메일 또는 전화번호 하나)", () => {
+  it("둘 다 넣거나 둘 다 비우면 거부한다", () => {
+    expect(validateInfoRequest({ email: "a@b.co", phone: "010-1234-5678" }).ok).toBe(false);
+    expect(validateInfoRequest({}).ok).toBe(false);
+  });
+  it("이메일은 소문자로, 전화는 숫자만 남긴다", () => {
+    expect(validateInfoRequest({ email: " Me@Shop.KR ", topic: "CCTV", source: "/news/cctv-checklist" })).toEqual({
+      ok: true,
+      value: { contactType: "email", contact: "me@shop.kr", topic: "CCTV", source: "/news/cctv-checklist" },
+    });
+    const r = validateInfoRequest({ phone: "010 1234-5678" });
+    expect(r.ok && r.value.contact).toBe("01012345678");
+  });
+  it("형식이 틀리면 거부하고, 이상한 출처 경로는 버린다", () => {
+    expect(validateInfoRequest({ email: "nope" }).ok).toBe(false);
+    expect(validateInfoRequest({ phone: "12345" }).ok).toBe(false);
+    const r = validateInfoRequest({ email: "a@b.co", source: "https://evil.example" });
+    expect(r.ok && r.value.source).toBe("");
   });
 });

@@ -110,6 +110,14 @@ details.more ol{margin:6px 0 0;padding-left:20px;display:grid;gap:4px;color:var(
 .src strong{color:var(--ink)}
 .src ul{margin:0;padding-left:18px;display:grid;gap:4px}
 .foot-note{font-size:12px;color:var(--muted)}
+.member-note{font-size:13px;color:var(--accent);font-weight:500}
+.leadform{display:grid;gap:10px}
+.leadform input[type=email],.leadform input[type=tel]{border:1px solid var(--line);border-radius:4px;padding:10px 12px;background:var(--paper);color:var(--ink);font-size:15px;width:100%;max-width:420px}
+.leadform .agree{display:grid;grid-template-columns:20px 1fr;gap:6px;font-size:14px;cursor:pointer}
+.leadform .agree input{width:16px;height:16px;margin-top:3px;accent-color:var(--accent)}
+.leadform .btn{justify-self:start}
+.status.ok{color:var(--good);font-weight:500}
+.status.err{color:var(--bad)}
 </style>
 </head><body>
 
@@ -167,6 +175,7 @@ details.more ol{margin:6px 0 0;padding-left:20px;display:grid;gap:4px;color:var(
       <button class="btn" type="button" id="printChecklist" disabled>체크리스트 인쇄</button>
       <button class="btn ghost" type="button" id="dlChecklist" disabled>인쇄용 파일 저장</button>
     </div>
+    <p class="member-note" id="memberNote" hidden>체크리스트 인쇄 · 인쇄용 파일 저장은 회원가입 후 이용할 수 있습니다.</p>
     <div class="status" id="clStatus">STEP 1에서 업종을 고르면 그 업종의 체크리스트로 저장됩니다.</div>
   </section>
 
@@ -179,6 +188,22 @@ details.more ol{margin:6px 0 0;padding-left:20px;display:grid;gap:4px;color:var(
     </div>
     <p id="modeDesc" class="hint"></p>
     <ol class="flow" id="flow"></ol>
+  </section>
+
+  <section class="step" id="moreInfo" aria-labelledby="s5">
+    <h2 id="s5"><span class="no">더 알아보기</span>자세한 내용을 더 받고 싶어요</h2>
+    <p class="hint">영상 열람 요청 대응, 직원 동의서, 안내판 붙일 위치 등 우리 매장 상황에 맞는 자세한 안내를 보내 드립니다. 이메일과 전화번호 중 하나만 남겨 주세요.</p>
+    <div class="seg" role="group" aria-label="안내 받을 곳">
+      <button type="button" id="lead-email" aria-pressed="true">이메일</button>
+      <button type="button" id="lead-phone" aria-pressed="false">전화번호</button>
+    </div>
+    <form class="leadform" id="leadForm" novalidate>
+      <input id="leadInput" type="email" inputmode="email" autocomplete="email" placeholder="you@example.com" aria-label="이메일">
+      <label class="agree"><input type="checkbox" id="leadAgree"><span>안내를 받기 위해 연락처를 수집·이용하는 데 동의합니다.</span></label>
+      <p class="foot-note">수집 항목: 이메일 또는 전화번호 · 이용 목적: 요청하신 안내 발송 · 보관 기간: 안내를 마친 뒤 1년 (요청하시면 바로 삭제합니다)</p>
+      <button class="btn" type="submit" id="leadSubmit">안내 받기</button>
+      <div class="status" id="leadStatus" aria-live="polite"></div>
+    </form>
   </section>
 
   <section class="signcta">
@@ -383,8 +408,41 @@ function checklistHtml(){
     +'<p class="foot">펫라이프위드미 사장님 브리핑 · 확인일 2026-10-16 · 공개 자료 정리이며 법률·노무 자문이 아닙니다. 브라우저에서 열고 인쇄(Ctrl+P)하세요.</p></body></html>';
   return {html, filename:'CCTV_체크리스트_'+b.short.replace(/[^\w가-힣]/g,'')+'.html'};
 }
-$('#printChecklist').addEventListener('click',()=>{const r=checklistHtml(); if(!r||!out) return; out.print(r.html); $('#clStatus').textContent='인쇄 창을 열었습니다.'});
-$('#dlChecklist').addEventListener('click',()=>{const r=checklistHtml(); if(!r||!out) return; out.download(r.filename, r.html); $('#clStatus').textContent=r.filename+' 을(를) 저장했습니다. 브라우저에서 열고 인쇄하세요.'});
+$('#printChecklist').addEventListener('click',()=>{const r=checklistHtml(); if(!r||!out) return; out.print(r.html); if(out.member) $('#clStatus').textContent='인쇄 창을 열었습니다.'});
+$('#dlChecklist').addEventListener('click',()=>{const r=checklistHtml(); if(!r||!out) return; out.download(r.filename, r.html); if(out.member) $('#clStatus').textContent=r.filename+' 을(를) 저장했습니다. 브라우저에서 열고 인쇄하세요.'});
+
+/* 회원 여부 — 사이트가 알려 준다(window.petlife.member). 손님에게는 회원 전용 안내를 보인다 */
+function memberUi(){ if(!out) return; $('#memberNote').hidden = out.member!==false; }
+document.addEventListener('petlife:member', memberUi); memberUi();
+
+/* 자세한 안내 받기 — 이메일 또는 전화번호 하나. 사이트가 요청함에 저장하고 운영진에게 알린다 */
+let leadType='email';
+function leadMode(t){
+  leadType=t; const i=$('#leadInput');
+  $('#lead-email').setAttribute('aria-pressed', t==='email'); $('#lead-phone').setAttribute('aria-pressed', t==='phone');
+  i.value=''; i.type = t==='email'?'email':'tel'; i.inputMode = t==='email'?'email':'tel';
+  i.autocomplete = t==='email'?'email':'tel'; i.placeholder = t==='email'?'you@example.com':'010-1234-5678';
+  i.setAttribute('aria-label', t==='email'?'이메일':'전화번호');
+}
+$('#lead-email').addEventListener('click',()=>leadMode('email'));
+$('#lead-phone').addEventListener('click',()=>leadMode('phone'));
+$('#leadForm').addEventListener('submit',e=>{
+  e.preventDefault();
+  const st=$('#leadStatus'), v=$('#leadInput').value.trim(); st.className='status';
+  if(!v){ st.className='status err'; st.textContent = leadType==='email'?'이메일을 입력해 주세요.':'전화번호를 입력해 주세요.'; return; }
+  if(leadType==='email' && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v)){ st.className='status err'; st.textContent='이메일 형식을 확인해 주세요.'; return; }
+  if(leadType==='phone' && !/^[0-9\s-]{9,15}$/.test(v)){ st.className='status err'; st.textContent='전화번호 형식을 확인해 주세요 (예: 010-1234-5678).'; return; }
+  if(!$('#leadAgree').checked){ st.className='status err'; st.textContent='연락처 수집·이용에 동의해 주세요.'; return; }
+  if(!out || !out.requestInfo){ st.className='status err'; st.textContent='펫라이프위드미 사이트에서 열어야 보낼 수 있습니다.'; return; }
+  const s=sel(), b=s.biz?bizOf(s.biz):null;
+  const topic='CCTV 점검표'+(b?' · '+b.short:'')+' · 대응 방식: '+(mode==='strict'?'원칙형':'관계 유지형');
+  const btn=$('#leadSubmit'); btn.disabled=true; st.textContent='보내는 중...';
+  out.requestInfo(leadType==='email'?{email:v,topic}:{phone:v,topic}).then(r=>{
+    btn.disabled=false;
+    if(r.ok){ st.className='status ok'; st.textContent='접수했습니다. 남겨 주신 '+(leadType==='email'?'이메일':'번호')+'로 안내를 보내 드릴게요.'; $('#leadInput').value=''; $('#leadAgree').checked=false; }
+    else { st.className='status err'; st.textContent=r.error||'보내지 못했습니다. 잠시 후 다시 시도해 주세요.'; }
+  });
+});
 })();
 </script>
 

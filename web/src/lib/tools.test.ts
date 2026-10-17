@@ -36,6 +36,8 @@ describe("HTML 도구 브리지", () => {
     expect(parseToolMessage({ tag: TOOL_BRIDGE_TAG, type: "storage", data: { a: "1", b: 2 } })).toEqual({ type: "storage", data: { a: "1" } });
     expect(parseToolMessage({ tag: TOOL_BRIDGE_TAG, type: "download", filename: "../../a/b.html", data: "x" })).toEqual({ type: "download", filename: "....ab.html", data: "x" });
     expect(parseToolMessage({ tag: TOOL_BRIDGE_TAG, type: "eval", code: "x" })).toBeNull();
+    expect(parseToolMessage({ tag: TOOL_BRIDGE_TAG, type: "info_request", id: 3, email: "a@b.co", phone: 5, topic: "t" })).toEqual({ type: "info_request", id: 3, email: "a@b.co", phone: "", topic: "t" });
+    expect(parseToolMessage({ tag: TOOL_BRIDGE_TAG, type: "info_request", id: "x" })).toBeNull();
   });
 
   it("파일 이름에서 경로·제어 문자를 지운다", () => {

@@ -1,8 +1,9 @@
 "use client";
 
-// CCTV 안내판 만들기 — 회원 전용 내장 도구 (뉴스 글 /news/cctv-sign 에 붙는다)
-//  - 손님: 예시 안내판과 로그인 안내만
-//  - 회원: 템플릿·매장 정보·로고·방향 → PNG 저장, A4 인쇄, 문구 복사, 저장·불러오기(tool_saves)
+// CCTV 안내판 만들기 — 내장 도구 (뉴스 글 /news/cctv-sign 에 붙는다)
+//  - 누구나: 템플릿·매장 정보·방향을 넣어 미리보기까지 (둘러보기)
+//  - 회원만: 로고, PNG 저장, A4 인쇄, 문구 복사, 저장·불러오기(tool_saves) — 손님이 누르면 가입 안내 팝업
+//    입력값은 이 브라우저에 임시로 남으므로 가입·로그인하고 돌아와도 이어서 쓸 수 있다
 // 입력 중인 값은 이 브라우저에 임시로 남는다(저장 전 새로고침 대비). 저장하면 계정에 남는다.
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -11,9 +12,9 @@ import { track } from "@/components/tracker";
 import { deleteToolSaveAction, listToolSavesAction, loadToolSaveAction, saveToolAction, type ToolSaveSummary } from "@/app/tool-actions";
 import { LOGO_MAX_CHARS, parseSignData, type SignData } from "@/lib/tools/sign-data";
 import { downloadData, printHtml } from "../html-tool-frame";
+import { MembersOnlyPrompt } from "../members-only-prompt";
 import {
   EMPTY_FIELDS,
-  EXAMPLE_FIELDS,
   NO_RECORDING,
   REQUIRED,
   SIGN_FONT_CSS,
@@ -131,49 +132,10 @@ export function CctvSignTool() {
   const { loading, member } = useCurrentMember();
   const fontsReady = useSignFonts();
   if (loading) return <div className="h-[520px] animate-pulse rounded-2xl bg-sand/60" aria-busy="true" />;
-  if (!member) return <GuestPreview fontsReady={fontsReady} />;
-  return <SignEditor fontsReady={fontsReady} />;
+  return <SignEditor fontsReady={fontsReady} member={Boolean(member)} />;
 }
 
-function GuestPreview({ fontsReady }: { fontsReady: number }) {
-  const ref = useRef<HTMLCanvasElement>(null);
-  const [tpl, setTpl] = useState<SignTemplate>("cute");
-  useEffect(() => {
-    if (ref.current) paintSign(ref.current, tpl, "port", EXAMPLE_FIELDS, null);
-  }, [tpl, fontsReady]);
-  return (
-    <div className="grid gap-6 rounded-2xl border border-line bg-surface p-5 sm:grid-cols-[1fr_16rem] sm:p-6">
-      <div className="order-2 sm:order-1">
-        <h2 className="text-lg font-bold text-ink">CCTV 안내판 만들기 · 회원 전용</h2>
-        <p className="mt-2 text-sm leading-relaxed text-ink-soft">
-          로그인하면 매장 정보를 넣어 안내판을 만들고, 로고를 넣고, PNG로 받거나 A4로 바로 인쇄할 수 있습니다. 만든 안내판은 저장해 두었다가 다시
-          고칠 수 있습니다. 가입은 무료입니다.
-        </p>
-        <div className="mt-4 flex flex-wrap gap-2">
-          {(Object.keys(TEMPLATES) as SignTemplate[]).map((k) => (
-            <button key={k} type="button" onClick={() => setTpl(k)} aria-pressed={tpl === k} className={tpl === k ? btnSolid : btnGhost}>
-              {TEMPLATES[k].label}
-            </button>
-          ))}
-        </div>
-        <div className="mt-5 flex flex-wrap gap-2">
-          <Link href="/login?next=%2Fnews%2Fcctv-sign" className={btnSolid}>
-            로그인하고 만들기
-          </Link>
-          <Link href="/signup?next=%2Fnews%2Fcctv-sign" className={btnGhost}>
-            회원가입
-          </Link>
-        </div>
-      </div>
-      <div className="order-1 sm:order-2">
-        <canvas ref={ref} className="h-auto w-full rounded-md shadow-md" role="img" aria-label="CCTV 안내판 예시" />
-        <p className="mt-2 text-center text-xs text-ink-faint">예시 안내판</p>
-      </div>
-    </div>
-  );
-}
-
-function SignEditor({ fontsReady }: { fontsReady: number }) {
+function SignEditor({ fontsReady, member }: { fontsReady: number; member: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const thumbRefs = useRef<Partial<Record<SignTemplate, HTMLCanvasElement | null>>>({});
   const [tpl, setTpl] = useState<SignTemplate>("cute");
@@ -187,6 +149,13 @@ function SignEditor({ fontsReady }: { fontsReady: number }) {
   const [title, setTitle] = useState("");
   const [busy, setBusy] = useState(false);
   const [restored, setRestored] = useState(false);
+  const [prompt, setPrompt] = useState<string | null>(null);
+  /** 회원 전용 기능 — 손님이면 가입 안내 팝업을 띄우고 false */
+  const membersOnly = (feature: string): boolean => {
+    if (member) return true;
+    setPrompt(feature);
+    return false;
+  };
 
   // 처음: 임시 저장본 → 저장 목록
   useEffect(() => {
@@ -198,8 +167,8 @@ function SignEditor({ fontsReady }: { fontsReady: number }) {
       setLogo(d.logo);
     }
     setRestored(true);
-    void listToolSavesAction(TOOL_KEY).then((r) => r.ok && setSaves(r.value));
-  }, []);
+    if (member) void listToolSavesAction(TOOL_KEY).then((r) => r.ok && setSaves(r.value));
+  }, [member]);
 
   useEffect(() => {
     let alive = true;
@@ -260,6 +229,7 @@ function SignEditor({ fontsReady }: { fontsReady: number }) {
   };
 
   const downloadPng = () => {
+    if (!membersOnly("이미지(PNG) 저장")) return;
     const c = canvasRef.current;
     if (!c) return;
     c.toBlob((b) => {
@@ -271,6 +241,7 @@ function SignEditor({ fontsReady }: { fontsReady: number }) {
   };
 
   const printA4 = () => {
+    if (!membersOnly("A4 인쇄")) return;
     const c = canvasRef.current;
     if (!c) return;
     const land = orient === "land";
@@ -283,6 +254,7 @@ function SignEditor({ fontsReady }: { fontsReady: number }) {
   };
 
   const copyText = () => {
+    if (!membersOnly("문구 복사")) return;
     navigator.clipboard
       .writeText(signText(fields))
       .then(() => setStatus("문구를 복사했습니다."))
@@ -294,6 +266,7 @@ function SignEditor({ fontsReady }: { fontsReady: number }) {
   }, []);
 
   const save = async (asNew: boolean) => {
+    if (!membersOnly("안내판 저장")) return;
     setBusy(true);
     const r = await saveToolAction(TOOL_KEY, { id: asNew ? null : savedId, title: title || fields.name || "내 안내판", data });
     setBusy(false);
@@ -338,6 +311,18 @@ function SignEditor({ fontsReady }: { fontsReady: number }) {
   const [W, H] = signDims(orient);
 
   return (
+    <>
+    {prompt && <MembersOnlyPrompt feature={prompt} onClose={() => setPrompt(null)} />}
+    {!member && (
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-sea/30 bg-sea-soft px-4 py-3 text-sm text-ink">
+        <span>
+          <strong>둘러보기 중</strong> — 미리보기까지는 누구나 쓸 수 있어요. 로고·이미지 저장·인쇄·저장은 회원가입 후 이용할 수 있습니다.
+        </span>
+        <Link href="/signup?next=%2Fnews%2Fcctv-sign" className="rounded-full bg-ink px-4 py-1.5 text-xs font-semibold text-cream hover:opacity-90">
+          무료 회원가입
+        </Link>
+      </div>
+    )}
     <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,26rem)_minmax(0,1fr)]">
       <div className="grid gap-4">
         <Box no="01" title="템플릿">
@@ -392,10 +377,16 @@ function SignEditor({ fontsReady }: { fontsReady: number }) {
               // eslint-disable-next-line @next/next/no-img-element
               <img src={logo} alt="넣은 로고" className="h-12 max-w-[8rem] rounded border border-line bg-white object-contain p-1" />
             )}
-            <label className={`${btnGhost} cursor-pointer`}>
-              {logo ? "로고 바꾸기" : "로고 넣기"}
-              <input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" className="sr-only" onChange={(e) => void onLogo(e.target.files?.[0])} />
-            </label>
+            {member ? (
+              <label className={`${btnGhost} cursor-pointer`}>
+                {logo ? "로고 바꾸기" : "로고 넣기"}
+                <input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" className="sr-only" onChange={(e) => void onLogo(e.target.files?.[0])} />
+              </label>
+            ) : (
+              <button type="button" onClick={() => membersOnly("로고 넣기")} className={btnGhost}>
+                로고 넣기 <span className="ml-1 text-xs text-ink-faint">회원</span>
+              </button>
+            )}
             {logo && (
               <button type="button" onClick={() => setLogo(null)} className="text-sm text-ink-soft hover:underline">
                 빼기
@@ -465,7 +456,9 @@ function SignEditor({ fontsReady }: { fontsReady: number }) {
               </button>
             )}
           </div>
-          {saves.length === 0 ? (
+          {!member ? (
+            <p className="text-xs text-ink-faint">로그인하면 만든 안내판을 매장별·위치별로 저장해 두고 다시 불러올 수 있어요.</p>
+          ) : saves.length === 0 ? (
             <p className="text-xs text-ink-faint">저장한 안내판이 없습니다. 매장별·위치별로 여러 개 저장할 수 있습니다(최대 20개).</p>
           ) : (
             <ul className="divide-y divide-line text-sm">
@@ -495,6 +488,7 @@ function SignEditor({ fontsReady }: { fontsReady: number }) {
         </p>
       </div>
     </div>
+    </>
   );
 }
 

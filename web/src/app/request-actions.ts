@@ -4,13 +4,12 @@
 // 흐름은 하나뿐이다: 저장(service_requests) → 슬랙 알림 → 운영자가 /admin/requests 에서 처리.
 // 신청자 이름·연락처·사업자번호는 관리자 화면·슬랙에만 간다 (claude.md 5-6). 원 IP 는 저장하지 않고
 // 해시로 시간당 제한만 건다. 결제는 수동 — 운영자가 안내하고 입금을 확인한 뒤 노출을 켠다.
-import { createHash } from "node:crypto";
-import { headers } from "next/headers";
 import { and, eq, gt, sql } from "drizzle-orm";
 import { CARE_TYPE_SLUGS, carePersonLabel } from "@app/data";
 import { getDb, isDbConfigured, schema } from "@/lib/db";
-import { authSecret, siteUrl, slackRequestsWebhookUrl } from "@/lib/config";
+import { siteUrl, slackRequestsWebhookUrl } from "@/lib/config";
 import { idSlugPath } from "@/lib/format";
+import { requesterHash } from "@/lib/requester-hash";
 import { getCurrentMember } from "@/lib/member";
 import {
   PROMO_PLAN_LABEL,
@@ -37,12 +36,6 @@ export interface RequestActionState {
   values?: Record<string, string>;
 }
 
-async function requesterHash(): Promise<string> {
-  const h = await headers();
-  const forwarded = h.get("x-forwarded-for") ?? "";
-  const ip = forwarded.split(",")[0]?.trim() || h.get("x-real-ip") || "unknown";
-  return createHash("sha256").update(`${ip}|${authSecret() ?? ""}`).digest("hex").slice(0, 32);
-}
 
 function echo(raw: Record<string, unknown>): Record<string, string> {
   const values: Record<string, string> = {};

@@ -4,13 +4,16 @@ import { notFound } from "next/navigation";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { InstagramEmbedScript } from "@/components/instagram-script";
 import { JsonLd } from "@/components/jsonld";
+import { NewsBanners } from "@/components/news-banners";
 import { BuiltinToolView } from "@/components/tools/builtin-tool";
 import { HtmlToolFrame } from "@/components/tools/html-tool-frame";
 import { TrackContext } from "@/components/tracker";
 import { assetUrl } from "@/lib/assets";
 import { formatDate } from "@/lib/format";
 import { renderMarkdown } from "@/lib/markdown";
+import { visibleNewsBanners } from "@/lib/news-banners";
 import { getPublishedNews } from "@/lib/queries/news";
+import { getNewsBanners } from "@/lib/queries/settings";
 import { articleLd, buildMeta, robotsMeta } from "@/lib/seo";
 import { builtinTool, newsCategoryLabel } from "@/lib/tools";
 
@@ -42,15 +45,18 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function NewsPostPage({ params }: Props) {
   const { slug } = await params;
-  const post = await getPublishedNews(decodeURIComponent(slug));
+  const [post, allBanners] = await Promise.all([getPublishedNews(decodeURIComponent(slug)), getNewsBanners()]);
   if (!post) notFound();
+  const banners = visibleNewsBanners(allBanners);
 
   const body = post.bodyMd ? renderMarkdown(post.bodyMd) : null;
   const hero = assetUrl(post.heroImageKey);
   const tool = builtinTool(post.toolKey);
 
   return (
-    <article className="mx-auto max-w-3xl px-4 py-10">
+    // 뉴스 목록과 같은 틀 — 헤더 폭(max-w-6xl)에서 왼쪽 정렬, 오른쪽은 이미지 배너 (모바일은 본문 아래)
+    <div className={`mx-auto grid max-w-6xl gap-10 px-4 py-10 ${banners.length ? "lg:grid-cols-[minmax(0,1fr)_17.5rem]" : ""}`}>
+    <article className="min-w-0">
       <TrackContext entity_type="news" entity_id={post.slug} category={post.category} />
       <Breadcrumbs
         crumbs={[
@@ -60,7 +66,7 @@ export default async function NewsPostPage({ params }: Props) {
         ]}
       />
 
-      <header className="mt-6">
+      <header className="mt-6 max-w-3xl">
         <span className="rounded-full bg-sand px-2.5 py-1 text-xs font-medium text-ink-soft">{newsCategoryLabel(post.category)}</span>
         <h1 className="mt-3 text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">{post.title}</h1>
         <p className="mt-2 text-xs text-ink-faint">
@@ -72,10 +78,10 @@ export default async function NewsPostPage({ params }: Props) {
 
       {hero && (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={hero} alt={post.title} className="mt-6 w-full rounded-2xl bg-sand" loading="eager" decoding="async" />
+        <img src={hero} alt={post.title} className="mt-6 w-full max-w-3xl rounded-2xl bg-sand" loading="eager" decoding="async" />
       )}
 
-      {body && <div className="guide-prose prose prose-neutral mt-8 max-w-none" dangerouslySetInnerHTML={{ __html: body.html }} />}
+      {body && <div className="guide-prose prose prose-neutral mt-8 max-w-3xl" dangerouslySetInnerHTML={{ __html: body.html }} />}
 
       {tool && (
         <section className="mt-10" aria-label={tool.label}>
@@ -83,8 +89,8 @@ export default async function NewsPostPage({ params }: Props) {
         </section>
       )}
       {!tool && post.toolHtml && (
-        // 업로드 HTML 은 본문 폭보다 넓게 — 도구 자체가 레이아웃을 갖고 있다
-        <section className="relative left-1/2 mt-10 w-screen max-w-6xl -translate-x-1/2 px-0 sm:px-4" aria-label="도구">
+        // 업로드 HTML 은 왼쪽 칸 전체 폭 — 도구 자체가 레이아웃을 갖고 있다
+        <section className="-mx-4 mt-10 sm:mx-0" aria-label="도구">
           <HtmlToolFrame html={post.toolHtml} title={post.title} storageKey={post.slug} minHeight={post.toolHeight ?? 900} />
         </section>
       )}
@@ -107,5 +113,12 @@ export default async function NewsPostPage({ params }: Props) {
       />
       {body?.hasInstagramEmbed && <InstagramEmbedScript />}
     </article>
+
+    {banners.length > 0 && (
+      <aside aria-label="배너" className="lg:self-start">
+        <NewsBanners banners={banners} />
+      </aside>
+    )}
+    </div>
   );
 }
