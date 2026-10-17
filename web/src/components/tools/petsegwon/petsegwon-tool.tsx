@@ -40,8 +40,9 @@ const SCALE: PetsegwonLevel[] = ["much_lower", "lower", "average", "higher", "mu
 const SCALE_FILL: Record<string, string> = { much_lower: "bg-sea", lower: "bg-sea/50", average: "bg-ink-soft", higher: "bg-accent/60", much_higher: "bg-accent" };
 const SCALE_SHORT: Record<string, string> = { much_lower: "많이 낮음", lower: "조금 낮음", average: "평균", higher: "조금 높음", much_higher: "많이 높음" };
 
-/** 시군구 칩 — 접힌 상태에서 보여 줄 수 */
+/** 시군구 칩 — 접힌 상태에서 보여 줄 수 (모바일은 2~3줄 안에 들도록 더 적게) */
 const SGG_PREVIEW = 9;
+const SGG_PREVIEW_MOBILE = 6;
 
 const selectClass =
   "mt-1 block w-full rounded-xl border border-line bg-cream px-3.5 py-3 text-[15px] font-semibold text-ink focus:border-ink focus:outline-none disabled:opacity-50";
@@ -51,6 +52,26 @@ function LevelBadge({ level, size = "sm" }: { level: PetsegwonLevel; size?: "sm"
     <span className={`inline-block whitespace-nowrap rounded-full font-bold ${size === "md" ? "px-3 py-1.5 text-sm" : "px-2.5 py-1 text-xs"} ${LEVEL_TONE[level]}`}>
       {LEVEL_LABEL[level]}
     </span>
+  );
+}
+
+/** 해석 박스 왼쪽 띠 */
+const LEVEL_EDGE: Record<PetsegwonLevel, string> = {
+  much_higher: "border-l-accent",
+  higher: "border-l-accent/60",
+  average: "border-l-ink-soft",
+  lower: "border-l-sea/50",
+  much_lower: "border-l-sea",
+  small_sample: "border-l-line",
+  none: "border-l-line",
+};
+
+function Stat({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
+  return (
+    <div className="rounded-lg bg-cream px-3 py-2.5">
+      <dt className="truncate text-[11px] text-ink-faint">{label}</dt>
+      <dd className={`mt-0.5 text-sm tabular-nums ${strong ? "font-extrabold text-ink" : "font-semibold text-ink-soft"}`}>{value}</dd>
+    </div>
   );
 }
 
@@ -78,13 +99,6 @@ function Bar({ name, value, max, strong }: { name: string; value: number | null;
       <span className={`text-right tabular-nums ${strong ? "font-bold text-ink" : "text-ink-soft"}`}>{fmtCount(value)}마리</span>
     </div>
   );
-}
-
-/** "3번째로 많아요" / 뒤쪽이면 "적은 쪽에서 2번째예요" */
-function rankPhrase(rank: number, total: number): string {
-  if (rank === 1) return "가장 많아요";
-  if (rank === total) return "가장 적어요";
-  return rank <= Math.ceil(total / 2) ? `${rank}번째로 많아요` : `적은 쪽에서 ${total - rank + 1}번째예요`;
 }
 
 function readQuery(stats: PetsegwonStats, industries: string[]): { sido?: string; sigungu?: string; ind?: string } {
@@ -229,26 +243,40 @@ export function PetsegwonTool({ stats }: { stats: PetsegwonStats }) {
                 type="button"
                 onClick={() => setSigungu("")}
                 aria-pressed={!region}
-                className={`rounded-full border px-3 py-1 text-xs ${!region ? "border-ink bg-ink font-semibold text-cream" : "border-line bg-cream text-ink-soft hover:bg-sand"}`}
+                className={`max-w-full truncate whitespace-nowrap rounded-full border px-3 py-1.5 text-xs ${!region ? "border-ink bg-ink font-semibold text-cream" : "border-line bg-cream text-ink-soft hover:bg-sand"}`}
               >
                 {sido} 전체
               </button>
               {/* 접힌 상태에서는 앞쪽 몇 곳만 (고른 시군구는 늘 보이게) */}
-              {(showAllSgg ? sigungus : sigungus.filter((g, i) => i < SGG_PREVIEW || g.sigungu === region)).map((g) => (
+              {(showAllSgg ? sigungus : sigungus.filter((g, i) => i < SGG_PREVIEW || g.sigungu === region)).map((g, i) => (
                 <button
                   key={g.sigungu}
                   type="button"
                   onClick={() => setSigungu(g.sigungu)}
                   aria-pressed={region === g.sigungu}
-                  className={`rounded-full border px-3 py-1 text-xs ${region === g.sigungu ? "border-ink bg-ink font-semibold text-cream" : "border-line bg-cream text-ink hover:bg-sand"}`}
+                  className={`max-w-full truncate whitespace-nowrap rounded-full border px-3 py-1.5 text-xs ${
+                    // 접힌 상태의 모바일에서는 앞쪽 몇 곳만 (고른 시군구는 늘 보이게)
+                    !showAllSgg && i >= SGG_PREVIEW_MOBILE && g.sigungu !== region ? "hidden sm:inline-block" : ""
+                  } ${region === g.sigungu ? "border-ink bg-ink font-semibold text-cream" : "border-line bg-cream text-ink hover:bg-sand"}`}
                 >
                   {g.sigungu}
                 </button>
               ))}
             </div>
-            {sigungus.length > SGG_PREVIEW && (
-              <button type="button" onClick={() => setShowAllSgg((v) => !v)} className="mt-2 text-xs text-ink-soft underline hover:text-ink">
-                {showAllSgg ? "접기" : `${sigungus.length - SGG_PREVIEW}곳 더 보기`}
+            {sigungus.length > SGG_PREVIEW_MOBILE && (
+              <button
+                type="button"
+                onClick={() => setShowAllSgg((v) => !v)}
+                className={`mt-2 text-xs text-ink-soft underline hover:text-ink ${sigungus.length > SGG_PREVIEW ? "" : "sm:hidden"}`}
+              >
+                {showAllSgg ? (
+                  "접기"
+                ) : (
+                  <>
+                    <span className="sm:hidden">{sigungus.length - SGG_PREVIEW_MOBILE}곳 더 보기</span>
+                    <span className="hidden sm:inline">{sigungus.length - SGG_PREVIEW}곳 더 보기</span>
+                  </>
+                )}
               </button>
             )}
           </div>
@@ -281,25 +309,30 @@ export function PetsegwonTool({ stats }: { stats: PetsegwonStats }) {
                 <Bar name="전국 평균" value={result.nationalAvg} max={barMax} />
               </div>
 
-              {/* 해석 — 5단계 눈금 + 쉬운 문장 */}
-              <div className="mt-6 rounded-xl border border-line bg-surface p-4 sm:p-5">
+              {/* 해석 — 5단계 눈금 + 한 줄 요약 + 수치 + 풀이. 왼쪽 띠 색은 판정 단계 */}
+              <div className={`mt-6 rounded-xl border border-l-4 border-line bg-surface p-4 sm:p-5 ${LEVEL_EDGE[level]}`}>
                 <p className="text-xs font-semibold text-ink-soft">{result.compareName}과 비교하면</p>
                 <div className="mt-2.5">
                   <LevelScale level={level} />
                 </div>
-                <p className="mt-4 text-[15px] font-bold leading-relaxed text-ink">{explain.title}</p>
-                <p className="mt-1.5 text-sm leading-relaxed text-ink-soft">
-                  {selectedName} {indName}장 1곳당 약 <strong className="text-ink">{fmtCount(result.perShop)}마리</strong>, {result.compareName}은{" "}
-                  {fmtCount(result.compareAvg)}마리예요
-                  {result.pctOfCompare != null && ` (평균의 ${Math.round(result.pctOfCompare)}%)`}.
-                  {result.rank && result.rankTotal && (
-                    <>
-                      {" "}
-                      {result.rankScope} {result.rankTotal}곳 중 {rankPhrase(result.rank, result.rankTotal)}.
-                    </>
-                  )}
-                </p>
-                {explain.detail && <p className="mt-2 text-sm leading-relaxed text-ink-soft">{explain.detail}</p>}
+                <p className="mt-4 text-base font-bold leading-snug text-ink sm:text-[17px]">{explain.title}</p>
+
+                <dl className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  <Stat label={`${selectedName} 1곳당`} value={`${fmtCount(result.perShop)}마리`} strong />
+                  <Stat label={result.compareName} value={`${fmtCount(result.compareAvg)}마리`} />
+                  <Stat label="평균 대비" value={result.pctOfCompare != null ? `${Math.round(result.pctOfCompare)}%` : "-"} />
+                  <Stat
+                    label={`${result.rankScope === "전국 시도" ? "전국" : result.rankScope} 순위`}
+                    value={result.rank && result.rankTotal ? `${result.rank}위 / ${result.rankTotal}곳` : "-"}
+                  />
+                </dl>
+
+                {explain.detail && (
+                  <div className="mt-4 border-t border-line pt-3.5">
+                    <p className="text-xs font-semibold text-ink-soft">이렇게 볼 수 있어요</p>
+                    <p className="mt-1 text-sm leading-relaxed text-ink">{explain.detail}</p>
+                  </div>
+                )}
               </div>
               <p className="mt-2 text-xs leading-relaxed text-ink-faint">
                 등록견 수 기준의 공급 비교 지표입니다. 실제 수요나 창업 수익성을 뜻하지는 않습니다. · 등록 반려견 {fmtCount(result.dogs)}마리 · 영업 중 업장{" "}
