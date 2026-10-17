@@ -25,10 +25,10 @@ describe("baselineStats", () => {
 
 describe("labelFor", () => {
   it("기준", () => {
-    expect(labelFor(120, 10)).toBe("공급 부족 후보");
-    expect(labelFor(119.9, 10)).toBe("평균권");
-    expect(labelFor(80, 10)).toBe("평균권");
-    expect(labelFor(79.9, 10)).toBe("밀집 지역");
+    expect(labelFor(120, 10)).toBe("업장 대비 등록견 많음");
+    expect(labelFor(119.9, 10)).toBe("평균 수준");
+    expect(labelFor(80, 10)).toBe("평균 수준");
+    expect(labelFor(79.9, 10)).toBe("업장 대비 등록견 적음");
     expect(labelFor(150, 2)).toBe("표본 적음");
     expect(labelFor(null, 5)).toBe("업장 없음");
   });
@@ -39,7 +39,7 @@ describe("regionResult (시도)", () => {
     const r = regionResult(baselineStats(), "서울", null, "grooming")!;
     expect(r.compareName).toBe("전국 평균");
     expect(r.pctOfCompare).toBeCloseTo((357.2 / 332.4) * 100, 0);
-    expect(r.label).toBe("평균권");
+    expect(r.label).toBe("평균 수준");
   });
 });
 
@@ -71,7 +71,7 @@ describe("normalizeStats", () => {
     const res = regionResult(r.value, "서울", "강남구", "grooming")!;
     expect(res.compareName).toBe("서울 평균");
     expect(res.rank).toBe(20);
-    expect(res.label).toBe("평균권");
+    expect(res.label).toBe("평균 수준");
   });
   it("모양이 다르면 거절", () => {
     expect(normalizeStats(null).ok).toBe(false);
