@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { baselineStats, industryList, labelFor, normalizeStats, regionResult } from "./stats";
+import { baselineStats, industryList, labelFor, normalizeStats, regionResult, searchRegions } from "./stats";
 
 describe("baselineStats", () => {
   const s = baselineStats();
@@ -77,5 +77,40 @@ describe("normalizeStats", () => {
     expect(normalizeStats(null).ok).toBe(false);
     expect(normalizeStats({ meta: {}, sigungu: [] }).ok).toBe(false);
     expect(normalizeStats({ meta: {}, sigungu: [{ sido: "없는도", sigungu: "a" }] }).ok).toBe(false);
+  });
+});
+
+describe("searchRegions", () => {
+  const withSgg = normalizeStats({
+    meta: {},
+    sigungu: [
+      { sido: "서울", sigungu: "강남구", dogs: 1, industries: {} },
+      { sido: "서울", sigungu: "강동구", dogs: 1, industries: {} },
+      { sido: "부산", sigungu: "강서구", dogs: 1, industries: {} },
+      { sido: "경기", sigungu: "수원시", dogs: 1, industries: {} },
+      { sido: "인천", sigungu: "제물포구·영종구", dogs: 1, industries: {} },
+    ],
+  });
+  if (!withSgg.ok) throw new Error("fixture");
+  const s = withSgg.value;
+  it("빈 키워드는 시도 목록", () => {
+    expect(searchRegions(s, "")).toHaveLength(17);
+    expect(searchRegions(s, "")[0]).toEqual({ sido: "서울", sigungu: "", label: "서울 전체" });
+  });
+  it("시군구 이름 앞부분이 먼저", () => {
+    expect(searchRegions(s, "강").map((o) => o.label)).toEqual(["서울 강남구", "서울 강동구", "부산 강서구", "강원 전체"]);
+    expect(searchRegions(s, "수원")[0]!.label).toBe("경기 수원시");
+    expect(searchRegions(s, "영종")[0]!.label).toBe("인천 제물포구·영종구");
+  });
+  it("시도와 붙여 써도, 정식 이름으로 써도", () => {
+    expect(searchRegions(s, "서울 강남")[0]!.label).toBe("서울 강남구");
+    expect(searchRegions(s, "서울특별시강남")[0]!.label).toBe("서울 강남구");
+    expect(searchRegions(s, "경상남도")).toEqual([{ sido: "경남", sigungu: "", label: "경남 전체" }]);
+  });
+  it("시군구 자료가 없으면 시도만", () => {
+    expect(searchRegions(baselineStats(), "전")).toEqual([
+      { sido: "전북", sigungu: "", label: "전북" },
+      { sido: "전남", sigungu: "", label: "전남" },
+    ]);
   });
 });

@@ -6,6 +6,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { NewsletterCta } from "@/components/newsletter-cta";
+import { RegionSearch } from "./region-search";
 import { track } from "@/components/tracker";
 import { analysisQuery, directoryLink, sidoFromSlug, sigunguFromParam } from "@/lib/petsegwon/links";
 import {
@@ -168,37 +169,21 @@ export function PetsegwonTool({ stats }: { stats: PetsegwonStats }) {
           {!hasSigungu && <span className="text-ink-faint"> 지금은 시·도 단위로 분석합니다 (시군구는 준비 중).</span>}
         </p>
 
-        <div className={`mt-5 grid gap-3 ${hasSigungu ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
-          <label className="block text-xs font-medium text-ink-soft">
-            지역
-            <select
-              value={sido}
-              onChange={(e) => {
-                setSido(e.target.value);
-                setSigungu("");
-              }}
-              className={selectClass}
-            >
-              {SIDO_ORDER.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
-          </label>
-          {hasSigungu && (
-            <label className="block text-xs font-medium text-ink-soft">
-              시군구
-              <select value={sigungu} onChange={(e) => setSigungu(e.target.value)} disabled={!sigungus.length} className={selectClass}>
-                <option value="">{sido} 전체</option>
-                {sigungus.map((g) => (
-                  <option key={g.sigungu} value={g.sigungu}>
-                    {g.sigungu}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
+        <div className="mt-5 grid gap-3 sm:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+          <div className="text-xs font-medium text-ink-soft">
+            <span id="pet-region-label">지역</span>
+            <div className="mt-1">
+              <RegionSearch
+                stats={stats}
+                value={regionName}
+                onSelect={(o) => {
+                  setSido(o.sido);
+                  setSigungu(o.sigungu);
+                }}
+                className={selectClass.replace("mt-1 ", "")}
+              />
+            </div>
+          </div>
           <label className="block text-xs font-medium text-ink-soft">
             업종
             <select value={ind} onChange={(e) => setInd(e.target.value)} className={selectClass}>
