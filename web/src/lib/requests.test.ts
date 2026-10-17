@@ -18,6 +18,8 @@ describe("종류별 검증", () => {
     const ok = validateSpotRegister({ businessName: "멍멍수영장", typeSlug: "pool", regionId: "12", homepage: "https://a.b" }, ["pool", "cafe"]);
     expect(ok).toMatchObject({ ok: true, value: { typeSlug: "pool", regionId: 12, website: "https://a.b", phone: null } });
     expect(validateSpotRegister({ businessName: "멍", typeSlug: "pool", regionId: "1" }, ["pool"]).ok).toBe(false);
+    // 업체 정보는 모두 비워도 된다 (상담 때 받는다)
+    expect(validateSpotRegister({}, ["pool"])).toMatchObject({ ok: true, value: { businessName: null, typeSlug: null, regionId: null } });
     expect(validateSpotRegister({ businessName: "멍멍", typeSlug: "pet-sitter", regionId: "1" }, ["pool"]).ok).toBe(false);
     expect(validateSpotRegister({ businessName: "멍멍", typeSlug: "pool", regionId: "1", kakaoUrl: "pf.kakao.com/x" }, ["pool"])).toMatchObject({ ok: false });
   });
