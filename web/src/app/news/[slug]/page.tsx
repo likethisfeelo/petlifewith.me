@@ -13,7 +13,7 @@ import { formatDate } from "@/lib/format";
 import { renderMarkdown } from "@/lib/markdown";
 import { visibleNewsBanners } from "@/lib/news-banners";
 import { getPublishedNews } from "@/lib/queries/news";
-import { getNewsBanners } from "@/lib/queries/settings";
+import { getNewsBanners, getPetsegwonStats } from "@/lib/queries/settings";
 import { articleLd, buildMeta, robotsMeta } from "@/lib/seo";
 import { builtinTool, newsCategoryLabel } from "@/lib/tools";
 
@@ -52,6 +52,7 @@ export default async function NewsPostPage({ params }: Props) {
   const body = post.bodyMd ? renderMarkdown(post.bodyMd) : null;
   const hero = assetUrl(post.heroImageKey);
   const tool = builtinTool(post.toolKey);
+  const petsegwonStats = tool?.key === "petsegwon" ? await getPetsegwonStats() : undefined;
 
   return (
     // 뉴스 목록과 같은 틀 — 헤더 폭(max-w-6xl)에서 왼쪽 정렬, 오른쪽은 이미지 배너 (모바일은 본문 아래)
@@ -85,7 +86,7 @@ export default async function NewsPostPage({ params }: Props) {
 
       {tool && (
         <section className="mt-10" aria-label={tool.label}>
-          <BuiltinToolView toolKey={tool.key} />
+          <BuiltinToolView toolKey={tool.key} petsegwonStats={petsegwonStats} />
         </section>
       )}
       {!tool && post.toolHtml && (

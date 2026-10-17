@@ -24,6 +24,12 @@ export const BUILTIN_TOOLS: readonly BuiltinTool[] = [
     membersOnly: true,
     description: "법정 기재사항을 넣은 CCTV 안내판(A4). 템플릿 3종, 로고, 저장·불러오기",
   },
+  {
+    key: "petsegwon",
+    label: "펫세권 분석 (업장 1곳당 반려견 수)",
+    membersOnly: false,
+    description: "시도·시군구·업종을 고르면 업장 1곳당 등록 반려견 수를 평균과 비교. 아래에 뉴스레터 구독·회원가입 안내",
+  },
 ];
 
 export function builtinTool(key: string | null | undefined): BuiltinTool | null {

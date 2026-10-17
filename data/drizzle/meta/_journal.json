@@ -169,6 +169,13 @@
       "when": 1792230486192,
       "tag": "0023_sync_cctv_checklist_v4",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1792230951716,
+      "tag": "0024_request_kind_newsletter",
+      "breakpoints": true
     }
   ]
 }

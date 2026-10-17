@@ -5,7 +5,7 @@
 // 신청자 이름·연락처·사업자번호는 관리자 화면과 슬랙에만 간다 (claude.md 5-6). 결제는 수동 — 운영자가 안내·확인한다.
 // ============================================================
 
-export const REQUEST_KINDS = ["spot_register", "spot_claim", "maker_claim", "promo_slot", "care_partner", "info_request"] as const;
+export const REQUEST_KINDS = ["spot_register", "spot_claim", "maker_claim", "promo_slot", "care_partner", "info_request", "newsletter"] as const;
 export type RequestKind = (typeof REQUEST_KINDS)[number];
 export const REQUEST_STATUSES = ["new", "in_progress", "done", "rejected"] as const;
 export type RequestStatus = (typeof REQUEST_STATUSES)[number];
@@ -17,6 +17,7 @@ export const REQUEST_KIND_LABEL: Record<RequestKind, string> = {
   promo_slot: "지역 상단 노출",
   care_partner: "돌봄 파트너 등록",
   info_request: "자료 요청",
+  newsletter: "뉴스레터 구독",
 };
 
 export const REQUEST_STATUS_LABEL: Record<RequestStatus, string> = {
@@ -215,6 +216,23 @@ export function validateInfoRequest(raw: { email?: unknown; phone?: unknown; top
   const digits = phone.replace(/[\s-]/g, "");
   if (!INFO_PHONE_RE.test(digits)) return { ok: false, error: "전화번호 형식을 확인해 주세요 (예: 010-1234-5678)." };
   return { ok: true, value: { contactType: "phone", contact: digits, topic, source } };
+}
+
+export interface NewsletterValues {
+  email: string;
+  topic: string;
+  source: string;
+}
+
+/** 뉴스레터 구독 — 이메일 하나와 수집 동의. topic 은 어디서 구독했는지(예: 펫세권 분석 · 서울 강남구 · 미용업) */
+export function validateNewsletter(raw: { email?: unknown; agree?: unknown; topic?: unknown; source?: unknown }): Validation<NewsletterValues> {
+  const email = typeof raw.email === "string" ? raw.email.trim() : "";
+  if (!email) return { ok: false, error: "이메일을 입력해 주세요." };
+  if (email.length > REQUEST_LIMITS.contact || !INFO_EMAIL_RE.test(email)) return { ok: false, error: "이메일 형식을 확인해 주세요." };
+  if (raw.agree !== true) return { ok: false, error: "개인정보 수집·이용에 동의해 주세요." };
+  const topic = typeof raw.topic === "string" ? raw.topic.trim().slice(0, REQUEST_LIMITS.short) : "";
+  const source = typeof raw.source === "string" && /^\/[\w\-/가-힣%]*$/.test(raw.source) ? raw.source.slice(0, REQUEST_LIMITS.url) : "";
+  return { ok: true, value: { email: email.toLowerCase(), topic, source } };
 }
 
 export function slackRequestText(input: {
