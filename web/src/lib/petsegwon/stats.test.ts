@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { baselineStats, industryList, labelFor, normalizeStats, regionResult, searchRegions } from "./stats";
+import { baselineStats, industryList, labelFor, normalizeStats, regionResult, searchRegions, levelFor, levelExplain } from "./stats";
 
 describe("baselineStats", () => {
   const s = baselineStats();
@@ -112,5 +112,23 @@ describe("searchRegions", () => {
       { sido: "전북", sigungu: "", label: "전북" },
       { sido: "전남", sigungu: "", label: "전남" },
     ]);
+  });
+});
+
+describe("levelFor", () => {
+  it("5단계", () => {
+    expect(levelFor(130, 10)).toBe("much_higher");
+    expect(levelFor(129.9, 10)).toBe("higher");
+    expect(levelFor(110, 10)).toBe("higher");
+    expect(levelFor(109.9, 10)).toBe("average");
+    expect(levelFor(90, 10)).toBe("average");
+    expect(levelFor(89.9, 10)).toBe("lower");
+    expect(levelFor(70, 10)).toBe("lower");
+    expect(levelFor(69.9, 10)).toBe("much_lower");
+    expect(levelFor(200, 2)).toBe("small_sample");
+    expect(levelFor(null, 5)).toBe("none");
+  });
+  it("해석 문구", () => {
+    expect(levelExplain("average", { place: "동래구", compareName: "부산 평균", industry: "미용업" }).title).toContain("부산 평균");
   });
 });

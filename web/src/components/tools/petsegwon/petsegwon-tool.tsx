@@ -15,29 +15,52 @@ import {
   fmtCount,
   industryList,
   industryName,
+  LEVEL_BOUNDS,
+  LEVEL_LABEL,
+  levelExplain,
+  levelFor,
   regionResult,
   sigunguList,
-  type PetsegwonLabel,
+  type PetsegwonLevel,
   type PetsegwonStats,
-  type RegionResult,
 } from "@/lib/petsegwon/stats";
 
-const LABEL_TONE: Record<PetsegwonLabel, string> = {
-  "업장 대비 등록견 많음": "bg-accent-soft text-accent-deep",
-  "평균 수준": "bg-sand text-ink",
-  "업장 대비 등록견 적음": "bg-sea-soft text-sea",
-  "표본 적음": "bg-line text-ink-soft",
-  "업장 없음": "bg-line text-ink-soft",
+const LEVEL_TONE: Record<PetsegwonLevel, string> = {
+  much_higher: "bg-accent text-white",
+  higher: "bg-accent-soft text-accent-deep",
+  average: "bg-sand text-ink",
+  lower: "bg-sea-soft text-sea",
+  much_lower: "bg-sea text-white",
+  small_sample: "bg-line text-ink-soft",
+  none: "bg-line text-ink-soft",
 };
+
+/** 5단계 눈금 — 왼쪽부터 많이 낮음 … 많이 높음 */
+const SCALE: PetsegwonLevel[] = ["much_lower", "lower", "average", "higher", "much_higher"];
+const SCALE_FILL: Record<string, string> = { much_lower: "bg-sea", lower: "bg-sea/50", average: "bg-ink-soft", higher: "bg-accent/60", much_higher: "bg-accent" };
+const SCALE_SHORT: Record<string, string> = { much_lower: "많이 낮음", lower: "조금 낮음", average: "평균", higher: "조금 높음", much_higher: "많이 높음" };
 
 const selectClass =
   "mt-1 block w-full rounded-xl border border-line bg-cream px-3.5 py-3 text-[15px] font-semibold text-ink focus:border-ink focus:outline-none disabled:opacity-50";
 
-function LabelBadge({ label, size = "sm" }: { label: PetsegwonLabel; size?: "sm" | "md" }) {
+function LevelBadge({ level, size = "sm" }: { level: PetsegwonLevel; size?: "sm" | "md" }) {
   return (
-    <span className={`inline-block whitespace-nowrap rounded-full font-bold ${size === "md" ? "px-3 py-1.5 text-sm" : "px-2.5 py-1 text-xs"} ${LABEL_TONE[label]}`}>
-      {label}
+    <span className={`inline-block whitespace-nowrap rounded-full font-bold ${size === "md" ? "px-3 py-1.5 text-sm" : "px-2.5 py-1 text-xs"} ${LEVEL_TONE[level]}`}>
+      {LEVEL_LABEL[level]}
     </span>
+  );
+}
+
+function LevelScale({ level }: { level: PetsegwonLevel }) {
+  return (
+    <div aria-hidden className="grid grid-cols-5 gap-1">
+      {SCALE.map((l) => (
+        <div key={l} className="text-center">
+          <div className={`h-2 rounded-full ${l === level ? SCALE_FILL[l] : "bg-line"}`} />
+          <div className={`mt-1 text-[11px] ${l === level ? "font-bold text-ink" : "text-ink-faint"}`}>{SCALE_SHORT[l]}</div>
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -54,19 +77,11 @@ function Bar({ name, value, max, strong }: { name: string; value: number | null;
   );
 }
 
-/** 받침에 맞는 조사 (전남은 / 제주는, 평균과 / 서울와 아님) */
-function josa(word: string, withBatchim: string, without: string): string {
-  const code = word.charCodeAt(word.length - 1) - 0xac00;
-  return code >= 0 && code <= 11171 && code % 28 !== 0 ? withBatchim : without;
-}
-
-/** "전남은 전국 평균보다 업장당 등록견 수가 약 40% 많아요." */
-function compareSentence(name: string, r: RegionResult): string | null {
-  if (r.pctOfCompare == null) return null;
-  const diff = Math.round(r.pctOfCompare - 100);
-  const subject = `${name}${josa(name, "은", "는")}`;
-  if (Math.abs(diff) < 3) return `${subject} ${r.compareName}${josa(r.compareName, "과", "와")} 업장당 등록견 수가 비슷해요.`;
-  return `${subject} ${r.compareName}보다 업장당 등록견 수가 약 ${Math.abs(diff)}% ${diff > 0 ? "많아요" : "적어요"}.`;
+/** "3번째로 많아요" / 뒤쪽이면 "적은 쪽에서 2번째예요" */
+function rankPhrase(rank: number, total: number): string {
+  if (rank === 1) return "가장 많아요";
+  if (rank === total) return "가장 적어요";
+  return rank <= Math.ceil(total / 2) ? `${rank}번째로 많아요` : `적은 쪽에서 ${total - rank + 1}번째예요`;
 }
 
 function readQuery(stats: PetsegwonStats, industries: string[]): { sido?: string; sigungu?: string; ind?: string } {
@@ -106,6 +121,8 @@ export function PetsegwonTool({ stats }: { stats: PetsegwonStats }) {
   const result = regionResult(stats, sido, region, ind);
   const directory = directoryLink(sido, region, ind);
   const indName = industryName(stats, ind);
+  const level = result ? levelFor(result.pctOfCompare, result.shopsRaw) : "none";
+  const explain = levelExplain(level, { place: region ?? sido, compareName: result?.compareName ?? "평균", industry: indName });
 
   // 고른 값을 주소에 남긴다 (새로 불러오지 않게 replaceState). 처음 열린 화면은 세지 않는다
   useEffect(() => {
@@ -141,11 +158,13 @@ export function PetsegwonTool({ stats }: { stats: PetsegwonStats }) {
     const rows = region
       ? sigungus.map((g) => {
           const d = g.industries[ind];
-          return { sido, sigungu: g.sigungu, name: g.sigungu, value: d?.per_shop ?? null, pct: d?.pct_of_sido_avg ?? null, label: d?.label ?? ("업장 없음" as PetsegwonLabel) };
+          const pct = d?.pct_of_sido_avg ?? null;
+          return { sido, sigungu: g.sigungu, name: g.sigungu, value: d?.per_shop ?? null, pct, level: levelFor(pct, d?.shops_raw ?? null) };
         })
       : SIDO_ORDER.map((s) => {
           const r = regionResult(stats, s, null, ind);
-          return { sido: s, sigungu: "", name: s, value: r?.perShop ?? null, pct: r?.pctOfCompare ?? null, label: r?.label ?? ("업장 없음" as PetsegwonLabel) };
+          const pct = r?.pctOfCompare ?? null;
+          return { sido: s, sigungu: "", name: s, value: r?.perShop ?? null, pct, level: levelFor(pct, r?.shopsRaw ?? null) };
         });
     return rows
       .filter((r) => r.value != null)
@@ -247,7 +266,7 @@ export function PetsegwonTool({ stats }: { stats: PetsegwonStats }) {
                   <strong className="text-5xl font-extrabold tracking-tight tabular-nums">{fmtCount(result.perShop)}</strong>
                   <span className="ml-1 text-lg font-bold">마리</span>
                 </p>
-                <LabelBadge label={result.label} size="md" />
+                <LevelBadge level={level} size="md" />
               </div>
               <p className="mt-1 text-sm text-ink-soft">{indName}장 1곳당 등록 반려견 수</p>
 
@@ -257,15 +276,26 @@ export function PetsegwonTool({ stats }: { stats: PetsegwonStats }) {
                 <Bar name="전국 평균" value={result.nationalAvg} max={barMax} />
               </div>
 
-              <p className="mt-5 text-[15px] font-semibold leading-relaxed text-ink">
-                {compareSentence(selectedName, result) ?? "비교할 평균이 없습니다."}
-                {result.rank && result.rankTotal && (
-                  <span className="font-normal text-ink-soft">
-                    {" "}
-                    {result.rankScope} {result.rankTotal}곳 중 {result.rank === 1 ? "업장당 등록견이 가장 많아요." : `${result.rank}번째로 업장당 등록견이 많아요.`}
-                  </span>
-                )}
-              </p>
+              {/* 해석 — 5단계 눈금 + 쉬운 문장 */}
+              <div className="mt-6 rounded-xl border border-line bg-surface p-4 sm:p-5">
+                <p className="text-xs font-semibold text-ink-soft">{result.compareName}과 비교하면</p>
+                <div className="mt-2.5">
+                  <LevelScale level={level} />
+                </div>
+                <p className="mt-4 text-[15px] font-bold leading-relaxed text-ink">{explain.title}</p>
+                <p className="mt-1.5 text-sm leading-relaxed text-ink-soft">
+                  {selectedName} {indName}장 1곳당 약 <strong className="text-ink">{fmtCount(result.perShop)}마리</strong>, {result.compareName}은{" "}
+                  {fmtCount(result.compareAvg)}마리예요
+                  {result.pctOfCompare != null && ` (평균의 ${Math.round(result.pctOfCompare)}%)`}.
+                  {result.rank && result.rankTotal && (
+                    <>
+                      {" "}
+                      {result.rankScope} {result.rankTotal}곳 중 {rankPhrase(result.rank, result.rankTotal)}.
+                    </>
+                  )}
+                </p>
+                {explain.detail && <p className="mt-2 text-sm leading-relaxed text-ink-soft">{explain.detail}</p>}
+              </div>
               <p className="mt-2 text-xs leading-relaxed text-ink-faint">
                 등록견 수 기준의 공급 비교 지표입니다. 실제 수요나 창업 수익성을 뜻하지는 않습니다. · 등록 반려견 {fmtCount(result.dogs)}마리 · 영업 중 업장{" "}
                 {region ? `약 ${fmtCount(result.shops)}` : fmtCount(result.shops)}곳
@@ -341,7 +371,7 @@ export function PetsegwonTool({ stats }: { stats: PetsegwonStats }) {
                     <td className="px-3 py-2.5 text-right tabular-nums">{fmtCount(r.value)}</td>
                     <td className="hidden px-3 py-2.5 text-right tabular-nums text-ink-soft sm:table-cell">{r.pct != null ? `${Math.round(r.pct)}%` : "-"}</td>
                     <td className="px-3 py-2.5">
-                      <LabelBadge label={r.label} />
+                      <LevelBadge level={r.level} />
                     </td>
                   </tr>
                 );
@@ -387,7 +417,7 @@ export function PetsegwonTool({ stats }: { stats: PetsegwonStats }) {
                     <td className="px-3 py-2.5 text-right tabular-nums">{fmtCount(r?.perShop)}</td>
                     <td className="px-3 py-2.5 text-right tabular-nums text-ink-soft">{fmtCount(r?.compareAvg)}</td>
                     <td className="px-3 py-2.5 text-right tabular-nums">{r?.pctOfCompare != null ? `${Math.round(r.pctOfCompare)}%` : "-"}</td>
-                    <td className="px-3 py-2.5">{r ? <LabelBadge label={r.label} /> : "-"}</td>
+                    <td className="px-3 py-2.5">{r ? <LevelBadge level={levelFor(r.pctOfCompare, r.shopsRaw)} /> : "-"}</td>
                   </tr>
                 );
               })}
@@ -410,8 +440,9 @@ export function PetsegwonTool({ stats }: { stats: PetsegwonStats }) {
               많고, 작을수록 적습니다.
             </p>
             <p>
-              판정: 비교 대상 평균(시군구는 같은 시도 평균, 시도는 전국 평균)의 {stats.meta.thresholds.short}% 이상이면 &ldquo;업장 대비 등록견 많음&rdquo;,{" "}
-              {stats.meta.thresholds.dense}% 미만이면 &ldquo;업장 대비 등록견 적음&rdquo;, 그 사이는 &ldquo;평균 수준&rdquo;입니다. 업장이 {stats.meta.thresholds.minShops}곳
+              판정: 비교 대상 평균(시군구는 같은 시도 평균, 시도는 전국 평균) 대비 {LEVEL_BOUNDS.muchHigher}% 이상 &ldquo;많이 높음&rdquo;, {LEVEL_BOUNDS.higher}~
+              {LEVEL_BOUNDS.muchHigher}% &ldquo;조금 높음&rdquo;, {LEVEL_BOUNDS.lower}~{LEVEL_BOUNDS.higher}% &ldquo;평균&rdquo;, {LEVEL_BOUNDS.muchLower}~{LEVEL_BOUNDS.lower}%
+              &ldquo;조금 낮음&rdquo;, {LEVEL_BOUNDS.muchLower}% 미만 &ldquo;많이 낮음&rdquo;입니다(높을수록 업장 1곳이 맡는 등록견이 많음). 업장이 {stats.meta.thresholds.minShops}곳
               미만인 지역은 값이 크게 흔들려 &ldquo;표본 적음&rdquo;으로 표시합니다.
             </p>
             <p>
