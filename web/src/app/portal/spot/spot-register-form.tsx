@@ -4,7 +4,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { RegionSelect, selectClass } from "@/components/requests/region-picker";
-import { Req, RequestForm, inputClass, labelClass } from "@/components/requests/request-form";
+import { RequestForm, inputClass, labelClass } from "@/components/requests/request-form";
 import type { RegionOption, SpotTypeOption } from "@/lib/queries/requests";
 import { REQUEST_LIMITS } from "@/lib/requests";
 
@@ -35,34 +35,39 @@ export function SpotRegisterForm({ types, regions }: { types: SpotTypeOption[]; 
           </p>
         </>
       }
-      messagePlaceholder="운영시간·요금·주차 등 페이지에 실을 정보나 요청 사항을 적어 주세요."
+      messagePlaceholder="운영시간·요금·주차 등 페이지에 실을 정보나 궁금한 점을 적어 주세요."
+      // 연락처만 있으면 접수된다 — 업체 정보는 모두 선택이라 연락받을 분을 맨 위에
+      requesterFirst
+      requesterExtra={(v) => (
+        <div>
+          <label htmlFor="businessName" className={labelClass}>
+            업체명 (선택)
+          </label>
+          <input id="businessName" name="businessName" minLength={2} maxLength={REQUEST_LIMITS.businessName} defaultValue={v.businessName} placeholder="예: 멍멍스파" className={inputClass} />
+        </div>
+      )}
     >
       {(v) => (
         <fieldset className="space-y-4 rounded-2xl border border-line bg-surface p-4">
-          <legend className="px-1 text-sm font-bold text-ink">업체 정보</legend>
+          <legend className="px-1 text-sm font-bold text-ink">업체 정보 (모두 선택)</legend>
+          <div className="rounded-xl bg-sea-soft px-4 py-3.5">
+            <p className="text-[15px] font-bold leading-snug text-ink">비워 두셔도 괜찮아요. 상담 후 카카오톡으로 알려 주셔도 됩니다.</p>
+            <p className="mt-1 text-sm leading-relaxed text-ink-soft">아래 정보를 미리 적어 주시면 등록이 훨씬 빨리 끝나요.</p>
+          </div>
           <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <label htmlFor="businessName" className={labelClass}>
-                업체명
-                <Req />
-              </label>
-              <input id="businessName" name="businessName" required minLength={2} maxLength={REQUEST_LIMITS.businessName} defaultValue={v.businessName} className={inputClass} />
-            </div>
             <div>
               <label htmlFor="typeSlug" className={labelClass}>
                 업종
-                <Req />
               </label>
               {/* key — React 19 가 액션 뒤 폼을 초기화할 때 select 는 처음 defaultValue 로 돌아가므로, 되돌려 받은 값으로 다시 마운트한다 */}
               <select
                 key={`${v.typeSlug ?? ""}|${prefill.typeSlug}`}
                 id="typeSlug"
                 name="typeSlug"
-                required
                 defaultValue={v.typeSlug ?? prefill.typeSlug}
                 className={`${selectClass} mt-1`}
               >
-                <option value="">선택하세요</option>
+                <option value="">선택 안 함</option>
                 {types.map((t) => (
                   <option key={t.slug} value={t.slug}>
                     {t.name}
@@ -74,7 +79,6 @@ export function SpotRegisterForm({ types, regions }: { types: SpotTypeOption[]; 
           <div>
             <span className={labelClass}>
               지역 (시·군·구)
-              <Req />
             </span>
             <div className="mt-1">
               <RegionSelect
@@ -82,7 +86,6 @@ export function SpotRegisterForm({ types, regions }: { types: SpotTypeOption[]; 
                 name="regionId"
                 options={regions}
                 defaultRegionId={v.regionId ? Number(v.regionId) : prefill.regionId}
-                required
               />
             </div>
           </div>

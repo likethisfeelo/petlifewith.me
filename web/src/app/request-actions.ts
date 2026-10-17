@@ -61,11 +61,16 @@ async function prepare(db: ReturnType<typeof getDb>, kind: RequestKind, raw: Rec
     const types = await listRegistrableSpotTypes();
     const v = validateSpotRegister(raw, types.map((t) => t.slug));
     if (!v.ok) return { error: v.error };
-    const labels = await regionLabels([v.value.regionId]);
-    const region = labels[v.value.regionId];
-    if (!region) return { error: "지역(시군구)을 골라 주세요." };
-    const typeName = types.find((t) => t.slug === v.value.typeSlug)?.name ?? v.value.typeSlug;
-    const summary = [`업체: ${v.value.businessName} (${typeName})`, `지역: ${region}${v.value.addressRoad ? ` · ${v.value.addressRoad}` : ""}`];
+    let region: string | null = null;
+    if (v.value.regionId) {
+      region = (await regionLabels([v.value.regionId]))[v.value.regionId] ?? null;
+      if (!region) return { error: "지역(시군구)을 다시 골라 주세요." };
+    }
+    const typeName = v.value.typeSlug ? (types.find((t) => t.slug === v.value.typeSlug)?.name ?? v.value.typeSlug) : "업종 미입력";
+    const summary = [
+      `업체: ${v.value.businessName ?? "(업체명 미입력)"} (${typeName})`,
+      `지역: ${region ?? "미입력"}${v.value.addressRoad ? ` · ${v.value.addressRoad}` : ""}`,
+    ];
     return { spotId: null, makerId: null, payload: v.value, summary };
   }
 

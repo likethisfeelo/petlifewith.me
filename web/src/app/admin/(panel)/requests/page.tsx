@@ -56,8 +56,8 @@ function payloadRows(item: RequestListItem, labels: Record<number, string>): Arr
   if (kind === "spot_register") {
     const p = payload as SpotRegisterPayload;
     return [
-      ["업체명", p.businessName],
-      ["업종", p.typeSlug],
+      ["업체명", p.businessName ?? "-"],
+      ["업종", p.typeSlug ?? "-"],
       ["지역", region(p.regionId)],
       ["주소", p.addressRoad ?? "-"],
       ["전화", p.phone ?? "-"],
