@@ -1,0 +1,35 @@
+{
+  "source": "농림축산식품부 2025년 동물보호·복지 실태조사 (2026-06 발표), 표 1-9 반려견 지역별 누적 등록 / 표 3-1 지역별 반려동물 영업장 현황",
+  "source_url": "https://mafra.go.kr/bbs/home/795/598449/download.do",
+  "reference_date": "2025-12-31",
+  "note": "반려견 등록 수는 사망 개체 제외 누적. 영업장 수는 시도별 영업 중 업장.",
+  "industries": {
+    "production": "동물생산업",
+    "import": "동물수입업",
+    "sales": "동물판매업",
+    "funeral": "동물장묘업",
+    "exhibition": "동물전시업",
+    "boarding": "동물위탁관리업",
+    "grooming": "동물미용업",
+    "transport": "동물운송업"
+  },
+  "sido": {
+    "서울": {"dogs": 594676,  "shops": {"production": 25,  "import": 15, "sales": 355, "funeral": 1,  "exhibition": 86,  "boarding": 800,  "grooming": 1665, "transport": 533}},
+    "부산": {"dogs": 220959,  "shops": {"production": 42,  "import": 13, "sales": 226, "funeral": 3,  "exhibition": 40,  "boarding": 420,  "grooming": 823,  "transport": 90}},
+    "대구": {"dogs": 151349,  "shops": {"production": 19,  "import": 4,  "sales": 118, "funeral": 2,  "exhibition": 21,  "boarding": 282,  "grooming": 553,  "transport": 44}},
+    "인천": {"dogs": 242123,  "shops": {"production": 75,  "import": 11, "sales": 158, "funeral": 3,  "exhibition": 29,  "boarding": 384,  "grooming": 808,  "transport": 208}},
+    "광주": {"dogs": 84283,   "shops": {"production": 21,  "import": 3,  "sales": 79,  "funeral": 1,  "exhibition": 5,   "boarding": 138,  "grooming": 339,  "transport": 26}},
+    "대전": {"dogs": 109572,  "shops": {"production": 40,  "import": 2,  "sales": 104, "funeral": 1,  "exhibition": 10,  "boarding": 165,  "grooming": 322,  "transport": 39}},
+    "울산": {"dogs": 67294,   "shops": {"production": 19,  "import": 0,  "sales": 63,  "funeral": 2,  "exhibition": 17,  "boarding": 154,  "grooming": 259,  "transport": 37}},
+    "세종": {"dogs": 19390,   "shops": {"production": 7,   "import": 0,  "sales": 10,  "funeral": 2,  "exhibition": 2,   "boarding": 28,   "grooming": 59,   "transport": 4}},
+    "경기": {"dogs": 1064735, "shops": {"production": 759, "import": 33, "sales": 845, "funeral": 31, "exhibition": 177, "boarding": 1770, "grooming": 3102, "transport": 878}},
+    "강원": {"dogs": 118620,  "shops": {"production": 55,  "import": 4,  "sales": 80,  "funeral": 3,  "exhibition": 31,  "boarding": 209,  "grooming": 342,  "transport": 40}},
+    "충북": {"dogs": 113264,  "shops": {"production": 114, "import": 6,  "sales": 97,  "funeral": 5,  "exhibition": 36,  "boarding": 204,  "grooming": 330,  "transport": 48}},
+    "충남": {"dogs": 151727,  "shops": {"production": 196, "import": 6,  "sales": 137, "funeral": 4,  "exhibition": 33,  "boarding": 240,  "grooming": 392,  "transport": 65}},
+    "전북": {"dogs": 109800,  "shops": {"production": 92,  "import": 1,  "sales": 103, "funeral": 6,  "exhibition": 27,  "boarding": 150,  "grooming": 273,  "transport": 35}},
+    "전남": {"dogs": 119468,  "shops": {"production": 85,  "import": 0,  "sales": 88,  "funeral": 7,  "exhibition": 30,  "boarding": 155,  "grooming": 257,  "transport": 37}},
+    "경북": {"dogs": 161934,  "shops": {"production": 261, "import": 7,  "sales": 156, "funeral": 8,  "exhibition": 31,  "boarding": 336,  "grooming": 469,  "transport": 63}},
+    "경남": {"dogs": 207157,  "shops": {"production": 96,  "import": 3,  "sales": 145, "funeral": 9,  "exhibition": 20,  "boarding": 312,  "grooming": 697,  "transport": 53}},
+    "제주": {"dogs": 66593,   "shops": {"production": 14,  "import": 0,  "sales": 24,  "funeral": 1,  "exhibition": 10,  "boarding": 49,   "grooming": 151,  "transport": 37}}
+  }
+}

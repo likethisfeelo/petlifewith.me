@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { validateInfoRequest, slackRequestText, validateCarePartner, validatePromoSlot, validateRequester, validateSpotRegister } from "./requests";
+import { validateInfoRequest, validateNewsletter, slackRequestText, validateCarePartner, validatePromoSlot, validateRequester, validateSpotRegister } from "./requests";
 
 const base = { requesterName: "김사장", contact: "010-1234-5678", consent: "on" };
 
@@ -58,6 +58,23 @@ describe("자료 요청 (이메일 또는 전화번호 하나)", () => {
     expect(validateInfoRequest({ email: "nope" }).ok).toBe(false);
     expect(validateInfoRequest({ phone: "12345" }).ok).toBe(false);
     const r = validateInfoRequest({ email: "a@b.co", source: "https://evil.example" });
+    expect(r.ok && r.value.source).toBe("");
+  });
+});
+
+describe("validateNewsletter", () => {
+  it("이메일·동의가 있어야 한다", () => {
+    expect(validateNewsletter({ email: "A@B.co", agree: true, topic: "펫세권", source: "/news/petsegwon" })).toEqual({
+      ok: true,
+      value: { email: "a@b.co", topic: "펫세권", source: "/news/petsegwon" },
+    });
+    expect(validateNewsletter({ email: "", agree: true }).ok).toBe(false);
+    expect(validateNewsletter({ email: "nope", agree: true }).ok).toBe(false);
+    expect(validateNewsletter({ email: "a@b.co", agree: false }).ok).toBe(false);
+    expect(validateNewsletter({ email: "a@b.co", agree: "true" }).ok).toBe(false);
+  });
+  it("출처 주소는 사이트 경로만", () => {
+    const r = validateNewsletter({ email: "a@b.co", agree: true, source: "https://evil.example" });
     expect(r.ok && r.value.source).toBe("");
   });
 });
