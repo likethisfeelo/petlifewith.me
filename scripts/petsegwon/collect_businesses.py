@@ -44,7 +44,14 @@ def main():
             print(f"  businesses: {ind}")
         rows = []
         unparsed = 0
+        checked = False
         for item in items:
+            if not checked:
+                checked = True
+                missing = [k for k in ("status", "address_road") if isinstance(item, dict) and fields[k] not in item]
+                if missing:
+                    keys = ", ".join(sorted(item.keys())) if isinstance(item, dict) else type(item).__name__
+                    raise SystemExit(f"[{ind}] field(s) {[fields[k] for k in missing]} not in response. Available: {keys}")
             status = str(dig(item, [fields["status"]]) or "").strip()
             status_seen[(ind, status)] += 1
             addr = str(dig(item, [fields["address_road"]]) or "").strip() or str(dig(item, [fields["address_lot"]]) or "").strip()
