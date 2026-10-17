@@ -95,6 +95,14 @@ function payloadRows(item: RequestListItem, labels: Record<number, string>): Arr
       ["페이지", p.source || "-"],
     ];
   }
+  if (kind === "newsletter") {
+    const p = payload as { topic?: string; source?: string; agreedAt?: string };
+    return [
+      ["관심", p.topic || "-"],
+      ["페이지", p.source || "-"],
+      ["동의 시각", p.agreedAt ? new Date(p.agreedAt).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" }) : "-"],
+    ];
+  }
   return [];
 }
 

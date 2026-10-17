@@ -5,7 +5,10 @@ import { GUIDE_STATUS_LABEL, formatDate } from "@/lib/format";
 import { builtinTool, newsCategoryLabel } from "@/lib/tools";
 import { AdminPageHeader } from "../../_components/fields";
 import { insertStarterNewsAction } from "../../news-actions";
-import { getNewsBanners } from "@/lib/queries/settings";
+import { STARTER_NEWS } from "@/lib/tools/starter-news";
+import { getNewsBanners, getPetsegwonStats } from "@/lib/queries/settings";
+import { industryName, industryList } from "@/lib/petsegwon/stats";
+import { PetsegwonStatsForm } from "./petsegwon-stats-form";
 import { NewsBannersForm } from "./news-banners-form";
 
 const { newsPosts } = schema;
@@ -26,9 +29,9 @@ export default async function AdminNewsPage({ searchParams }: { searchParams: Pr
     })
     .from(newsPosts)
     .orderBy(desc(newsPosts.updatedAt));
-  const banners = await getNewsBanners();
+  const [banners, petStats] = await Promise.all([getNewsBanners(), getPetsegwonStats()]);
   const slugs = new Set(rows.map((r) => r.slug));
-  const missingStarter = !slugs.has("cctv-checklist") || !slugs.has("cctv-sign");
+  const missingStarter = STARTER_NEWS.some((p) => !slugs.has(p.slug));
 
   return (
     <div>
@@ -44,12 +47,12 @@ export default async function AdminNewsPage({ searchParams }: { searchParams: Pr
 
       {starter && (
         <p className="mt-4 rounded-lg border border-sage/30 bg-sage-soft px-3 py-2 text-sm text-sage-deep">
-          CCTV 점검표·안내판 만들기 글을 작성 중 상태로 넣었습니다. 내용을 확인하고 발행하세요.
+          처음 쓰는 글(CCTV 점검표·안내판 만들기·펫세권 분석) 중 없던 글을 작성 중 상태로 넣었습니다. 내용을 확인하고 발행하세요.
         </p>
       )}
       {missingStarter && (
         <form action={insertStarterNewsAction} className="mt-4 flex flex-wrap items-center gap-3 rounded-lg border border-line bg-surface px-4 py-3 text-sm">
-          <span className="text-ink-soft">CCTV 점검표(HTML 도구)와 CCTV 안내판 만들기(내장 도구) 글을 작성 중 상태로 넣을 수 있습니다.</span>
+          <span className="text-ink-soft">아직 없는 처음 쓰는 글({STARTER_NEWS.filter((p) => !slugs.has(p.slug)).map((p) => p.title.split(" — ")[0]).join(", ")})을 작성 중 상태로 넣을 수 있습니다.</span>
           <button type="submit" className="rounded-full border border-ink px-3 py-1.5 text-xs font-medium text-ink hover:bg-sand">
             처음 쓰는 글 넣기
           </button>
@@ -57,6 +60,15 @@ export default async function AdminNewsPage({ searchParams }: { searchParams: Pr
       )}
 
       <NewsBannersForm banners={banners} />
+      <PetsegwonStatsForm
+        info={{
+          source: petStats.meta.source,
+          generatedAt: petStats.meta.generated_at,
+          referenceDate: petStats.meta.baseline_reference_date,
+          sigungu: petStats.sigungu.length,
+          industries: industryList(petStats).map((k) => industryName(petStats, k)),
+        }}
+      />
 
       <div className="mt-4 overflow-x-auto rounded-xl border border-line bg-surface">
         <table className="w-full min-w-[640px] text-sm">

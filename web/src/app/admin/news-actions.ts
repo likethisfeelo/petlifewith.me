@@ -12,7 +12,8 @@ import { isValidObjectKey } from "@/lib/assets";
 import { TOOL_HTML_MAX_BYTES, builtinTool, isNewsCategory } from "@/lib/tools";
 import { STARTER_NEWS } from "@/lib/tools/starter-news";
 import { NEWS_BANNER_SLOTS, isInternalPath, normalizeNewsBanners } from "@/lib/news-banners";
-import { saveNewsBanners } from "@/lib/queries/settings";
+import { saveNewsBanners, savePetsegwonStats } from "@/lib/queries/settings";
+import { normalizeStats } from "@/lib/petsegwon/stats";
 import { isSafeHttpUrl } from "@/lib/links";
 
 const { newsPosts } = schema;
@@ -196,4 +197,37 @@ export async function saveNewsBannersAction(_prev: ActionState, formData: FormDa
   revalidatePath("/news");
   revalidatePath("/admin/news");
   return { saved: true };
+}
+
+/** 펫세권 분석에 쓰는 글들 다시 만들기 */
+async function revalidatePetsegwon(db: Awaited<ReturnType<typeof requireDb>>) {
+  const rows = await db.select({ slug: newsPosts.slug }).from(newsPosts).where(eq(newsPosts.toolKey, "petsegwon"));
+  for (const r of rows) revalidatePath(`/news/${r.slug}`);
+  revalidatePath("/admin/news");
+}
+
+/** 펫세권 stats.json(scripts/petsegwon 파이프라인 결과) 올리기 — 시군구 선택이 열린다 */
+export async function uploadPetsegwonStatsAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const db = await requireDb();
+  const file = formData.get("statsFile");
+  if (!(file instanceof File) || file.size === 0) return { error: "stats.json 파일을 고르세요." };
+  if (file.size > 900_000) return { error: "파일이 너무 큽니다 (900KB 이하)." };
+  let raw: unknown;
+  try {
+    raw = JSON.parse(await file.text());
+  } catch {
+    return { error: "JSON 파일이 아닙니다." };
+  }
+  const r = normalizeStats(raw);
+  if (!r.ok) return { error: r.error };
+  await savePetsegwonStats(r.value);
+  await revalidatePetsegwon(db);
+  return { saved: true };
+}
+
+/** 올린 시군구 통계 지우기 — 실태조사 시도 값만 남는다 */
+export async function clearPetsegwonStatsAction(): Promise<void> {
+  const db = await requireDb();
+  await savePetsegwonStats(null);
+  await revalidatePetsegwon(db);
 }
