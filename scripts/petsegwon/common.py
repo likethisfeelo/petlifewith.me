@@ -1,4 +1,5 @@
 """Shared helpers: config loading, data.go.kr pagination, region normalization."""
+import csv
 import json
 import os
 import sys
@@ -169,7 +170,42 @@ def region_from_address(address, merge_general_gu=True):
     if sido == "세종":
         return sido, "세종"
     rest = " ".join(tokens[1:3])
-    return sido, normalize_sigungu(sido, rest, merge_general_gu)
+    return canonical_region(sido, normalize_sigungu(sido, rest, merge_general_gu))
+
+
+# 등록 파일(2022)과 인허가 주소(2026)의 행정구역 표기 차이를 맞춘다: (시도, 시군구) -> (시도, 시군구)
+REGION_RENAMES = {
+    ("경남", "창원"): ("경남", "창원시"),      # 등록 파일은 "창원 의창성산구"처럼 쓴다
+    ("경북", "군위군"): ("대구", "군위군"),    # 2023-07 대구 편입
+    ("경기", "여주군"): ("경기", "여주시"),    # 옛 표기 잔여 행
+    ("충북", "청원군"): ("충북", "청주시"),    # 2014 통합
+    ("충남", "연기군"): ("세종", "세종"),      # 2012 세종 출범
+    # 2026-07 인천 개편: 중구·동구 → 제물포구·영종구, 서구 → 서해구·검단구. 옛 구와 새 구가 1:1 이 아니어서
+    # 등록 파일(옛 구)과 인허가 주소(새 구)를 둘 다 묶음 단위로 센다
+    ("인천", "중구"): ("인천", "제물포구·영종구"),
+    ("인천", "동구"): ("인천", "제물포구·영종구"),
+    ("인천", "제물포구"): ("인천", "제물포구·영종구"),
+    ("인천", "영종구"): ("인천", "제물포구·영종구"),
+    ("인천", "서구"): ("인천", "서해구·검단구"),
+    ("인천", "서해구"): ("인천", "서해구·검단구"),
+    ("인천", "검단구"): ("인천", "서해구·검단구"),
+}
+
+
+def canonical_region(sido, sigungu):
+    return REGION_RENAMES.get((sido, sigungu), (sido, sigungu))
+
+
+def read_csv_rows(path):
+    """Downloaded files are usually cp949. Try utf-8 first, then cp949."""
+    full = ROOT / path
+    for enc in ("utf-8-sig", "cp949"):
+        try:
+            with open(full, encoding=enc) as fh:
+                return list(csv.DictReader(fh))
+        except UnicodeDecodeError:
+            continue
+    raise SystemExit(f"cannot decode {full} (expected utf-8 or cp949)")
 
 
 def ensure_dirs():

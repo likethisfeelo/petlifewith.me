@@ -5,8 +5,8 @@
     "_comment": "true면 '수원시 장안구'처럼 일반구가 있는 시는 '수원시'로 합친다. 등록 API와 업장 API의 단위가 같아지도록 맞추는 용도."
   },
   "registration": {
-    "mode": "api",
-    "_mode_comment": "api 또는 csv. csv면 csv_path의 파일(농림축산검역본부 행정구역별 반려동물등록 개체 수 현황 형식)을 읽는다.",
+    "mode": "csv",
+    "_mode_comment": "csv 권장: 공공데이터포털 \"행정구역별 반려동물등록 개체 수 현황_20221231\"(data/15125454) 파일을 raw/registration.csv 로 둔다(cp949 그대로 OK). 시군구 비중만 쓰고 총량은 실태조사로 맞추므로 2022 자료로 충분하다. api 는 동물등록 현황 OpenAPI(data/15103156)용.",
     "csv_path": "raw/registration.csv",
     "csv_columns": {
       "sido": "시도",

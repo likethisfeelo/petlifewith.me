@@ -15,19 +15,7 @@ import csv
 import sys
 from collections import Counter, defaultdict
 
-from common import ROOT, RAW, check_todo, dig, ensure_dirs, load_config, paginate, region_from_address
-
-
-def read_csv_rows(path):
-    """Downloaded files are usually cp949. Try utf-8 first, then cp949."""
-    full = ROOT / path
-    for enc in ("utf-8-sig", "cp949"):
-        try:
-            with open(full, encoding=enc) as fh:
-                return list(csv.DictReader(fh))
-        except UnicodeDecodeError:
-            continue
-    raise SystemExit(f"cannot decode {full} (expected utf-8 or cp949)")
+from common import RAW, check_todo, dig, ensure_dirs, load_config, paginate, read_csv_rows, region_from_address
 
 
 def main():
