@@ -1,0 +1,397 @@
+-- CCTV 점검표(뉴스 HTML 도구)를 사이트 색 버전으로 바꾼다 — 처음 넣은 원본(어두운 테마·초록 배경)이 그대로일 때만.
+-- 관리자가 HTML 을 고쳐 저장했다면(내용이 다르면) 건드리지 않는다. 편집기 저장은 앞뒤 공백을 지우고 줄바꿈을 CRLF 로 바꿀 수 있어
+-- 그 차이는 무시하고 비교한다 (원본 md5: 1b32d61a20905870f5cf7082e24a20a1, 새 원본 docs/tools/cctv-checklist.html).
+UPDATE "news_posts"
+SET "tool_html" = $cctv$<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style>
+<title>반려동물 영업장 CCTV 점검표</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;700&family=IBM+Plex+Mono:wght@500;600&family=Black+Han+Sans&display=swap">
+<style>
+/* Layout: one 760px inspection sheet — header band with the deadline counter, then numbered steps (판별 → 처분 → 점검 → 안내판). */
+:root{
+  /* 펫라이프위드미 사이트 색 (web/src/app/globals.css) — 사이트가 밝은 화면만 쓰므로 어두운 모드는 두지 않는다 */
+  color-scheme:light;
+  --paper:#FBF9F5; --sheet:#FFFFFF; --ink:#221E19; --muted:#6B6257; --line:#E8E1D5;
+  --accent:#3F739B; --accent-soft:#E4EDF4;
+  --good:#2D7A4C; --good-soft:#E3F2E8; --warn:#A35E00; --warn-soft:#FBEFD9; --bad:#B0281F; --bad-soft:#FBE4E1;
+  --f-body:"IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  --f-display:"Black Han Sans", "IBM Plex Sans KR", sans-serif;
+  --f-mono:"IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.6;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:24px 48px}
+.wrap{max-width:760px;margin:0 auto;display:grid;gap:20px}
+h1,h2,h3{text-wrap:balance;margin:0;line-height:1.3}
+p{margin:0}
+a{color:var(--accent)}
+button,select,input{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.head{display:grid;grid-template-columns:1fr auto;gap:16px;align-items:end;padding-bottom:16px;border-bottom:2px solid var(--ink)}
+.eyebrow{font-family:var(--f-mono);font-size:12px;letter-spacing:.06em;color:var(--muted)}
+.head h1{font-size:clamp(24px,5vw,32px);font-weight:700}
+.head p{color:var(--muted);margin-top:6px;max-width:52ch}
+.dday{text-align:right}
+.dday b{display:block;font-family:var(--f-display);font-weight:400;font-size:clamp(40px,10vw,60px);line-height:1;color:var(--bad);font-variant-numeric:tabular-nums}
+.dday span{font-family:var(--f-mono);font-size:12px;color:var(--muted)}
+@media (max-width:520px){.head{grid-template-columns:1fr}.dday{text-align:left}}
+
+.step{background:var(--sheet);border:1px solid var(--line);border-radius:6px;padding:20px;display:grid;gap:14px}
+.step h2{font-size:18px;display:flex;gap:10px;align-items:baseline}
+.step h2 .no{font-family:var(--f-mono);font-size:13px;color:var(--accent)}
+.hint{font-size:13px;color:var(--muted)}
+
+fieldset{border:0;padding:0;margin:0;display:grid;gap:8px;min-width:0}
+legend{font-weight:500;margin-bottom:8px;padding:0}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{position:relative}
+.chip input{position:absolute;opacity:0;pointer-events:none}
+.chip label{display:block;padding:8px 12px;border:1px solid var(--line);border-radius:4px;cursor:pointer;font-size:14px;background:var(--sheet)}
+.chip input:checked + label{border-color:var(--accent);background:var(--accent-soft);color:var(--ink);font-weight:500}
+.chip input:focus-visible + label{outline:2px solid var(--accent);outline-offset:2px}
+
+.verdict{border-left:4px solid var(--muted);padding:12px 14px;background:var(--paper);border-radius:0 4px 4px 0;display:grid;gap:4px}
+.verdict .pill{justify-self:start;font-family:var(--f-mono);font-size:12px;font-weight:600;padding:2px 8px;border-radius:3px}
+.verdict.bad{border-color:var(--bad);background:var(--bad-soft)} .verdict.bad .pill{background:var(--bad);color:var(--sheet)}
+.verdict.warn{border-color:var(--warn);background:var(--warn-soft)} .verdict.warn .pill{background:var(--warn);color:var(--sheet)}
+.verdict.good{border-color:var(--good);background:var(--good-soft)} .verdict.good .pill{background:var(--good);color:var(--sheet)}
+.verdict.none .pill{background:var(--line);color:var(--ink)}
+.verdict strong{font-size:17px}
+
+.pen{display:grid;gap:0;border-top:1px solid var(--line)}
+.pen div{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.4fr);gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+.pen dt{font-weight:500}
+.pen dd{margin:0}
+.pen .amt{font-family:var(--f-mono);font-weight:600;color:var(--bad)}
+.pen small{display:block;color:var(--muted);font-size:12px}
+@media (max-width:520px){.pen div{grid-template-columns:1fr;gap:2px}}
+
+.bar{height:6px;background:var(--line);border-radius:3px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent);width:0;transition:width .2s}
+@media (prefers-reduced-motion:reduce){.bar i{transition:none}}
+.prog{font-family:var(--f-mono);font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.checks{list-style:none;margin:0;padding:0;display:grid}
+.checks li{border-bottom:1px solid var(--line)}
+.checks label{display:grid;grid-template-columns:22px 1fr;gap:10px;padding:10px 0;cursor:pointer}
+.checks input{width:18px;height:18px;margin-top:3px;accent-color:var(--accent)}
+.checks .why{display:block;font-size:13px;color:var(--muted)}
+.checks .tag{font-family:var(--f-mono);font-size:11px;color:var(--accent);margin-left:6px}
+.checks input:checked ~ span > .t{color:var(--muted);text-decoration:line-through;text-decoration-color:var(--muted)}
+.checks .empty{padding:14px 0;color:var(--muted)}
+[hidden]{display:none!important}
+.checks details li{border:0}
+.rules{margin:8px 0 0;padding:0;list-style:none;display:grid;gap:4px;font-size:13px}
+.rules li{border:0;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;padding:6px 10px;background:var(--paper);border-radius:4px}
+.rules li.me{background:var(--accent-soft);font-weight:500}
+.rules b{font-family:var(--f-mono);font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
+.rules .over{color:var(--bad)}
+.rules-h{display:block;margin-top:8px;font-size:13px;font-weight:500}
+.go{display:inline-block;margin-top:6px;font-size:13px;font-weight:500}
+details.more{margin-top:6px;font-size:13px}
+details.more summary{cursor:pointer;color:var(--accent);font-weight:500}
+details.more ol{margin:6px 0 0;padding-left:20px;display:grid;gap:4px;color:var(--ink)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:4px;overflow:hidden}
+.seg button{border:0;background:transparent;padding:8px 14px;cursor:pointer;font-size:14px}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--sheet);font-weight:500}
+.flow{list-style:none;margin:0;padding:0;display:grid;gap:0;counter-reset:f}
+.flow li{counter-increment:f;display:grid;grid-template-columns:32px minmax(0,1fr);gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+.flow li:before{content:counter(f);font-family:var(--f-mono);font-weight:600;width:28px;height:28px;border-radius:50%;border:1px solid var(--accent);color:var(--accent);display:grid;place-items:center;font-size:13px}
+.flow strong{display:block}
+.flow span{color:var(--muted);font-size:14px}
+
+.signcta{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center;padding:14px 16px;border:1px dashed var(--accent);border-radius:6px;background:var(--accent-soft)}
+.signcta a{font-weight:600;white-space:nowrap}
+@media (max-width:520px){.signcta{grid-template-columns:1fr}}
+/* 원본에 빠져 있던 버튼·상태·근거 영역 스타일 */
+.actions{display:flex;flex-wrap:wrap;gap:8px}
+.btn{border:1px solid var(--ink);background:var(--ink);color:var(--sheet);padding:10px 16px;border-radius:4px;cursor:pointer;font-weight:500;font-size:14px}
+.btn.ghost{background:transparent;color:var(--ink)}
+.btn:disabled{opacity:.45;cursor:default}
+.status{font-size:13px;color:var(--muted);min-height:1.4em}
+.src{display:grid;gap:8px;font-size:13px;color:var(--muted)}
+.src strong{color:var(--ink)}
+.src ul{margin:0;padding-left:18px;display:grid;gap:4px}
+.foot-note{font-size:12px;color:var(--muted)}
+</style>
+</head><body>
+
+<div class="wrap">
+  <header class="head">
+    <div>
+      <div class="eyebrow">펫라이프위드미 사장님 브리핑 · 동물보호법 시행령 2025-06 개정</div>
+      <h1>반려동물 영업장 CCTV 점검표</h1>
+      <p>업종을 고르면 해당 여부와 기한, 위반 시 처분, 업종별 점검 항목이 나옵니다. 보호자가 영상을 보여 달라고 할 때의 대응 순서도 정리했습니다.</p>
+    </div>
+    <div class="dday" aria-live="polite"><b id="dday">D-</b><span>300㎡ 미만 기존 영업장 기한 · 2026-12-31</span></div>
+  </header>
+
+  <section class="step" aria-labelledby="s1">
+    <h2 id="s1"><span class="no">STEP 1</span>우리 매장, 해당될까</h2>
+    <fieldset>
+      <legend>영업 허가·등록증의 업종</legend>
+      <div class="chips" id="biz"></div>
+    </fieldset>
+    <fieldset id="areaSet">
+      <legend>영업장 면적</legend>
+      <div class="chips">
+        <div class="chip"><input type="radio" name="area" id="area-lt" value="lt" checked><label for="area-lt">300㎡ 미만</label></div>
+        <div class="chip"><input type="radio" name="area" id="area-ge" value="ge"><label for="area-ge">300㎡ 이상</label></div>
+      </div>
+    </fieldset>
+    <fieldset id="ageSet">
+      <legend>영업 시작 시점</legend>
+      <div class="chips">
+        <div class="chip"><input type="radio" name="age" id="age-old" value="old" checked><label for="age-old">2025년 6월 이전부터 영업</label></div>
+        <div class="chip"><input type="radio" name="age" id="age-new" value="new"><label for="age-new">그 이후 새로 허가·등록</label></div>
+      </div>
+    </fieldset>
+    <div class="verdict" id="verdict" aria-live="polite"></div>
+  </section>
+
+  <section class="step" aria-labelledby="s2">
+    <h2 id="s2"><span class="no">STEP 2</span>안 하면 어떻게 되나</h2>
+    <dl class="pen">
+      <div><dt>CCTV 미설치 (동물보호법 시설기준 위반)</dt><dd><span class="amt">벌금이 아니라 영업정지</span><small>시설·인력 기준 위반은 행정처분 대상. 예: 생산업·경매 판매업은 1차 15일 → 2차 1개월 → 3차 이상 3개월. 업종별 기간은 시행규칙 별표 기준.</small></dd></div>
+      <div><dt>녹음 기능을 켜 둔 경우 (개인정보보호법 제25조)</dt><dd><span class="amt">최대 징역 3년 또는 벌금 3천만 원</span><small>개인정보보호법 제72조. CCTV는 녹음 기능을 사용할 수 없습니다. 마이크 내장 제품은 설정에서 꺼 두세요.</small></dd></div>
+      <div><dt>안내판이 없는 경우</dt><dd><span class="amt">시정명령 → 불이행 시 과태료</span><small>2023년 9월 개정법 이후 바로 과태료가 아니라 시정명령이 먼저 나옵니다. 명령을 따르지 않으면 과태료가 부과됩니다.</small></dd></div>
+    </dl>
+  </section>
+
+  <section class="step" aria-labelledby="s3">
+    <h2 id="s3"><span class="no">STEP 3</span>업종별 체크리스트</h2>
+    <div style="display:grid;gap:6px">
+      <div class="bar"><i id="barFill"></i></div>
+      <div class="prog" id="prog">업종을 고르면 시작합니다</div>
+    </div>
+    <ul class="checks" id="checks"></ul>
+    <p class="hint">체크 상태는 이 브라우저에만 저장됩니다.</p>
+    <div class="actions">
+      <button class="btn" type="button" id="printChecklist" disabled>체크리스트 인쇄</button>
+      <button class="btn ghost" type="button" id="dlChecklist" disabled>인쇄용 파일 저장</button>
+    </div>
+    <div class="status" id="clStatus">STEP 1에서 업종을 고르면 그 업종의 체크리스트로 저장됩니다.</div>
+  </section>
+
+  <section class="step" id="viewing" aria-labelledby="s4">
+    <h2 id="s4"><span class="no">STEP 4</span>보호자가 영상을 보여 달라고 하면</h2>
+    <p class="hint">영상에는 직원과 다른 손님도 찍혀 있습니다. 매장 성격에 맞는 방식을 하나 정해 두고 직원 모두가 같은 순서로 대응하세요. 출력용 체크리스트에도 고른 방식이 함께 들어갑니다.</p>
+    <div class="seg" role="group" aria-label="대응 방식">
+      <button type="button" id="mode-friendly" aria-pressed="true">관계 유지형</button>
+      <button type="button" id="mode-strict" aria-pressed="false">원칙형</button>
+    </div>
+    <p id="modeDesc" class="hint"></p>
+    <ol class="flow" id="flow"></ol>
+  </section>
+
+  <section class="signcta">
+    <div><strong>안내판이 아직 없나요?</strong><p class="hint">법정 기재사항을 넣은 안내판을 템플릿 3종 중에서 골라 만들 수 있습니다.</p></div>
+    <a id="signLink" href="#" target="_top">안내판 만들기 →</a>
+  </section>
+
+  <section class="src">
+    <strong>근거 · 확인일 2026-10-16</strong>
+    <ul>
+      <li><a href="https://www.mafra.go.kr/bbs/home/792/574327/artclView.do" target="_blank" rel="noopener">농림축산식품부, 반려동물 영업 관리 강화를 위한 동물보호법 시행령 일부개정령 공포·시행 (2025-06-04)</a></li>
+      <li><a href="https://www.mafra.go.kr/bbs/mafra/68/249187/download.do" target="_blank" rel="noopener">농림축산식품부, 동물보호법 시행규칙 개정 (2021-06-17): 미용·운송업 CCTV 및 녹화 30일 보관, 행정처분 강화</a></li>
+      <li><a href="https://www.nepla.ai/wiki/it-정보-방송통신/개인정보-위치정보-신용정보/고정형-영상정보처리기기/고정형-영상정보처리기기-설치·운영시의-의무/고정형영상정보처리기기운영자의-임의조작·녹음-등-금지-의무-g6w93vvenojp" target="_blank" rel="noopener">개인정보보호법 제25조 제5항·제72조 (녹음 금지·벌칙)</a></li>
+      <li><a href="https://newsseoul.co.kr/news/view/1065597610053502" target="_blank" rel="noopener">개인정보보호위원회, 안내판 미설치 시 선 시정명령 후 과태료 (2024-01-25 보도)</a></li>
+      <li><a href="https://newsseoul.co.kr/news/view/1065588618667158" target="_blank" rel="noopener">개인정보보호위원회, CCTV 개인영상정보 보호 행동수칙: 사생활 침해 장소 설치 금지, 녹음 금지, 열람 요구 처리 (2025-06-16 보도)</a></li>
+    </ul>
+    <p class="foot-note">이 페이지는 공개 자료를 정리한 안내이며 법률·노무 자문이 아닙니다. 업종별 세부 기준과 처분은 관할 시·군·구 동물보호 담당 부서에, 직원 관련 사항은 노무 전문가에게 확인하세요.</p>
+  </section>
+</div>
+
+<script>
+(function(){
+/* 안내판 만들기 글 주소 (펫라이프위드미 뉴스) — 바꾸려면 이 값만 수정 */
+const SIGN_URL = '/news/cctv-sign';
+const DEADLINE = '2026-12-31';
+const BIZ = [
+  {id:'shop', name:'판매업 (일반 펫숍)', short:'판매업(일반 펫숍)', g:'new'},
+  {id:'display', name:'전시업 (동물카페 등)', short:'전시업(동물카페 등)', g:'new'},
+  {id:'breed', name:'생산업', short:'생산업', g:'new'},
+  {id:'import', name:'수입업', short:'수입업', g:'new'},
+  {id:'hotel', name:'위탁관리업 (호텔·유치원·시설형 돌봄)', short:'위탁관리업', g:'old', since:'2018년 3월 업종 신설 때부터'},
+  {id:'groom', name:'미용업 (이동식 포함)', short:'미용업', g:'old', keep:true, since:'2022년 6월 18일부터'},
+  {id:'transport', name:'운송업 (펫택시)', short:'운송업', g:'old', keep:true, since:'2022년 6월 18일부터'},
+  {id:'funeral', name:'장묘업', short:'장묘업', g:'old', since:'2025년 개정 이전부터'},
+  {id:'auction', name:'판매업 (경매)', short:'경매 방식 판매업', g:'old', since:'2025년 개정 이전부터'},
+  {id:'visit', name:'방문형 돌봄 (영업장 없음)', short:'방문형 돌봄', g:'check'},
+  {id:'none', name:'위 업종 아님', short:'해당 업종 외', g:'none'}
+];
+const EXTRA = {
+  groom:[['미용 테이블과 목욕 공간이 모두 화면에 들어오는지','미용 중인 동물 상태를 확인할 수 있어야 함. 이동식 미용은 차량 내부 포함']],
+  transport:[['차량 안 동물이 있는 공간이 찍히는지','운송 중인 동물 상태 확인 기준']],
+  hotel:[['개별 휴식실·놀이 공간이 사각지대 없이 찍히는지','위탁 동물이 주로 머무는 공간 기준']],
+  display:[['손님이 동물과 접촉하는 공간이 찍히는지','동물이 있는 주요 장소 기준']],
+  shop:[['판매 동물 진열·보호 공간이 찍히는지','동물이 있는 주요 장소 기준']],
+  breed:[['사육실 전체가 찍히는지','영업장 내 동물이 주로 위치하는 곳 기준'],['영업장의 월령 12개월 이상 개 동물등록 (2026-06-03 시행)','생산업 별도 의무']],
+  import:[['검역 후 보호 공간이 찍히는지','동물이 있는 주요 장소 기준']]
+};
+const REST = [
+  '촬영 범위를 동물 공간으로 좁히기: 카메라 각도를 조정하고, 휴게 자리가 화면에 걸리면 제품의 사생활 보호 마스킹(가림 영역) 기능으로 가린다.',
+  '공간을 나누기: 파티션·커튼으로 휴게 자리를 동물 공간과 분리하거나, 휴게 자리를 화면 밖으로 옮긴다.',
+  '직원에게 미리 알리고 동의 받기: 설치 목적(동물 안전), 촬영 범위, 보관 기간, 열람 권한자를 서면으로 알리고 동의서를 보관한다. 근로계약서나 취업규칙에도 적는다.',
+  '근무 감시에 쓰지 않기: 영상은 동물 안전·사고 확인에만 쓰고 근태 평가에 쓰지 않는다는 원칙을 문서로 남긴다. 상시 근로자 30명 이상 사업장은 감시 설비 설치가 노사협의회 협의 사항이다.',
+  '화장실·탈의 공간은 겸용이라도 촬영하지 않는다.'
+];
+const FLOWS = {
+  friendly:{desc:'단골 관계를 지키면서 다른 사람의 초상권을 보호하는 방식입니다. 동네 매장, 보호자와 얼굴을 아는 업종에 맞습니다.', steps:[
+    ['요청 받으면 해당 구간부터 따로 보관','날짜·시간대·사유를 메모하고, 그 구간 영상을 바로 백업해 자동 삭제를 막습니다.'],
+    ['매장에서 함께 보기','사장님이나 관리책임자가 옆에서 해당 구간만 재생합니다. 영상 파일 전달과 휴대폰 촬영은 정중히 사양합니다.'],
+    ['다른 사람이 나오면 가리기','다른 손님이나 직원이 나오는 장면은 넘기거나 화면 일부를 가리고, 필요하면 당사자에게 양해를 구합니다.'],
+    ['확인한 내용을 짧게 기록','본 구간, 함께 본 사람, 결론을 남깁니다. 사고라면 처리 방안을 같은 자리에서 안내합니다.'],
+    ['사본이 꼭 필요하면 원칙형으로 전환','파일 제공을 원하면 서면 신청을 받아 원칙형 절차로 처리합니다.']]},
+  strict:{desc:'분쟁 가능성이 있거나 요청이 잦은 매장, 직원이 여러 명인 매장에 맞습니다. 모든 요청을 같은 서식과 순서로 처리합니다.', steps:[
+    ['서면으로 신청 받기','열람 신청서에 신청인·연락처·반려동물·날짜와 시간대·사유를 적게 하고 신분을 확인합니다. 해당 구간은 즉시 따로 보관합니다.'],
+    ['열람 대상인지 확인','보호자 본인이 찍힌 영상은 본인 열람 요구 대상입니다. 본인이 나오지 않는 영상은 동물 확인 목적으로 함께 보기만 할지 정합니다.'],
+    ['다른 사람은 비식별 처리','다른 사람이 나오는 부분은 모자이크 등으로 알아볼 수 없게 처리한 뒤 보여 주거나 제공합니다. 처리할 수 없으면 열람만 허용합니다.'],
+    ['기한 안에 답하기','본인 열람 요구는 10일 안에 열람·제공하거나, 거절할 경우 사유를 알립니다. 수사기관 요청은 공문으로 받아 제공합니다.'],
+    ['처리 기록 남기기','신청일, 신청인, 본 구간, 제공 여부, 처리자를 관리대장에 적어 둡니다.']]}
+};
+const $ = s => document.querySelector(s);
+const store = {get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}}, set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+function esc(s){return String(s).replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]))}
+
+const signLink=$('#signLink');
+if(SIGN_URL && SIGN_URL.indexOf('PLACEHOLDER')<0) signLink.href=SIGN_URL; else signLink.closest('.signcta').hidden=true;
+
+function daysLeft(){const t=new Date();const today=Date.UTC(t.getFullYear(),t.getMonth(),t.getDate());return Math.round((Date.parse(DEADLINE)-today)/864e5)}
+const dl=daysLeft(); $('#dday').textContent = dl>0?('D-'+dl):(dl===0?'D-DAY':'기한 경과');
+
+const saved = store.get('cctv-sel2',{biz:null,area:'lt',age:'old'});
+$('#biz').innerHTML = BIZ.map(b=>`<div class="chip"><input type="radio" name="biz" id="biz-${b.id}" value="${b.id}"${b.id===saved.biz?' checked':''}><label for="biz-${b.id}">${b.name}</label></div>`).join('');
+document.querySelector(`input[name=area][value=${saved.area==='ge'?'ge':'lt'}]`).checked=true;
+document.querySelector(`input[name=age][value=${saved.age==='new'?'new':'old'}]`).checked=true;
+let mode = store.get('cctv-mode','friendly')==='strict'?'strict':'friendly';
+
+function sel(){const b=document.querySelector('input[name=biz]:checked');return {biz:b?b.value:null, area:document.querySelector('input[name=area]:checked').value, age:document.querySelector('input[name=age]:checked').value}}
+const bizOf = id => BIZ.find(x=>x.id===id);
+
+function verdict(s){
+  const b=bizOf(s.biz);
+  if(b.g==='new'){
+    if(s.age==='new') return ['warn','유예 대상 아님','새로 허가·등록한 영업장은 기존 영업자 유예가 적용되지 않습니다. 허가·등록 시설기준으로 지금 설치돼 있어야 하는지 관할 시·군·구에 확인하세요.'];
+    if(s.area==='ge') return ['bad','기한 이미 지남','300㎡ 이상 기존 영업장의 설치 기한은 2025-12-31이었습니다. 아직 없다면 지금 바로 설치하고 관할 부서에 상황을 알리는 것이 우선입니다.'];
+    return ['bad', dl>0?('새 의무 · D-'+dl):'새 의무 · 기한 경과', b.short+'은 2025년 6월 개정으로 CCTV 설치 의무가 생겼습니다. 300㎡ 미만 기존 영업장은 2026-12-31까지 설치해야 합니다.'];
+  }
+  if(b.g==='old') return ['good','이미 의무 업종 · 운영 점검', b.short+'은 '+b.since+' 설치 의무가 있었습니다. 기한과 별개로 사각지대, 녹화 보관, 안내판 상태를 점검하세요.'+(b.keep?' 녹화 기록은 30일간 보관해야 합니다.':'')];
+  if(b.g==='check') return ['warn','해당 여부 확인 필요','위탁관리업은 "영업장 내에서" 동물을 맡는 영업으로 정의됩니다. 보호자 집을 방문하는 돌봄만 한다면 해당하지 않을 수 있지만, 위탁 공간을 운영한다면 위탁관리업입니다. 관할 시·군·구에 확인하세요.'];
+  return ['none','CCTV 설치 의무 대상 아님','반려동물 영업 8종에 속하지 않으면 이 의무는 없습니다. 다만 CCTV를 달면 안내판·녹음 금지 등 개인정보보호법은 똑같이 적용됩니다.'];
+}
+
+/* 업종·면적별 기한 규칙: [조건, 기한 표시, 지났는지, 현재 선택과 일치하는지] */
+function rules(s){
+  const b=bizOf(s.biz);
+  if(b.g==='new') return [
+    ['300㎡ 미만 · 기존 영업장','2026-12-31까지', dl<0, s.area==='lt'&&s.age==='old'],
+    ['300㎡ 이상 · 기존 영업장','2025-12-31 종료', true, s.area==='ge'&&s.age==='old'],
+    ['2025년 6월 이후 신규 허가·등록','유예 없음 · 관할 확인', false, s.age==='new']];
+  if(b.g==='old') return [['면적 무관', b.since+' 의무', false, true]];
+  if(b.g==='check') return [
+    ['영업장 없이 보호자 집 방문만','대상 아닐 수 있음', false, true],
+    ['위탁 공간을 따로 운영','위탁관리업 기준 적용', false, false]];
+  return [['영업 8종 외 업종','설치 의무 없음', false, true]];
+}
+
+function items(s){
+  const b=bizOf(s.biz); const L=[];
+  L.push({t:'허가·등록증의 업종과 영업장 면적 확인', w:'기한과 의무 여부가 이 두 가지로 갈립니다', rules:true});
+  if(b.g!=='none') L.push({t:'동물이 있는 주요 장소를 도면에 표시', w:'설치 위치 기준: 영업장 내 동물이 있는 주요 장소'});
+  (EXTRA[s.biz]||[]).forEach(x=>L.push({t:x[0], w:x[1]}));
+  if(b.g==='new') L.push({t:'시공 견적·일정 확정 (11월 중 권장)', w:'연말 시공 수요가 몰릴 수 있습니다', tag:'신규 의무'});
+  L.push({t:'출입구에 안내판 부착', w:'설치 목적·장소, 촬영 범위·시간, 관리책임자 연락처 기재', sign:true});
+  L.push({t:'녹음 기능 끄기', w:'마이크 내장 제품은 설정 확인. 위반 시 최대 징역 3년·벌금 3천만 원'});
+  L.push({t:'화장실·탈의실 내부는 촬영하지 않기', w:'직원 휴게공간과 겸용인 곳은 아래 방식을 따르세요', rest:true});
+  if(b.keep) L.push({t:'녹화 기록 30일 보관 설정', w:'미용·운송업 의무', tag:'보관 의무'});
+  else if(b.g!=='none') L.push({t:'녹화 보관 기간 설정 확인', w:'업종별 기준은 관할 부서에 확인'});
+  L.push({t:'보호자 영상 열람 요청 대응 방식 정하기', w:'STEP 4에서 관계 유지형 또는 원칙형을 골라 직원과 공유', view:true});
+  if(b.g!=='none') L.push({t:'관할 시·군·구 동물보호 담당 부서 문의', w:'업종별 세부 기준·처분 확인'});
+  return L;
+}
+
+let checks = store.get('cctv-checks2',{});
+function ruleHtml(s){
+  const b=bizOf(s.biz);
+  return `<span class="rules-h">${esc(b.short)}은:</span><ul class="rules">`+rules(s).map(r=>`<li class="${r[3]?'me':''}"><span>${esc(r[0])}</span><b class="${r[2]?'over':''}">${esc(r[1])}</b></li>`).join('')+'</ul>';
+}
+function render(){
+  const s=sel(); store.set('cctv-sel2',s);
+  const v=$('#verdict');
+  if(!s.biz){
+    $('#areaSet').hidden=true; $('#ageSet').hidden=true;
+    v.className='verdict none'; v.innerHTML='<span class="pill">업종 선택 전</span><strong>위에서 업종을 하나 고르세요</strong><p>허가·등록증에 적힌 업종을 기준으로 고르면 기한과 체크리스트가 나옵니다.</p>';
+    $('#checks').innerHTML='<li class="empty">업종을 고르면 그 업종에 맞는 점검 항목이 여기에 나옵니다.</li>';
+    $('#prog').textContent='업종을 고르면 시작합니다'; $('#barFill').style.width='0%';
+    $('#dlChecklist').disabled=true; $('#printChecklist').disabled=true; return;
+  }
+  const b=bizOf(s.biz);
+  $('#areaSet').hidden = b.g!=='new'; $('#ageSet').hidden = b.g!=='new';
+  const [cls,pill,txt]=verdict(s);
+  v.className='verdict '+cls;
+  v.innerHTML=`<span class="pill">${esc(pill)}</span><strong>${esc(b.name)}</strong><p>${esc(txt)}</p>`;
+  const L=items(s); const key=s.biz; const st=checks[key]||{};
+  $('#checks').innerHTML=L.map((x,i)=>{
+    let extra='';
+    if(x.rules) extra=ruleHtml(s);
+    if(x.sign && !signLink.closest('.signcta').hidden) extra=`<a class="go" href="${esc(SIGN_URL)}" target="_top">안내판이 없다면 → 안내판 만들기</a>`;
+    if(x.rest) extra='<details class="more"><summary>직원 휴게공간과 겸용이라 설치가 필요하다면</summary><ol>'+REST.map(r=>'<li>'+esc(r)+'</li>').join('')+'</ol></details>';
+    if(x.view) extra='<a class="go" href="#viewing">대응 순서 보기 ↓</a>';
+    return `<li><label><input type="checkbox" id="ck-${key}-${i}" data-i="${i}"${st[i]?' checked':''}><span><span class="t">${esc(x.t)}${x.tag?`<span class="tag">${esc(x.tag)}</span>`:''}</span><span class="why">${esc(x.w)}</span>${extra}</span></label></li>`;
+  }).join('');
+  progress(L.length, st);
+  $('#dlChecklist').disabled = !out; $('#printChecklist').disabled = !out;
+  $('#clStatus').textContent = out ? b.short+' 체크리스트로 인쇄·저장됩니다.' : '';
+}
+function progress(n, st){
+  const done=Object.keys(st).filter(k=>st[k]&&+k<n).length;
+  $('#prog').textContent=done+' / '+n+' 완료'; $('#barFill').style.width=(n?done/n*100:0)+'%';
+}
+document.addEventListener('change',e=>{
+  if(e.target.name==='biz'||e.target.name==='area'||e.target.name==='age'){render();return}
+  if(e.target.closest('#checks')){
+    const key=sel().biz; if(!key) return; checks[key]=checks[key]||{}; checks[key][e.target.dataset.i]=e.target.checked;
+    store.set('cctv-checks2',checks); progress(items(sel()).length, checks[key]);
+  }
+});
+
+function renderFlow(){
+  $('#mode-friendly').setAttribute('aria-pressed', mode==='friendly'); $('#mode-strict').setAttribute('aria-pressed', mode==='strict');
+  $('#modeDesc').textContent=FLOWS[mode].desc;
+  $('#flow').innerHTML=FLOWS[mode].steps.map(x=>`<li><div><strong>${esc(x[0])}</strong><span>${esc(x[1])}</span></div></li>`).join('');
+}
+$('#mode-friendly').addEventListener('click',()=>{mode='friendly';store.set('cctv-mode',mode);renderFlow()});
+$('#mode-strict').addEventListener('click',()=>{mode='strict';store.set('cctv-mode',mode);renderFlow()});
+
+/* 인쇄·파일 저장은 사이트가 제공하는 window.petlife 로 (사이트 밖에서 열면 브라우저 인쇄로 대신한다) */
+const out = window.petlife || null;
+if(!out){$('#dlChecklist').hidden=true;$('#printChecklist').hidden=true}
+render(); renderFlow();
+
+const PRINT_CSS='@page{size:A4;margin:16mm}body{font-family:"Malgun Gothic","Apple SD Gothic Neo",sans-serif;color:#111;font-size:11pt;line-height:1.5}h1{font-size:20pt;margin:0 0 6pt}h2{font-size:13pt;margin:14pt 0 6pt;border-bottom:1.5pt solid #111;padding-bottom:3pt}.v{border:1pt solid #999;padding:8pt;margin:6pt 0}ul{padding:0;margin:0}li{list-style:none;margin:5pt 0;padding-left:16pt;text-indent:-16pt}li.c:before{content:"□ "}li.c.done:before{content:"☑ "}small{color:#555}table{border-collapse:collapse;margin:4pt 0 0 16pt}td{border:.6pt solid #aaa;padding:2pt 6pt;font-size:10pt}ol{margin:4pt 0 0;padding-left:30pt}ol li{list-style:decimal;padding:0;text-indent:0}.foot{margin-top:16pt;font-size:9pt;color:#555}';
+function checklistHtml(){
+  const s=sel(); if(!s.biz) return null;
+  const b=bizOf(s.biz); const [,pill,txt]=verdict(s); const f=FLOWS[mode];
+  const li=items(s).map((x,i)=>{
+    let sub='';
+    if(x.rules) sub='<table>'+rules(s).map(r=>'<tr><td>'+esc(r[0])+'</td><td>'+esc(r[1])+'</td></tr>').join('')+'</table>';
+    if(x.rest) sub='<ol>'+REST.map(r=>'<li>'+esc(r)+'</li>').join('')+'</ol>';
+    return '<li class="c'+(((checks[s.biz]||{})[i])?' done':'')+'">'+esc(x.t)+' <small>— '+esc(x.w)+'</small>'+sub+'</li>';
+  }).join('');
+  const html='<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>CCTV 체크리스트 - '+esc(b.short)+'</title><style>'+PRINT_CSS+'</style></head><body>'
+    +'<h1>CCTV 체크리스트 · '+esc(b.name)+'</h1><div class="v"><b>'+esc(pill)+'</b><br>'+esc(txt)+'</div>'
+    +'<h2>점검 항목</h2><ul>'+li+'</ul>'
+    +'<h2>영상 열람 요청 대응 · '+(mode==='strict'?'원칙형':'관계 유지형')+'</h2><ol>'+f.steps.map(x=>'<li><b>'+esc(x[0])+'</b> — '+esc(x[1])+'</li>').join('')+'</ol>'
+    +'<p class="foot">펫라이프위드미 사장님 브리핑 · 확인일 2026-10-16 · 공개 자료 정리이며 법률·노무 자문이 아닙니다. 브라우저에서 열고 인쇄(Ctrl+P)하세요.</p></body></html>';
+  return {html, filename:'CCTV_체크리스트_'+b.short.replace(/[^\w가-힣]/g,'')+'.html'};
+}
+$('#printChecklist').addEventListener('click',()=>{const r=checklistHtml(); if(!r||!out) return; out.print(r.html); $('#clStatus').textContent='인쇄 창을 열었습니다.'});
+$('#dlChecklist').addEventListener('click',()=>{const r=checklistHtml(); if(!r||!out) return; out.download(r.filename, r.html); $('#clStatus').textContent=r.filename+' 을(를) 저장했습니다. 브라우저에서 열고 인쇄하세요.'});
+})();
+</script>
+
+</body></html>$cctv$, "updated_at" = now()
+WHERE "slug" = 'cctv-checklist'
+  AND md5(replace(btrim("tool_html", E' \t\r\n'), E'\r\n', E'\n')) = '1b32d61a20905870f5cf7082e24a20a1';
