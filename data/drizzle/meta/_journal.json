@@ -141,6 +141,13 @@
       "when": 1792199614010,
       "tag": "0019_gsc_archive",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1792225948216,
+      "tag": "0020_sync_cctv_checklist_html",
+      "breakpoints": true
     }
   ]
 }
