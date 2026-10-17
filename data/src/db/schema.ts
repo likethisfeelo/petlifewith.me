@@ -59,7 +59,7 @@ export const spotSource = pgEnum("spot_source", [
 ]);
 export const makerStatus = pgEnum("maker_status", ["draft", "published"]);
 // 요청함 (0012) — 업체 등록·정보 관리·유료 노출·돌봄 파트너 등록이 한 표에 쌓인다. 옛 claims 는 여기로 옮겼다.
-export const requestKind = pgEnum("request_kind", ["spot_register", "spot_claim", "maker_claim", "promo_slot", "care_partner"]);
+export const requestKind = pgEnum("request_kind", ["spot_register", "spot_claim", "maker_claim", "promo_slot", "care_partner", "info_request"]);
 export const requestStatus = pgEnum("request_status", ["new", "in_progress", "done", "rejected"]);
 // 펫모임 (0013) — 열림 / 마감 (주최자가 정한다). 숨김은 관리자 hidden_at
 export const meetupStatus = pgEnum("meetup_status", ["open", "closed"]);
