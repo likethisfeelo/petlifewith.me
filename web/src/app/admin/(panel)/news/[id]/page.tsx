@@ -7,8 +7,15 @@ import { uploadPolicyFor } from "@/lib/settings";
 import { AdminPageHeader } from "../../../_components/fields";
 import { deleteNewsAction } from "../../../news-actions";
 import { NewsEditor } from "./news-editor";
+import { STARTER_NEWS } from "@/lib/tools/starter-news";
 
 const { newsPosts } = schema;
+
+/** 처음 쓰는 글이면 코드에 들어 있는 최신 기본 HTML */
+function starterHtml(slug: string): string | undefined {
+  const starter = STARTER_NEWS.find((n) => n.slug === slug);
+  return starter && "toolHtml" in starter ? starter.toolHtml : undefined;
+}
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -43,6 +50,7 @@ export default async function AdminNewsEditPage({ params, searchParams }: Props)
       <div className="mt-5">
         <NewsEditor
           mode="edit"
+          defaultHtml={starterHtml(post.slug)}
           policy={uploadPolicyFor("admin", await getMemberMediaSettings())}
           post={{
             id: post.id,

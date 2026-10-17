@@ -15,6 +15,12 @@ describe("HTML 도구 브리지", () => {
     expect(out.indexOf("<script>")).toBeLessThan(out.indexOf("<meta"));
   });
 
+  it("어두운 모드 조건은 절대 맞지 않게 바꾼다 (CSS·matchMedia 모두)", () => {
+    const out = buildToolSrcDoc('<style>@media (prefers-color-scheme: dark){:root{--bg:#000}}</style><script>matchMedia("(prefers-color-scheme:dark)")</script>');
+    expect(out).not.toMatch(/\(prefers-color-scheme:\s*dark\)(?! and \(max-width: 0px\))/);
+    expect(out.match(/and \(max-width: 0px\)/g)).toHaveLength(2);
+  });
+
   it("head 가 없으면 맨 앞에 넣는다", () => {
     expect(buildToolSrcDoc("<p>hi</p>").startsWith("<script>")).toBe(true);
   });

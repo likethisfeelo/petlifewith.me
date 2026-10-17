@@ -6,21 +6,15 @@
 <style>
 /* Layout: one 760px inspection sheet — header band with the deadline counter, then numbered steps (판별 → 처분 → 점검 → 안내판). */
 :root{
-  --paper:#F3F5F2; --sheet:#FFFFFF; --ink:#18221E; --muted:#56635D; --line:#D5DDD8;
-  --accent:#0F6655; --accent-soft:#E2F0EC;
+  /* 펫라이프위드미 사이트 색 (web/src/app/globals.css) — 사이트가 밝은 화면만 쓰므로 어두운 모드는 두지 않는다 */
+  color-scheme:light;
+  --paper:#FBF9F5; --sheet:#FFFFFF; --ink:#221E19; --muted:#6B6257; --line:#E8E1D5;
+  --accent:#3F739B; --accent-soft:#E4EDF4;
   --good:#2D7A4C; --good-soft:#E3F2E8; --warn:#A35E00; --warn-soft:#FBEFD9; --bad:#B0281F; --bad-soft:#FBE4E1;
   --f-body:"IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
   --f-display:"Black Han Sans", "IBM Plex Sans KR", sans-serif;
   --f-mono:"IBM Plex Mono", ui-monospace, Menlo, monospace;
 }
-@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
-  --paper:#111816; --sheet:#18211E; --ink:#E6EDE9; --muted:#9AA9A2; --line:#2C3A35;
-  --accent:#4FC2A7; --accent-soft:#163A32;
-  --good:#6CCB8E; --good-soft:#173826; --warn:#F0B35A; --warn-soft:#3A2C12; --bad:#F2867D; --bad-soft:#3F1C19; color-scheme:dark}}
-:root[data-theme="dark"]{
-  --paper:#111816; --sheet:#18211E; --ink:#E6EDE9; --muted:#9AA9A2; --line:#2C3A35;
-  --accent:#4FC2A7; --accent-soft:#163A32;
-  --good:#6CCB8E; --good-soft:#173826; --warn:#F0B35A; --warn-soft:#3A2C12; --bad:#F2867D; --bad-soft:#3F1C19; color-scheme:dark}
 *{box-sizing:border-box}
 body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.6;
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:24px 48px}

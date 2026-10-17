@@ -112,7 +112,9 @@ export function HtmlToolFrame({ html, title, storageKey, minHeight }: { html: st
       srcDoc={srcDoc}
       sandbox={TOOL_IFRAME_SANDBOX}
       referrerPolicy="no-referrer"
-      style={{ height, minHeight: 200 }}
+      // 사이트는 밝은 화면만 쓴다 — iframe 의 color-scheme 이 안쪽 문서의 prefers-color-scheme 이 되므로,
+      // 방문자 기기가 어두운 모드여도 도구의 어두운 테마(검은 바탕·흰 글자)가 켜지지 않는다
+      style={{ height, minHeight: 200, colorScheme: "light" }}
       className="block w-full border-0 sm:rounded-xl"
     />
   );

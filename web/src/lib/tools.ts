@@ -88,8 +88,18 @@ ev.preventDefault();send({type:"scroll",y:Math.round(el.getBoundingClientRect().
 })();</script>`;
 }
 
-/** iframe srcdoc — 브리지를 맨 앞(<head> 안 또는 문서 앞)에 넣는다 */
-export function buildToolSrcDoc(html: string, initial: Record<string, string> = {}): string {
+/**
+ * 어두운 모드 끄기 — 사이트는 밝은 화면만 쓴다. 업로드 HTML 의 `(prefers-color-scheme: dark)` 조건을
+ * 절대 맞지 않는 조건으로 바꿔, 방문자 기기가 어두운 모드여도 검은 바탕·흰 글자 테마가 켜지지 않게 한다.
+ * (iframe 의 color-scheme 은 다른 출처(sandbox) 문서에 전달되지 않아 CSS 만으로는 막을 수 없다)
+ */
+export function forceLightScheme(html: string): string {
+  return html.replace(/\(\s*prefers-color-scheme\s*:\s*dark\s*\)/gi, "(prefers-color-scheme: dark) and (max-width: 0px)");
+}
+
+/** iframe srcdoc — 어두운 모드를 끄고, 브리지를 맨 앞(<head> 안 또는 문서 앞)에 넣는다 */
+export function buildToolSrcDoc(rawHtml: string, initial: Record<string, string> = {}): string {
+  const html = forceLightScheme(rawHtml);
   const bridge = toolBridgeScript(initial);
   const head = /<head[^>]*>/i.exec(html);
   if (head) return html.slice(0, head.index + head[0].length) + bridge + html.slice(head.index + head[0].length);
