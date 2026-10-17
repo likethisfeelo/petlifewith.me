@@ -1,19 +1,23 @@
 // ============================================================
 // 펫세권 분석 — "업장 1곳당 등록 반려견 수" (순수 함수, 테스트 대상)
 //
-// 지표 = 등록 반려견 수 ÷ 영업 중 업장 수. 클수록 업장이 모자란 지역(공급 부족 후보), 작을수록 몰린 지역(밀집).
+// 지표 = 등록 반려견 수 ÷ 영업 중 업장 수. 클수록 업장 1곳에 대응하는 등록견이 많고, 작을수록 적다.
+// (수요·수익성 지표가 아니다 — 판정 이름도 지표 그대로 "업장 대비 등록견 많음/적음"으로 쓴다)
 // 자료는 두 단계다.
 //  1) 기본: 농식품부 2025 실태조사 시도별 총량(baseline-2025.json) — 시도·전국 값만 있다. 코드에 들어 있어 늘 동작한다.
 //  2) 시군구: scripts/petsegwon 파이프라인(공공데이터포털 등록·인허가 자료)이 만든 stats.json 을
 //     관리자 뉴스 화면에서 올리면 site_settings(petsegwon_stats)에 저장되고, 시군구 선택이 열린다.
-// 판정 기준: 비교 대상 평균의 120% 이상 "공급 부족 후보", 80% 미만 "밀집 지역", 그 사이 "평균권", 원 업장 3곳 미만 "표본 적음".
+// 판정 기준: 비교 대상 평균의 120% 이상 "업장 대비 등록견 많음", 80% 미만 "업장 대비 등록견 적음", 그 사이 "평균 수준", 원 업장 3곳 미만 "표본 적음".
 // ============================================================
 import baseline from "./baseline-2025.json";
 
 export const PETSEGWON_STATS_KEY = "petsegwon_stats";
 export const DEFAULT_INDUSTRY = "grooming";
 
-export type PetsegwonLabel = "공급 부족 후보" | "평균권" | "밀집 지역" | "표본 적음" | "업장 없음";
+export type PetsegwonLabel = "업장 대비 등록견 많음" | "평균 수준" | "업장 대비 등록견 적음" | "표본 적음" | "업장 없음";
+
+/** 예전 파이프라인 판정 이름 → 지금 이름 */
+const LEGACY_LABELS: Record<string, PetsegwonLabel> = { "공급 부족 후보": "업장 대비 등록견 많음", 평균권: "평균 수준", "밀집 지역": "업장 대비 등록견 적음" };
 
 export interface NationalIndustry {
   dogs: number;
@@ -80,9 +84,9 @@ function round1(n: number): number {
 export function labelFor(pct: number | null, shopsRaw: number | null, t: { short: number; dense: number; minShops: number } = THRESHOLDS): PetsegwonLabel {
   if (shopsRaw !== null && shopsRaw < t.minShops) return "표본 적음";
   if (pct === null) return "업장 없음";
-  if (pct >= t.short) return "공급 부족 후보";
-  if (pct < t.dense) return "밀집 지역";
-  return "평균권";
+  if (pct >= t.short) return "업장 대비 등록견 많음";
+  if (pct < t.dense) return "업장 대비 등록견 적음";
+  return "평균 수준";
 }
 
 /** 실태조사 시도 값으로 만든 기본 통계 (시군구 없음) — build_stats.py 와 같은 계산 */
@@ -155,7 +159,7 @@ function shortText(v: unknown, max: number): string {
   return typeof v === "string" ? v.slice(0, max) : "";
 }
 
-const LABELS: readonly PetsegwonLabel[] = ["공급 부족 후보", "평균권", "밀집 지역", "표본 적음", "업장 없음"];
+const LABELS: readonly PetsegwonLabel[] = ["업장 대비 등록견 많음", "평균 수준", "업장 대비 등록견 적음", "표본 적음", "업장 없음"];
 
 /**
  * 파이프라인이 만든 stats.json → 화면에서 쓰는 모양. 시도·업종 이름은 실태조사 목록에 있는 것만 받는다.
@@ -193,7 +197,8 @@ export function normalizeStats(raw: unknown): { ok: true; value: PetsegwonStats 
       const x = obj(d);
       if (!known[ind] || !x) continue;
       present.add(ind);
-      const label = LABELS.includes(x.label as PetsegwonLabel) ? (x.label as PetsegwonLabel) : labelFor(num(x.pct_of_sido_avg), num(x.shops_raw), thresholds);
+      const rawLabel = typeof x.label === "string" ? (LEGACY_LABELS[x.label] ?? x.label) : "";
+      const label = LABELS.includes(rawLabel as PetsegwonLabel) ? (rawLabel as PetsegwonLabel) : labelFor(num(x.pct_of_sido_avg), num(x.shops_raw), thresholds);
       inds[ind] = {
         shops: num(x.shops) ?? 0,
         shops_raw: num(x.shops_raw) ?? 0,

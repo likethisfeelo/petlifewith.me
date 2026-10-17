@@ -1,8 +1,8 @@
 """Build out/stats.json, per-industry ranking CSVs, and a validation report.
 
 Metric: 업장 1곳당 등록 반려견 수 = 등록 반려견 수 / 영업 중 업장 수
-  - higher  -> fewer shops per dog (공급 부족 후보)
-  - lower   -> more shops per dog (밀집)
+  - higher  -> fewer shops per dog (업장 대비 등록견 많음)
+  - lower   -> more shops per dog (업장 대비 등록견 적음)
 
 Calibration (config.calibration):
   sigungu_value = raw_sigungu_value / raw_sido_sum * survey_sido_total
@@ -53,10 +53,10 @@ def label_for(pct, shops_raw, cfg_labels):
     if pct is None:
         return "업장 없음"
     if pct >= cfg_labels["short_threshold_pct"]:
-        return "공급 부족 후보"
+        return "업장 대비 등록견 많음"
     if pct < cfg_labels["dense_threshold_pct"]:
-        return "밀집 지역"
-    return "평균권"
+        return "업장 대비 등록견 적음"
+    return "평균 수준"
 
 
 def main():

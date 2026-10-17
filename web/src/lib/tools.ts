@@ -14,6 +14,8 @@ export interface BuiltinTool {
   label: string;
   /** 회원만 쓸 수 있다 — 손님에게는 예시와 로그인 안내만 보인다 */
   membersOnly: boolean;
+  /** top: 글 본문보다 먼저(제목 바로 아래) — 읽는 글이 아니라 바로 쓰는 도구 */
+  placement?: "top";
   description: string;
 }
 
@@ -28,6 +30,7 @@ export const BUILTIN_TOOLS: readonly BuiltinTool[] = [
     key: "petsegwon",
     label: "펫세권 분석 (업장 1곳당 반려견 수)",
     membersOnly: false,
+    placement: "top",
     description: "시도·시군구·업종을 고르면 업장 1곳당 등록 반려견 수를 평균과 비교. 아래에 뉴스레터 구독·회원가입 안내",
   },
 ];

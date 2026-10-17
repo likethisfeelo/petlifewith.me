@@ -7,6 +7,7 @@ import { JsonLd } from "@/components/jsonld";
 import { NewsBanners } from "@/components/news-banners";
 import { BuiltinToolView } from "@/components/tools/builtin-tool";
 import { HtmlToolFrame } from "@/components/tools/html-tool-frame";
+import { PetsegwonSummary } from "@/components/tools/petsegwon/petsegwon-summary";
 import { TrackContext } from "@/components/tracker";
 import { assetUrl } from "@/lib/assets";
 import { formatDate } from "@/lib/format";
@@ -77,6 +78,13 @@ export default async function NewsPostPage({ params }: Props) {
         {post.summary && <p className="mt-4 text-[17px] leading-relaxed text-ink-soft">{post.summary}</p>}
       </header>
 
+      {tool?.placement === "top" && (
+        // 바로 쓰는 도구 — 설명(본문)보다 먼저
+        <section className="mt-8" aria-label={tool.label}>
+          <BuiltinToolView toolKey={tool.key} petsegwonStats={petsegwonStats} />
+        </section>
+      )}
+
       {hero && (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={hero} alt={post.title} className="mt-6 w-full max-w-3xl rounded-2xl bg-sand" loading="eager" decoding="async" />
@@ -84,7 +92,13 @@ export default async function NewsPostPage({ params }: Props) {
 
       {body && <div className="guide-prose prose prose-neutral mt-8 max-w-3xl" dangerouslySetInnerHTML={{ __html: body.html }} />}
 
-      {tool && (
+      {petsegwonStats && (
+        <section className="mt-8 max-w-3xl" aria-label="시도별 수치 표">
+          <PetsegwonSummary stats={petsegwonStats} />
+        </section>
+      )}
+
+      {tool && tool.placement !== "top" && (
         <section className="mt-10" aria-label={tool.label}>
           <BuiltinToolView toolKey={tool.key} petsegwonStats={petsegwonStats} />
         </section>
