@@ -87,6 +87,7 @@ export function PetsegwonTool({ stats }: { stats: PetsegwonStats }) {
   const [ind, setInd] = useState(industries.includes(DEFAULT_INDUSTRY) ? DEFAULT_INDUSTRY : (industries[0] ?? DEFAULT_INDUSTRY));
   const [query, setQuery] = useState("");
   const [copied, setCopied] = useState(false);
+  const [showAllSgg, setShowAllSgg] = useState(false);
   const ready = useRef(false);
   const resultRef = useRef<HTMLElement>(null);
 
@@ -171,7 +172,7 @@ export function PetsegwonTool({ stats }: { stats: PetsegwonStats }) {
 
         <div className="mt-5 grid gap-3 sm:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
           <div className="text-xs font-medium text-ink-soft">
-            <span id="pet-region-label">지역</span>
+            <span id="pet-region-label">지역{hasSigungu && <span className="font-normal text-ink-faint"> · 시군구 이름으로 검색</span>}</span>
             <div className="mt-1">
               <RegionSearch
                 stats={stats}
@@ -195,6 +196,39 @@ export function PetsegwonTool({ stats }: { stats: PetsegwonStats }) {
             </select>
           </label>
         </div>
+
+        {/* 지금 시도의 시군구를 바로 고르기 — 검색창을 몰라도 시군구까지 내려갈 수 있게 */}
+        {sigungus.length > 0 && (
+          <div className="mt-3">
+            <p className="text-xs text-ink-faint">{sido} 시군구 {sigungus.length}곳 — 눌러서 바로 보기</p>
+            <div className={`mt-2 flex flex-wrap gap-1.5 overflow-hidden ${showAllSgg ? "" : "max-h-[4.6rem]"}`}>
+              <button
+                type="button"
+                onClick={() => setSigungu("")}
+                aria-pressed={!region}
+                className={`rounded-full border px-3 py-1 text-xs ${!region ? "border-ink bg-ink font-semibold text-cream" : "border-line bg-cream text-ink-soft hover:bg-sand"}`}
+              >
+                {sido} 전체
+              </button>
+              {sigungus.map((g) => (
+                <button
+                  key={g.sigungu}
+                  type="button"
+                  onClick={() => setSigungu(g.sigungu)}
+                  aria-pressed={region === g.sigungu}
+                  className={`rounded-full border px-3 py-1 text-xs ${region === g.sigungu ? "border-ink bg-ink font-semibold text-cream" : "border-line bg-cream text-ink hover:bg-sand"}`}
+                >
+                  {g.sigungu}
+                </button>
+              ))}
+            </div>
+            {sigungus.length > 10 && (
+              <button type="button" onClick={() => setShowAllSgg((v) => !v)} className="mt-1.5 text-xs text-ink-soft underline hover:text-ink">
+                {showAllSgg ? "접기" : "모두 보기"}
+              </button>
+            )}
+          </div>
+        )}
 
         {/* 2. 결과 + 해석 — 같은 카드 안에서 */}
         <section ref={resultRef} aria-live="polite" aria-label="분석 결과" className="mt-6 scroll-mt-24 rounded-xl bg-cream p-5 sm:p-6">
