@@ -89,10 +89,11 @@ export function validateRequester(raw: Record<string, unknown>): Validation<Requ
 
 // ---------- 종류별 내용 ----------
 
+/** 업체 정보는 모두 선택 — 비워 두면 운영자가 상담하며 받는다 (예전 요청은 세 값이 늘 있다) */
 export interface SpotRegisterPayload {
-  businessName: string;
-  typeSlug: string;
-  regionId: number;
+  businessName: string | null;
+  typeSlug: string | null;
+  regionId: number | null;
   addressRoad: string | null;
   phone: string | null;
   website: string | null;
@@ -133,12 +134,11 @@ function intField(raw: Record<string, unknown>, key: string): number | null {
 }
 
 export function validateSpotRegister(raw: Record<string, unknown>, allowedTypes: string[]): Validation<SpotRegisterPayload> {
-  const businessName = field(raw, "businessName");
-  if (businessName.length < 2 || businessName.length > REQUEST_LIMITS.businessName) return { ok: false, error: "업체명을 2자 이상 적어 주세요." };
-  const typeSlug = field(raw, "typeSlug");
-  if (!allowedTypes.includes(typeSlug)) return { ok: false, error: "업종을 골라 주세요." };
-  const regionId = intField(raw, "regionId");
-  if (!regionId) return { ok: false, error: "지역(시군구)을 골라 주세요." };
+  const businessName = field(raw, "businessName") || null;
+  if (businessName && (businessName.length < 2 || businessName.length > REQUEST_LIMITS.businessName)) return { ok: false, error: "업체명은 2자 이상 적어 주세요." };
+  const typeSlug = field(raw, "typeSlug") || null;
+  if (typeSlug && !allowedTypes.includes(typeSlug)) return { ok: false, error: "업종을 다시 골라 주세요." };
+  const regionId = intField(raw, "regionId") || null;
   const addressRoad = optional(raw, "addressRoad", REQUEST_LIMITS.short, "주소");
   if (addressRoad && typeof addressRoad === "object") return { ok: false, error: addressRoad.error };
   const phone = optional(raw, "phone", REQUEST_LIMITS.contact, "전화번호");

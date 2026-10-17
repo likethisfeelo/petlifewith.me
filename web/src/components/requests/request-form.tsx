@@ -24,6 +24,8 @@ export function RequestForm({
   requesterLabel = "담당자 이름",
   showBizNo = true,
   messagePlaceholder = "덧붙일 내용이 있으면 적어 주세요.",
+  requesterFirst = false,
+  requesterExtra,
   children,
 }: {
   kind: RequestKind;
@@ -35,6 +37,10 @@ export function RequestForm({
   requesterLabel?: string;
   showBizNo?: boolean;
   messagePlaceholder?: string;
+  /** 연락받을 분을 맨 위에 — 종류별 칸이 모두 선택일 때 (요청 내용·동의는 맨 아래로) */
+  requesterFirst?: boolean;
+  /** 연락받을 분 칸에 덧붙일 선택 칸 (예: 업체명) — 사업자등록번호 옆에 놓인다 */
+  requesterExtra?: (v: Record<string, string>) => ReactNode;
   /** 종류별 입력 칸 — 에러 뒤 되돌려 받은 값(v)으로 defaultValue 를 채운다 */
   children: (v: Record<string, string>) => ReactNode;
 }) {
@@ -44,6 +50,21 @@ export function RequestForm({
     if (state.savedId) track("request_submit", { request_kind: kind });
   }, [state.savedId, kind]);
   const v = state.values ?? {};
+
+  const messageAndConsent = (
+    <>
+      <div>
+        <label htmlFor="message" className={labelClass}>
+          요청 내용 (선택)
+        </label>
+        <textarea id="message" name="message" rows={4} maxLength={REQUEST_LIMITS.message} defaultValue={v.message} placeholder={messagePlaceholder} className={inputClass} />
+      </div>
+      <label className="flex items-start gap-2 text-xs leading-relaxed text-ink-soft">
+        <input type="checkbox" name="consent" required className="mt-0.5" />
+        <span>이름·연락처·사업자번호는 요청 확인과 회신에만 쓰고 페이지에 공개하지 않는 데 동의합니다.</span>
+      </label>
+    </>
+  );
 
   if (state.savedId) {
     return (
@@ -65,7 +86,7 @@ export function RequestForm({
       {/* 봇 함정 — 사람은 보지 못한다 */}
       <input type="text" name="website" tabIndex={-1} autoComplete="off" className="hidden" aria-hidden="true" />
 
-      {children(v)}
+      {!requesterFirst && children(v)}
 
       <fieldset className="space-y-4 rounded-2xl border border-line bg-sand/40 p-4">
         <legend className="px-1 text-sm font-bold text-ink">연락받을 분</legend>
@@ -85,26 +106,29 @@ export function RequestForm({
             <input id="contact" name="contact" required minLength={5} maxLength={REQUEST_LIMITS.contact} defaultValue={v.contact} placeholder="010-0000-0000" className={inputClass} />
           </div>
         </div>
-        {showBizNo && (
-          <div>
-            <label htmlFor="bizRegistrationNo" className={labelClass}>
-              사업자등록번호 (선택)
-            </label>
-            <input id="bizRegistrationNo" name="bizRegistrationNo" maxLength={REQUEST_LIMITS.bizNo} defaultValue={v.bizRegistrationNo} placeholder="000-00-00000" className={inputClass} />
-            <p className="mt-1 text-xs text-ink-faint">운영자 확인이 빨라집니다. 공개되지 않습니다.</p>
+        {(showBizNo || requesterExtra) && (
+          <div className="grid gap-4 sm:grid-cols-2">
+            {showBizNo && (
+              <div>
+                <label htmlFor="bizRegistrationNo" className={labelClass}>
+                  사업자등록번호 (선택)
+                </label>
+                <input id="bizRegistrationNo" name="bizRegistrationNo" maxLength={REQUEST_LIMITS.bizNo} defaultValue={v.bizRegistrationNo} placeholder="000-00-00000" className={inputClass} />
+                <p className="mt-1 text-xs text-ink-faint">운영자 확인이 빨라집니다. 공개되지 않습니다.</p>
+              </div>
+            )}
+            {requesterExtra?.(v)}
           </div>
         )}
-        <div>
-          <label htmlFor="message" className={labelClass}>
-            요청 내용 (선택)
-          </label>
-          <textarea id="message" name="message" rows={4} maxLength={REQUEST_LIMITS.message} defaultValue={v.message} placeholder={messagePlaceholder} className={inputClass} />
-        </div>
-        <label className="flex items-start gap-2 text-xs leading-relaxed text-ink-soft">
-          <input type="checkbox" name="consent" required className="mt-0.5" />
-          <span>이름·연락처·사업자번호는 요청 확인과 회신에만 쓰고 페이지에 공개하지 않는 데 동의합니다.</span>
-        </label>
+        {!requesterFirst && messageAndConsent}
       </fieldset>
+
+      {requesterFirst && (
+        <>
+          {children(v)}
+          <div className="space-y-4 rounded-2xl border border-line bg-sand/40 p-4">{messageAndConsent}</div>
+        </>
+      )}
 
       {state.error && (
         <p role="alert" className="rounded-lg border border-accent/30 bg-accent-soft px-3 py-2 text-sm text-accent-deep">

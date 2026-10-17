@@ -9,6 +9,7 @@ import { formatNumber } from "@/lib/format";
 import { listCareCountsByRegion, listCareSidoTotals } from "@/lib/queries/care";
 import { listRegionTiles, listSigunguSummaries, listSigunguTypeCounts } from "@/lib/queries/spots";
 import { buildMeta, robotsMeta } from "@/lib/seo";
+import { SpotRegisterBanner } from "@/components/spot-register-banner";
 
 export const revalidate = 21600; // REVALIDATE.spotDirectory
 
@@ -133,6 +134,8 @@ export default async function SidoPage({ params }: Props) {
           )}
         </SpotDirectory>
       </div>
+
+      <SpotRegisterBanner regionLabel={sidoName} />
     </div>
   );
 }

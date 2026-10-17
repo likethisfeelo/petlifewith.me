@@ -10,22 +10,21 @@ totals to the 2025 survey (dead animals excluded).
 import csv
 from collections import defaultdict
 
-from common import (RAW, check_todo, dig, ensure_dirs, load_baseline, load_config,
-                    normalize_sido, normalize_sigungu, paginate)
+from common import (RAW, canonical_region, check_todo, dig, ensure_dirs, load_baseline, load_config,
+                    normalize_sido, normalize_sigungu, paginate, read_csv_rows)
 
 
 def from_csv(cfg, merge):
     cols = cfg["csv_columns"]
     totals = defaultdict(int)
     skipped = []
-    with open(cfg["csv_path"], encoding="utf-8-sig") as f:
-        for row in csv.DictReader(f):
-            sido = normalize_sido(row[cols["sido"]])
-            sgg = normalize_sigungu(sido, row[cols["sigungu"]], merge) if sido else None
-            if not sido or not sgg:
-                skipped.append(row)
-                continue
-            totals[(sido, sgg)] += int(str(row[cols["dogs"]]).replace(",", "") or 0)
+    for row in read_csv_rows(cfg["csv_path"]):
+        sido = normalize_sido(row[cols["sido"]], row[cols["sigungu"]])
+        sgg = normalize_sigungu(sido, row[cols["sigungu"]], merge) if sido else None
+        if not sido or not sgg:
+            skipped.append(row)  # 시도 합계 행(시군구 빈칸)도 여기로 빠진다
+            continue
+        totals[canonical_region(sido, sgg)] += int(str(row[cols["dogs"]]).replace(",", "") or 0)
     return totals, skipped
 
 
@@ -47,12 +46,12 @@ def from_api(cfg, merge):
             species = str(dig(item, [f["species"]]) or "")
             if cfg.get("species_dog_value") and species and cfg["species_dog_value"] not in species:
                 continue
-            sido = normalize_sido(str(dig(item, [f["sido"]]) or "")) or sido_short
+            sido = normalize_sido(str(dig(item, [f["sido"]]) or ""), str(dig(item, [f["sigungu"]]) or "")) or sido_short
             sgg = normalize_sigungu(sido, str(dig(item, [f["sigungu"]]) or ""), merge) if sido else None
             if not sido or not sgg:
                 skipped.append(item)
                 continue
-            totals[(sido, sgg)] += int(str(dig(item, [f["count"]]) or 0).replace(",", ""))
+            totals[canonical_region(sido, sgg)] += int(str(dig(item, [f["count"]]) or 0).replace(",", ""))
     return totals, skipped
 
 

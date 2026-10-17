@@ -1,27 +1,40 @@
 {
   "_comment": "config.json 으로 복사해서 사용. TODO 표시 값은 공공데이터포털 활용신청 후 각 API의 Swagger(활용명세)에서 확인해 채운다. 서비스 키는 여기 넣지 말고 환경변수 DATA_GO_KR_KEY 로 준다.",
-
   "region_unit": {
     "merge_general_gu": true,
     "_comment": "true면 '수원시 장안구'처럼 일반구가 있는 시는 '수원시'로 합친다. 등록 API와 업장 API의 단위가 같아지도록 맞추는 용도."
   },
-
   "registration": {
-    "mode": "api",
-    "_mode_comment": "api 또는 csv. csv면 csv_path의 파일(농림축산검역본부 행정구역별 반려동물등록 개체 수 현황 형식)을 읽는다.",
+    "mode": "csv",
+    "_mode_comment": "csv 권장: 공공데이터포털 \"행정구역별 반려동물등록 개체 수 현황_20221231\"(data/15125454) 파일을 raw/registration.csv 로 둔다(cp949 그대로 OK). 시군구 비중만 쓰고 총량은 실태조사로 맞추므로 2022 자료로 충분하다. api 는 동물등록 현황 OpenAPI(data/15103156)용.",
     "csv_path": "raw/registration.csv",
-    "csv_columns": {"sido": "시도", "sigungu": "시군구", "dogs": "개등록 누계"},
-
+    "csv_columns": {
+      "sido": "시도",
+      "sigungu": "시군구",
+      "dogs": "개등록 누계"
+    },
     "base_url": "TODO: https://apis.data.go.kr/.../...",
     "key_param": "serviceKey",
-    "fixed_params": {"_type": "json", "numOfRows": 1000},
+    "fixed_params": {
+      "_type": "json",
+      "numOfRows": 1000
+    },
     "page_param": "pageNo",
     "query_per_sido": true,
     "sido_param": "TODO",
     "species_param": "TODO",
     "species_dog_value": "TODO",
-    "items_path": ["response", "body", "items", "item"],
-    "total_count_path": ["response", "body", "totalCount"],
+    "items_path": [
+      "response",
+      "body",
+      "items",
+      "item"
+    ],
+    "total_count_path": [
+      "response",
+      "body",
+      "totalCount"
+    ],
     "fields": {
       "sido": "TODO",
       "sigungu": "TODO",
@@ -30,47 +43,91 @@
     },
     "sido_query_values": {
       "_comment": "API가 시도 파라미터에 코드값을 받으면 baseline 시도명 -> 코드값 매핑을 채운다. 이름을 받으면 비워둔다.",
-      "서울": "", "부산": "", "대구": "", "인천": "", "광주": "", "대전": "", "울산": "", "세종": "",
-      "경기": "", "강원": "", "충북": "", "충남": "", "전북": "", "전남": "", "경북": "", "경남": "", "제주": ""
+      "서울": "",
+      "부산": "",
+      "대구": "",
+      "인천": "",
+      "광주": "",
+      "대전": "",
+      "울산": "",
+      "세종": "",
+      "경기": "",
+      "강원": "",
+      "충북": "",
+      "충남": "",
+      "전북": "",
+      "전남": "",
+      "경북": "",
+      "경남": "",
+      "제주": ""
     }
   },
-
   "businesses": {
     "key_param": "serviceKey",
-    "fixed_params": {"type": "json", "numOfRows": 1000},
-    "page_param": "pageNo",
-    "items_path": ["response", "body", "items", "item"],
-    "total_count_path": ["response", "body", "totalCount"],
-    "fields": {
-      "status": "TODO: 영업상태명 필드",
-      "address_road": "TODO: 도로명 주소 필드",
-      "address_lot": "TODO: 지번 주소 필드",
-      "name": "TODO: 사업장명 필드"
+    "fixed_params": {
+      "type": "json",
+      "_type": "json",
+      "numOfRows": 1000
     },
-    "active_status_values": ["영업/정상", "영업", "정상"],
-    "_active_comment": "실제 응답에 나오는 영업상태 값 목록을 확인해서 영업 중인 값만 남긴다. 휴업 포함 여부도 여기서 결정.",
+    "page_param": "pageNo",
+    "items_path": [
+      "response",
+      "body",
+      "items",
+      "item"
+    ],
+    "total_count_path": [
+      "response",
+      "body",
+      "totalCount"
+    ],
+    "fields": {
+      "status": "SALS_STTS_NM",
+      "address_road": "ROAD_NM_ADDR",
+      "address_lot": "LOTNO_ADDR",
+      "name": "BPLC_NM",
+      "_comment": "행정안전부 동물 인허가 API(1741000/*/info) 응답 필드. SALS_STTS_NM·ROAD_NM_ADDR 은 probe 로 확인, LOTNO_ADDR·BPLC_NM 은 같은 계열 표준명(없으면 collect 가 실제 필드 목록을 보여 주고 멈춘다)."
+    },
+    "active_status_values": [
+      "영업/정상"
+    ],
+    "_active_comment": "파일데이터 확인 결과 영업상태명은 영업/정상·휴업·폐업·취소/말소/만료/정지/중지 네 가지. 영업 중 = 영업/정상 (휴업 제외).",
     "industries": {
-      "grooming":   {"base_url": "TODO: 행정안전부_동물_동물미용업 조회서비스", "dataset": "https://www.data.go.kr/data/15154944/openapi.do"},
-      "boarding":   {"base_url": "TODO: 행정안전부_동물_동물위탁관리업 조회서비스"},
-      "exhibition": {"base_url": "TODO: 행정안전부_동물_동물전시업 조회서비스"},
-      "sales":      {"base_url": "TODO: 행정안전부_동물_동물판매업 조회서비스"},
-      "transport":  {"base_url": "TODO: 행정안전부_동물_동물운송업 조회서비스"}
-    }
+      "grooming": {
+        "base_url": "https://apis.data.go.kr/1741000/pet_grooming/info"
+      },
+      "boarding": {
+        "base_url": "https://apis.data.go.kr/1741000/animal_boarding/info"
+      },
+      "exhibition": {
+        "base_url": "TODO: 행정안전부_동물_동물전시업 조회서비스 End Point + /info",
+        "csv_path": "raw/exhibition.csv",
+        "_comment": "API 대신 내려받은 파일데이터를 쓰려면 csv_path 를 남기고, API 를 쓰려면 csv_path 줄을 지운다."
+      },
+      "transport": {
+        "base_url": "https://apis.data.go.kr/1741000/animal_transport/info"
+      }
+    },
+    "csv_fields": {
+      "status": "영업상태명",
+      "address_road": "도로명주소",
+      "address_lot": "지번주소",
+      "name": "사업장명",
+      "_comment": "파일데이터(인허가 CSV) 열 이름. csv_path 를 준 업종만 쓴다."
+    },
+    "_industries_comment": "동물판매업(sales)은 도구에 보이지 않게 하므로 모으지 않는다."
   },
-
   "calibration": {
     "calibrate_dogs": true,
     "calibrate_shops": true,
     "_comment": "true면 시군구 값을 시도 안 비중으로 바꾼 뒤 실태조사 시도 총량에 맞춰 다시 배분한다. 시군구 합계 = 실태조사 시도 값이 되어 릴스·전국 수치와 도구 수치가 일치한다."
   },
-
   "labels": {
     "short_threshold_pct": 120,
     "dense_threshold_pct": 80,
     "min_shops_for_label": 3,
     "_comment": "시도 평균 대비 비율(%)로 판정. 업장 수가 min_shops_for_label 미만이면 값이 크게 흔들리므로 '표본 적음'으로 표시."
   },
-
   "validation": {
     "max_diff_pct": 15,
     "_comment": "시도별 업장 API 집계와 실태조사 수치 차이가 이 % 를 넘으면 경고. 필터 조건 재확인 신호."

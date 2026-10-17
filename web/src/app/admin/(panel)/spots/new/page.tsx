@@ -37,10 +37,18 @@ function prefillFromRequest(
   if (req.kind === "spot_register") {
     const p = req.payload as SpotRegisterPayload;
     return {
-      spot: { ...EMPTY, name: p.businessName, typeId: typeIdBySlug.get(p.typeSlug) ?? "", regionId: p.regionId, addressRoad: p.addressRoad, phone: p.phone, descriptionMd: p.intro },
+      spot: {
+        ...EMPTY,
+        name: p.businessName ?? "",
+        typeId: (p.typeSlug && typeIdBySlug.get(p.typeSlug)) || "",
+        regionId: p.regionId ?? "",
+        addressRoad: p.addressRoad,
+        phone: p.phone,
+        descriptionMd: p.intro,
+      },
       links: [...link("website", p.website), ...link("kakao", p.kakaoUrl), ...link("instagram", p.instagramUrl)],
       serviceAreas: [],
-      label: `${REQUEST_KIND_LABEL[req.kind]} · ${p.businessName}`,
+      label: `${REQUEST_KIND_LABEL[req.kind]} · ${p.businessName ?? req.requesterName}`,
     };
   }
   if (req.kind === "care_partner") {
