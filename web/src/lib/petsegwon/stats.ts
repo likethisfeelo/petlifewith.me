@@ -370,3 +370,77 @@ export function searchRegions(stats: PetsegwonStats, query: string, limit = 30):
     .slice(0, limit)
     .map((x) => x.o);
 }
+
+// ---------- 5단계 판정 + 쉬운 해석 ----------
+// 비교 평균(시군구는 시도 평균, 시도는 전국 평균) 대비 % 로 나눈다. "높음" = 업장 1곳당 등록견이 많다(= 업장이 적은 편).
+
+export type PetsegwonLevel = "much_higher" | "higher" | "average" | "lower" | "much_lower" | "small_sample" | "none";
+
+/** 단계 경계(%): 130 이상 / 110~130 / 90~110 / 70~90 / 70 미만 */
+export const LEVEL_BOUNDS = { muchHigher: 130, higher: 110, lower: 90, muchLower: 70 } as const;
+
+export const LEVEL_LABEL: Record<PetsegwonLevel, string> = {
+  much_higher: "평균보다 많이 높음",
+  higher: "평균보다 조금 높음",
+  average: "평균",
+  lower: "평균보다 조금 낮음",
+  much_lower: "평균보다 많이 낮음",
+  small_sample: "표본 적음",
+  none: "업장 없음",
+};
+
+export function levelFor(pct: number | null, shopsRaw: number | null, minShops: number = THRESHOLDS.minShops): PetsegwonLevel {
+  if (shopsRaw !== null && shopsRaw < minShops) return "small_sample";
+  if (pct === null) return "none";
+  if (pct >= LEVEL_BOUNDS.muchHigher) return "much_higher";
+  if (pct >= LEVEL_BOUNDS.higher) return "higher";
+  if (pct >= LEVEL_BOUNDS.lower) return "average";
+  if (pct >= LEVEL_BOUNDS.muchLower) return "lower";
+  return "much_lower";
+}
+
+/** 받침에 맞는 조사 (동래구는 / 서울은, 평균과 / 시도와) */
+export function josa(word: string, withBatchim: string, without: string): string {
+  const code = word.charCodeAt(word.length - 1) - 0xac00;
+  return code >= 0 && code <= 11171 && code % 28 !== 0 ? withBatchim : without;
+}
+
+/** 결과 아래 해석 — 한 줄 요약(title)과 풀어 쓴 설명(detail) */
+export function levelExplain(level: PetsegwonLevel, ctx: { place: string; compareName: string; industry: string }): { title: string; detail: string } {
+  const { compareName, industry } = ctx;
+  const place = `${ctx.place}${josa(ctx.place, "은", "는")}`;
+  switch (level) {
+    case "much_higher":
+      return {
+        title: `${place} ${industry}장 1곳이 맡는 반려견이 ${compareName}보다 훨씬 많아요.`,
+        detail: `반려견 수에 비해 ${industry}장이 적은 편이라는 뜻이에요. 새로 문을 열 여지가 있을 수 있지만, 이웃 동네로 다니는 손님이 많을 수도 있으니 실제 이동 동선과 상권을 함께 확인하세요.`,
+      };
+    case "higher":
+      return {
+        title: `${place} ${industry}장 1곳이 맡는 반려견이 ${compareName}보다 조금 많아요.`,
+        detail: `경쟁이 평균보다 약간 덜한 편이에요. 같은 지역 안에서도 업장이 몰린 곳과 비어 있는 곳이 있으니 동 단위로 한 번 더 살펴보세요.`,
+      };
+    case "average":
+      return {
+        title: `${place} ${industry}장 1곳이 맡는 반려견 수가 ${compareName}${josa(compareName, "과", "와")} 비슷해요.`,
+        detail: `숫자만으로는 업장이 특별히 많거나 적지 않아요. 이런 지역에서는 위치, 서비스 차별점, 가격대가 더 중요해요.`,
+      };
+    case "lower":
+      return {
+        title: `${place} ${industry}장 1곳이 맡는 반려견이 ${compareName}보다 조금 적어요.`,
+        detail: `반려견 수에 비해 ${industry}장이 조금 많은 편이라, 평균보다 경쟁이 약간 있는 지역이에요.`,
+      };
+    case "much_lower":
+      return {
+        title: `${place} ${industry}장 1곳이 맡는 반려견이 ${compareName}보다 훨씬 적어요.`,
+        detail: `${industry}장이 많이 모여 있는 지역이라 경쟁이 치열할 수 있어요. 다만 업무지구·번화가처럼 다른 동네에서 손님이 찾아오는 곳이라 숫자가 낮게 나올 수도 있어요.`,
+      };
+    case "small_sample":
+      return {
+        title: `${place} 영업 중인 ${industry}장이 ${THRESHOLDS.minShops}곳 미만이에요.`,
+        detail: `업장이 아주 적으면 1곳만 늘거나 줄어도 숫자가 크게 흔들려요. 비교보다는 참고용으로만 보세요.`,
+      };
+    case "none":
+      return { title: `${ctx.place}에는 비교할 ${industry}장 자료가 없어요.`, detail: "" };
+  }
+}
