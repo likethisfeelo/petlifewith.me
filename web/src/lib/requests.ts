@@ -5,7 +5,7 @@
 // 신청자 이름·연락처·사업자번호는 관리자 화면과 슬랙에만 간다 (claude.md 5-6). 결제는 수동 — 운영자가 안내·확인한다.
 // ============================================================
 
-export const REQUEST_KINDS = ["spot_register", "spot_claim", "maker_claim", "promo_slot", "care_partner"] as const;
+export const REQUEST_KINDS = ["spot_register", "spot_claim", "maker_claim", "promo_slot", "care_partner", "info_request"] as const;
 export type RequestKind = (typeof REQUEST_KINDS)[number];
 export const REQUEST_STATUSES = ["new", "in_progress", "done", "rejected"] as const;
 export type RequestStatus = (typeof REQUEST_STATUSES)[number];
@@ -16,6 +16,7 @@ export const REQUEST_KIND_LABEL: Record<RequestKind, string> = {
   maker_claim: "정보 관리 (메이커)",
   promo_slot: "지역 상단 노출",
   care_partner: "돌봄 파트너 등록",
+  info_request: "자료 요청",
 };
 
 export const REQUEST_STATUS_LABEL: Record<RequestStatus, string> = {
@@ -183,6 +184,38 @@ export function validatePromoSlot(raw: Record<string, unknown>, hasSpot: boolean
 }
 
 // ---------- 슬랙 ----------
+
+// ---------- 자료 요청 (뉴스 도구의 "자세한 내용을 더 받고 싶어요") ----------
+// 이메일 또는 전화번호 중 하나만 받는다. 이름·사업자번호는 받지 않는다.
+
+export interface InfoRequestValues {
+  contactType: "email" | "phone";
+  contact: string;
+  /** 어떤 안내를 원하는지 (도구가 정한 주제) */
+  topic: string;
+  /** 요청이 들어온 페이지 경로 (/news/…) */
+  source: string;
+}
+
+const INFO_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+/** 휴대전화·지역번호·대표번호 — 하이픈·공백은 지운 뒤 확인 */
+const INFO_PHONE_RE = /^(01[016789]\d{7,8}|0[2-9]\d{7,9}|1[5-9]\d{6})$/;
+
+export function validateInfoRequest(raw: { email?: unknown; phone?: unknown; topic?: unknown; source?: unknown }): Validation<InfoRequestValues> {
+  const email = typeof raw.email === "string" ? raw.email.trim() : "";
+  const phone = typeof raw.phone === "string" ? raw.phone.trim() : "";
+  if (email && phone) return { ok: false, error: "이메일과 전화번호 중 하나만 입력해 주세요." };
+  if (!email && !phone) return { ok: false, error: "이메일이나 전화번호를 입력해 주세요." };
+  const topic = typeof raw.topic === "string" ? raw.topic.trim().slice(0, REQUEST_LIMITS.short) : "";
+  const source = typeof raw.source === "string" && /^\/[\w\-/가-힣%]*$/.test(raw.source) ? raw.source.slice(0, REQUEST_LIMITS.url) : "";
+  if (email) {
+    if (email.length > REQUEST_LIMITS.contact || !INFO_EMAIL_RE.test(email)) return { ok: false, error: "이메일 형식을 확인해 주세요." };
+    return { ok: true, value: { contactType: "email", contact: email.toLowerCase(), topic, source } };
+  }
+  const digits = phone.replace(/[\s-]/g, "");
+  if (!INFO_PHONE_RE.test(digits)) return { ok: false, error: "전화번호 형식을 확인해 주세요 (예: 010-1234-5678)." };
+  return { ok: true, value: { contactType: "phone", contact: digits, topic, source } };
+}
 
 export function slackRequestText(input: {
   id: number;

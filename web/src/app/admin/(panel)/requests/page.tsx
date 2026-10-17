@@ -87,6 +87,14 @@ function payloadRows(item: RequestListItem, labels: Record<number, string>): Arr
       ["업체명", p.businessName ?? "-"],
     ];
   }
+  if (kind === "info_request") {
+    const p = payload as { contactType?: string; topic?: string; source?: string };
+    return [
+      ["받을 곳", p.contactType === "phone" ? "전화" : "이메일"],
+      ["주제", p.topic || "-"],
+      ["페이지", p.source || "-"],
+    ];
+  }
   return [];
 }
 

@@ -1,0 +1,1 @@
+ALTER TYPE "public"."request_kind" ADD VALUE 'info_request';

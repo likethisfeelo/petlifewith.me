@@ -61,6 +61,9 @@ export const TOOL_BRIDGE_TAG = "pl-tool";
  *  - window.petlife.print(html) / download(filename, data) — 부모 페이지가 인쇄·저장한다
  *  - 높이: 문서 높이를 부모에게 계속 알린다(iframe 은 스크롤하지 않는다)
  *  - 같은 문서 안 #링크: iframe 이 스크롤하지 않으므로 부모 페이지를 그 위치로 스크롤한다
+ *  - window.petlife.member: 로그인한 회원인지 (부모가 알려 준다, 처음엔 null). 바뀌면 document 에 "petlife:member" 이벤트
+ *    (인쇄·파일 저장은 회원만 — 손님이면 부모가 가입 안내 팝업을 띄운다)
+ *  - window.petlife.requestInfo({email|phone, topic}) → Promise<{ok, error?}> — 요청함(자료 요청)에 저장·슬랙 알림
  * initial 은 부모가 보관하던 값(JSON). </script> 가 끼지 않게 이스케이프한다.
  */
 export function toolBridgeScript(initial: Record<string, string>): string {
@@ -76,8 +79,16 @@ clear:function(){data={};send({type:"storage",data:data})},
 key:function(i){return Object.keys(data)[i]||null}};
 Object.defineProperty(mem,"length",{get:function(){return Object.keys(data).length}});
 try{Object.defineProperty(window,"localStorage",{value:mem,configurable:true})}catch(e){}
-window.petlife={print:function(html){send({type:"print",html:String(html)})},
-download:function(name,d){send({type:"download",filename:String(name),data:String(d)})}};
+var seq=0,waits={};
+window.petlife={member:null,print:function(html){send({type:"print",html:String(html)})},
+download:function(name,d){send({type:"download",filename:String(name),data:String(d)})},
+requestInfo:function(o){o=o||{};var id=++seq;return new Promise(function(res){waits[id]=res;
+send({type:"info_request",id:id,email:String(o.email||""),phone:String(o.phone||""),topic:String(o.topic||"")});
+setTimeout(function(){if(waits[id]){delete waits[id];res({ok:false,error:"응답이 없습니다. 잠시 후 다시 시도해 주세요."})}},20000)})}};
+window.addEventListener("message",function(e){if(e.source!==P)return;var m=e.data;if(!m||m.tag!==T)return;
+if(m.type==="member"){window.petlife.member=!!m.member;try{document.dispatchEvent(new CustomEvent("petlife:member",{detail:!!m.member}))}catch(x){}}
+if(m.type==="info_result"&&waits[m.id]){var r=waits[m.id];delete waits[m.id];r({ok:!!m.ok,error:m.error?String(m.error):undefined})}});
+send({type:"ready"});
 var last=0;function h(){var v=Math.ceil(Math.max(document.documentElement.scrollHeight,document.body?document.body.scrollHeight:0));if(v!==last){last=v;send({type:"height",height:v})}}
 window.addEventListener("load",h);
 if(window.ResizeObserver)new ResizeObserver(h).observe(document.documentElement);else setInterval(h,500);
@@ -112,7 +123,9 @@ export type ToolBridgeMessage =
   | { type: "scroll"; y: number }
   | { type: "storage"; data: Record<string, string> }
   | { type: "print"; html: string }
-  | { type: "download"; filename: string; data: string };
+  | { type: "download"; filename: string; data: string }
+  | { type: "ready" }
+  | { type: "info_request"; id: number; email: string; phone: string; topic: string };
 
 export function parseToolMessage(raw: unknown): ToolBridgeMessage | null {
   if (!raw || typeof raw !== "object") return null;
@@ -134,6 +147,13 @@ export function parseToolMessage(raw: unknown): ToolBridgeMessage | null {
     case "download": {
       if (typeof m.filename !== "string" || typeof m.data !== "string" || m.data.length > 10_000_000) return null;
       return { type: "download", filename: safeFilename(m.filename), data: m.data };
+    }
+    case "ready":
+      return { type: "ready" };
+    case "info_request": {
+      const str = (v: unknown, max: number) => (typeof v === "string" ? v.slice(0, max) : "");
+      if (typeof m.id !== "number" || !Number.isSafeInteger(m.id)) return null;
+      return { type: "info_request", id: m.id, email: str(m.email, 100), phone: str(m.phone, 40), topic: str(m.topic, 200) };
     }
     default:
       return null;

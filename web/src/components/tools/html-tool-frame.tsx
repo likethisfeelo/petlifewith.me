@@ -2,9 +2,12 @@
 
 // 관리자가 올린 HTML 도구 — sandbox iframe(allow-same-origin 없음)으로 띄우고 브리지로 높이·저장·인쇄를 대신한다 (lib/tools.ts).
 // srcdoc 은 마운트 뒤에 만든다: 방문자 브라우저에 글별로 보관한 값(localStorage)을 iframe 에 넘겨야 하기 때문.
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { submitInfoRequestAction } from "@/app/tool-lead-actions";
+import { useCurrentMember } from "@/components/member-menu";
 import { track } from "@/components/tracker";
-import { TOOL_IFRAME_SANDBOX, buildToolSrcDoc, parseToolMessage } from "@/lib/tools";
+import { MembersOnlyPrompt } from "./members-only-prompt";
+import { TOOL_BRIDGE_TAG, TOOL_IFRAME_SANDBOX, buildToolSrcDoc, parseToolMessage } from "@/lib/tools";
 
 const STORE_PREFIX = "pl-tool:";
 
@@ -65,6 +68,21 @@ export function HtmlToolFrame({ html, title, storageKey, minHeight }: { html: st
   const ref = useRef<HTMLIFrameElement>(null);
   const [srcDoc, setSrcDoc] = useState<string | null>(null);
   const [height, setHeight] = useState(minHeight);
+  // 인쇄·파일 저장은 회원만 — 손님이 누르면 가입 안내 팝업
+  const { loading: memberLoading, member } = useCurrentMember();
+  const isMember = Boolean(member);
+  const memberRef = useRef<boolean | null>(null);
+  memberRef.current = memberLoading ? null : isMember;
+  const [prompt, setPrompt] = useState<string | null>(null);
+
+  const reply = useCallback((msg: Record<string, unknown>) => {
+    ref.current?.contentWindow?.postMessage({ tag: TOOL_BRIDGE_TAG, ...msg }, "*");
+  }, []);
+
+  // 로그인 상태를 도구에 알린다 (도구가 "회원 전용" 안내 문구를 바꾸는 데 쓴다)
+  useEffect(() => {
+    if (!memberLoading) reply({ type: "member", member: isMember });
+  }, [memberLoading, isMember, reply, srcDoc]);
 
   useEffect(() => {
     setSrcDoc(buildToolSrcDoc(html, readStore(storageKey)));
@@ -88,34 +106,55 @@ export function HtmlToolFrame({ html, title, storageKey, minHeight }: { html: st
         case "storage":
           writeStore(storageKey, m.data);
           break;
+        case "ready":
+          if (memberRef.current !== null) reply({ type: "member", member: memberRef.current });
+          break;
         case "print":
+          if (!memberRef.current) {
+            setPrompt("인쇄");
+            break;
+          }
           printHtml(m.html);
           track("tool_action", { kind: "print", tool: storageKey });
           break;
         case "download":
+          if (!memberRef.current) {
+            setPrompt("인쇄용 파일 저장");
+            break;
+          }
           downloadData(m.filename, m.data);
           track("tool_action", { kind: "download", tool: storageKey });
+          break;
+        case "info_request":
+          void submitInfoRequestAction({ email: m.email, phone: m.phone, topic: m.topic, source: window.location.pathname })
+            .then((r) => {
+              reply({ type: "info_result", id: m.id, ok: r.ok, error: r.ok ? undefined : r.error });
+              if (r.ok) track("request_submit", { request_kind: "info_request", tool: storageKey });
+            })
+            .catch(() => reply({ type: "info_result", id: m.id, ok: false, error: "보내지 못했습니다. 잠시 후 다시 시도해 주세요." }));
           break;
       }
     };
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, [storageKey]);
+  }, [storageKey, reply]);
 
   if (!srcDoc) {
     return <div style={{ height: minHeight }} className="animate-pulse rounded-xl bg-sand/60" aria-busy="true" />;
   }
   return (
-    <iframe
+    <>
+      {prompt && <MembersOnlyPrompt feature={prompt} onClose={() => setPrompt(null)} />}
+      <iframe
       ref={ref}
       title={title}
       srcDoc={srcDoc}
       sandbox={TOOL_IFRAME_SANDBOX}
       referrerPolicy="no-referrer"
-      // 사이트는 밝은 화면만 쓴다 — iframe 의 color-scheme 이 안쪽 문서의 prefers-color-scheme 이 되므로,
-      // 방문자 기기가 어두운 모드여도 도구의 어두운 테마(검은 바탕·흰 글자)가 켜지지 않는다
+      // 사이트는 밝은 화면만 쓴다 (어두운 테마는 buildToolSrcDoc 이 꺼 둔다)
       style={{ height, minHeight: 200, colorScheme: "light" }}
       className="block w-full border-0 sm:rounded-xl"
-    />
+      />
+    </>
   );
 }
