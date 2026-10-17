@@ -326,3 +326,47 @@ export function regionResult(stats: PetsegwonStats, sido: string, sigungu: strin
 export function fmtCount(n: number | null | undefined): string {
   return n == null ? "-" : Math.round(n).toLocaleString("ko-KR");
 }
+
+// ---------- 지역 검색 (키워드 → 시군구·시도 목록) ----------
+
+export interface RegionOption {
+  sido: string;
+  /** "" 이면 시도 전체 */
+  sigungu: string;
+  label: string;
+}
+
+/** 시도 정식 이름 — "서울특별시"·"경상남도"로 쳐도 찾게 */
+const SIDO_FULL: Record<string, string> = {
+  서울: "서울특별시", 부산: "부산광역시", 대구: "대구광역시", 인천: "인천광역시", 광주: "광주광역시", 대전: "대전광역시", 울산: "울산광역시",
+  세종: "세종특별자치시", 경기: "경기도", 강원: "강원특별자치도", 충북: "충청북도", 충남: "충청남도", 전북: "전북특별자치도", 전남: "전라남도",
+  경북: "경상북도", 경남: "경상남도", 제주: "제주특별자치도",
+};
+
+const squash = (s: string) => s.replace(/[\s·]/g, "");
+
+/**
+ * 키워드로 지역 찾기 — 시군구가 있으면 가장 작은 단위(시군구)부터, 그다음 시도 전체.
+ * 빈 키워드면 시도 목록. 시군구 이름이 앞에서 맞는 것을 먼저 보여 준다.
+ */
+export function searchRegions(stats: PetsegwonStats, query: string, limit = 30): RegionOption[] {
+  const q = squash(query.trim());
+  const sidoOpts: RegionOption[] = SIDO_ORDER.map((s) => ({ sido: s, sigungu: "", label: stats.sigungu.length ? `${s} 전체` : s }));
+  if (!q) return sidoOpts;
+  const scored: Array<{ o: RegionOption; score: number }> = [];
+  for (const r of stats.sigungu) {
+    const g = squash(r.sigungu);
+    const full = squash(`${r.sido}${r.sigungu}`);
+    const fullOfficial = squash(`${SIDO_FULL[r.sido] ?? r.sido}${r.sigungu}`);
+    const score = g.startsWith(q) ? 0 : g.includes(q) ? 1 : full.startsWith(q) || fullOfficial.startsWith(q) ? 2 : full.includes(q) || fullOfficial.includes(q) ? 3 : -1;
+    if (score >= 0) scored.push({ o: { sido: r.sido, sigungu: r.sigungu, label: `${r.sido} ${r.sigungu}` }, score });
+  }
+  for (const o of sidoOpts) {
+    const names = [o.sido, SIDO_FULL[o.sido] ?? o.sido].map(squash);
+    if (names.some((n) => n.startsWith(q) || q.startsWith(n))) scored.push({ o, score: 4 });
+  }
+  return scored
+    .sort((a, b) => a.score - b.score || SIDO_ORDER.indexOf(a.o.sido) - SIDO_ORDER.indexOf(b.o.sido) || a.o.label.localeCompare(b.o.label, "ko"))
+    .slice(0, limit)
+    .map((x) => x.o);
+}
