@@ -89,8 +89,8 @@ export default async function NewsPostPage({ params }: Props) {
         </section>
       )}
       {!tool && post.toolHtml && (
-        // 업로드 HTML 은 왼쪽 칸 전체 폭 — 도구 자체가 레이아웃을 갖고 있다
-        <section className="-mx-4 mt-10 sm:mx-0" aria-label="도구">
+        // 업로드 HTML 은 왼쪽 칸 전체 폭. 도구 안쪽 여백(16px)만큼 바깥으로 넓혀 도구 내용의 왼쪽 끝이 본문 글자와 맞게 한다
+        <section className="-mx-4 mt-10" aria-label="도구">
           <HtmlToolFrame html={post.toolHtml} title={post.title} storageKey={post.slug} minHeight={post.toolHeight ?? 900} />
         </section>
       )}
