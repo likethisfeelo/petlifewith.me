@@ -33,7 +33,18 @@ const STATUS_OPTIONS = [
 
 type ToolMode = "none" | "builtin" | "html";
 
-export function NewsEditor({ mode, post, policy }: { mode: "create" | "edit"; post: NewsFormValues; policy: UploadPolicy }) {
+export function NewsEditor({
+  mode,
+  post,
+  policy,
+  defaultHtml,
+}: {
+  mode: "create" | "edit";
+  post: NewsFormValues;
+  policy: UploadPolicy;
+  /** 처음 쓰는 글(CCTV 점검표 등)이면 코드에 들어 있는 최신 기본 HTML — 고친 원본을 한 번에 불러온다 */
+  defaultHtml?: string;
+}) {
   const action = mode === "create" ? createNewsAction : saveNewsAction;
   const { state, pending, onSubmit } = useKeptForm<ActionState>(action, {});
   const [toolMode, setToolMode] = useState<ToolMode>(post.toolKey ? "builtin" : post.toolHtml ? "html" : "none");
@@ -129,6 +140,17 @@ export function NewsEditor({ mode, post, policy }: { mode: "create" | "edit"; po
                 첫 화면 높이(px)
                 <input name="toolHeight" type="number" min={200} max={6000} defaultValue={post.toolHeight ?? 900} className={`${inputClass} w-24`} />
               </label>
+              {defaultHtml && (
+                <button
+                  type="button"
+                  onClick={() => setHtml(defaultHtml)}
+                  disabled={html === defaultHtml}
+                  className="rounded-full border border-ink px-3 py-1 text-xs font-medium text-ink hover:bg-sand disabled:opacity-40"
+                  title="코드에 들어 있는 최신 기본 HTML 로 바꿉니다. 저장을 눌러야 공개 페이지에 반영됩니다."
+                >
+                  {html === defaultHtml ? "최신 기본 HTML 과 같음" : "최신 기본 HTML 불러오기"}
+                </button>
+              )}
               <label className="flex items-center gap-2">
                 파일에서 읽기
                 <input
