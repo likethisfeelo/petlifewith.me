@@ -20,7 +20,7 @@ def from_csv(cfg, merge):
     skipped = []
     with open(cfg["csv_path"], encoding="utf-8-sig") as f:
         for row in csv.DictReader(f):
-            sido = normalize_sido(row[cols["sido"]])
+            sido = normalize_sido(row[cols["sido"]], row[cols["sigungu"]])
             sgg = normalize_sigungu(sido, row[cols["sigungu"]], merge) if sido else None
             if not sido or not sgg:
                 skipped.append(row)
@@ -47,7 +47,7 @@ def from_api(cfg, merge):
             species = str(dig(item, [f["species"]]) or "")
             if cfg.get("species_dog_value") and species and cfg["species_dog_value"] not in species:
                 continue
-            sido = normalize_sido(str(dig(item, [f["sido"]]) or "")) or sido_short
+            sido = normalize_sido(str(dig(item, [f["sido"]]) or ""), str(dig(item, [f["sigungu"]]) or "")) or sido_short
             sgg = normalize_sigungu(sido, str(dig(item, [f["sigungu"]]) or ""), merge) if sido else None
             if not sido or not sgg:
                 skipped.append(item)
