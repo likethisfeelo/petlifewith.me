@@ -345,6 +345,23 @@ const SIDO_FULL: Record<string, string> = {
 
 const squash = (s: string) => s.replace(/[\s·]/g, "");
 
+/** 일반구 → 시 (자료는 시 단위로 합쳐져 있다). "영통구"로 찾아도 수원시가 나오게 */
+const GENERAL_GU: Array<[string, string, string[]]> = [
+  ["경기", "수원시", ["장안구", "권선구", "팔달구", "영통구"]],
+  ["경기", "성남시", ["수정구", "중원구", "분당구"]],
+  ["경기", "고양시", ["덕양구", "일산동구", "일산서구"]],
+  ["경기", "용인시", ["처인구", "기흥구", "수지구"]],
+  ["경기", "안산시", ["상록구", "단원구"]],
+  ["경기", "안양시", ["만안구", "동안구"]],
+  ["경기", "부천시", ["원미구", "소사구", "오정구"]],
+  ["경기", "화성시", ["만세구", "효행구", "병점구", "동탄구"]],
+  ["충북", "청주시", ["상당구", "서원구", "흥덕구", "청원구"]],
+  ["충남", "천안시", ["동남구", "서북구"]],
+  ["전북", "전주시", ["완산구", "덕진구"]],
+  ["경북", "포항시", ["남구", "북구"]],
+  ["경남", "창원시", ["의창구", "성산구", "마산합포구", "마산회원구", "진해구"]],
+];
+
 /**
  * 키워드로 지역 찾기 — 시군구가 있으면 가장 작은 단위(시군구)부터, 그다음 시도 전체.
  * 빈 키워드면 시도 목록. 시군구 이름이 앞에서 맞는 것을 먼저 보여 준다.
@@ -360,6 +377,16 @@ export function searchRegions(stats: PetsegwonStats, query: string, limit = 30):
     const fullOfficial = squash(`${SIDO_FULL[r.sido] ?? r.sido}${r.sigungu}`);
     const score = g.startsWith(q) ? 0 : g.includes(q) ? 1 : full.startsWith(q) || fullOfficial.startsWith(q) ? 2 : full.includes(q) || fullOfficial.includes(q) ? 3 : -1;
     if (score >= 0) scored.push({ o: { sido: r.sido, sigungu: r.sigungu, label: `${r.sido} ${r.sigungu}` }, score });
+  }
+  // 일반구 이름으로 찾으면 그 시를 "(○○구 포함)"으로 보여 준다
+  const has = new Set(scored.map((x) => `${x.o.sido}|${x.o.sigungu}`));
+  for (const [sido, city, gus] of GENERAL_GU) {
+    if (has.has(`${sido}|${city}`) || !stats.sigungu.some((r) => r.sido === sido && r.sigungu === city)) continue;
+    const gu = gus.find((g) => squash(g).startsWith(q) || (q.length >= 2 && squash(g).includes(q)) || squash(`${city}${g}`).startsWith(q));
+    if (gu) {
+      scored.push({ o: { sido, sigungu: city, label: `${sido} ${city} (${gu} 포함)` }, score: squash(gu).startsWith(q) ? 0 : 1 });
+      has.add(`${sido}|${city}`);
+    }
   }
   for (const o of sidoOpts) {
     const names = [o.sido, SIDO_FULL[o.sido] ?? o.sido].map(squash);

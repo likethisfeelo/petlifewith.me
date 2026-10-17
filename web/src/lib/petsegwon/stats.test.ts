@@ -101,6 +101,8 @@ describe("searchRegions", () => {
     expect(searchRegions(s, "강").map((o) => o.label)).toEqual(["서울 강남구", "서울 강동구", "부산 강서구", "강원 전체"]);
     expect(searchRegions(s, "수원")[0]!.label).toBe("경기 수원시");
     expect(searchRegions(s, "영종")[0]!.label).toBe("인천 제물포구·영종구");
+    expect(searchRegions(s, "영통구")[0]).toEqual({ sido: "경기", sigungu: "수원시", label: "경기 수원시 (영통구 포함)" });
+    expect(searchRegions(s, "수원시 영통")[0]!.sigungu).toBe("수원시");
   });
   it("시도와 붙여 써도, 정식 이름으로 써도", () => {
     expect(searchRegions(s, "서울 강남")[0]!.label).toBe("서울 강남구");
