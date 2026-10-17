@@ -162,6 +162,13 @@
       "when": 1792226843050,
       "tag": "0022_sync_cctv_checklist_v3",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1792230486192,
+      "tag": "0023_sync_cctv_checklist_v4",
+      "breakpoints": true
     }
   ]
 }
