@@ -4,8 +4,8 @@
 // users.id(내부 UUID)가 계속 모든 FK 의 기준이고, Cognito 는 users.cognito_sub 로만 연결한다 (claude.md 10-5).
 //   1) cognito_sub 로 찾는다
 //   2) 없으면 확인된 이메일이 같은 옛 회원 행(cognito_sub 비어 있음)에 연결한다 — 전환 전 테스트 회원용
-//   3) 그래도 없으면 새 행. 닉네임은 Cognito 의 nickname(가입 때 입력·카카오 선택 동의)을 쓰고,
-//      없거나 겹치면 /signup/profile 에서 정하게 한다
+//   3) 그래도 없으면 새 행. 닉네임은 첫 로그인 때 온보딩 팝업에서 본인이 정한다
+//      (카카오 닉네임이 있으면 입력칸에 미리 채운다 — components/onboarding-modal.tsx)
 // 관리자 여부는 Cognito admin 그룹이 기준이고, 로그인할 때마다 users.role 에 맞춰 둔다.
 // ============================================================
 import { and, eq, isNull, sql } from "drizzle-orm";
@@ -57,16 +57,11 @@ export async function completeSignIn(
 
   const isAdminGroup = id.groups.includes("admin");
   const role = isAdminGroup ? "admin" : row.role === "admin" ? "member" : row.role;
-  let displayName = row.displayName;
-  if (!displayName && id.nickname) {
-    const candidate = id.nickname.trim().slice(0, 20);
-    if (DISPLAY_NAME_RE.test(candidate) && (await displayNameAvailable(candidate, row.id))) displayName = candidate;
-  }
   row =
     (
       await db
         .update(users)
-        .set({ role, displayName, lastLoginAt: new Date(), updatedAt: new Date() })
+        .set({ role, lastLoginAt: new Date(), updatedAt: new Date() })
         .where(eq(users.id, row.id))
         .returning()
     )[0] ?? row;
@@ -82,8 +77,15 @@ export async function completeSignIn(
   // 측정: 처음 만든 계정이면 가입, 아니면 로그인 (방식만 — 계정 정보는 넣지 않는다)
   await queueClientEvent(created ? "sign_up" : "login", { method: id.provider ? id.provider.toLowerCase() : "email" });
   if (!row.displayName) {
-    await setAuthFlow({ step: "profile", uid: row.id, next: opts.next });
-    return { redirectTo: "/signup/profile" };
+    // 첫 로그인(또는 닉네임이 없는 옛 계정) — 원래 가려던 페이지로 보내고, 그 위에 닉네임 정하기 팝업을 띄운다
+    // (components/onboarding-modal.tsx). 카카오 닉네임 등은 입력칸에 미리 채울 뿐, 본인이 확인해야 정해진다.
+    let suggest: string | undefined;
+    if (id.nickname) {
+      const candidate = id.nickname.trim().slice(0, 20);
+      if (DISPLAY_NAME_RE.test(candidate) && (await displayNameAvailable(candidate, row.id))) suggest = candidate;
+    }
+    await setAuthFlow({ step: "profile", uid: row.id, next: opts.next, suggest });
+    return { redirectTo: opts.next };
   }
   await startMemberSession(row.id, row.sessionVersion);
   return { redirectTo: opts.next };

@@ -5,7 +5,8 @@ import { revalidatePath } from "@/lib/cdn";
 import { redirect } from "next/navigation";
 import { and, eq, ne } from "drizzle-orm";
 import { getDb, isDbConfigured, schema } from "@/lib/db";
-import { getSession, loginWithToken, logout } from "@/lib/auth";
+import { endMemberSession, getSession, loginWithToken, logout } from "@/lib/auth";
+import { siteUrl } from "@/lib/config";
 import { MAX_EXPOSED_PER_AREA, categoriesForTopic, slugify } from "@app/data";
 import { isValidObjectKey } from "@/lib/assets";
 import { parseMediaRef, sameRef, videoEmbeds } from "@/lib/media-ref";
@@ -106,9 +107,11 @@ export async function loginAction(_prev: ActionState, formData: FormData): Promi
   redirect("/admin");
 }
 
+/** 관리자 로그아웃 — 관리자·회원 세션을 모두 끝내고 메인 사이트의 로그아웃 완료 페이지로 (admin. 호스트에서도 메인 주소로 간다) */
 export async function logoutAction(): Promise<void> {
   await logout();
-  redirect("/admin/login");
+  await endMemberSession();
+  redirect(`${siteUrl().replace(/\/$/, "")}/signed-out`);
 }
 
 // ---------- 가이드 ----------

@@ -6,6 +6,7 @@ import { TopicTaglineProvider } from "@/components/site-tagline";
 import { JsonLd } from "@/components/jsonld";
 import { AdSense, Analytics, GtmNoScript } from "@/components/analytics";
 import { Tracker } from "@/components/tracker";
+import { OnboardingModal } from "@/components/onboarding-modal";
 import {
   adsenseClientId,
   apexDomain,
@@ -66,6 +67,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <JsonLd data={websiteLd()} />
         {/* 측정 이벤트(dataLayer) — GTM 이 없는 환경에서는 쌓이기만 하고 어디로도 가지 않는다 */}
         <Tracker />
+        {/* 첫 로그인 닉네임 정하기 팝업 — 흐름 쿠키가 있을 때만 뜬다 */}
+        <OnboardingModal />
         {analytics && <Analytics gtmId={gtmId} gaId={gaId} apexDomain={apexDomain()} />}
         {adsId && <AdSense clientId={adsId} apexDomain={apexDomain()} />}
       </body>

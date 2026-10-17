@@ -114,7 +114,7 @@ function toTokens(r: AuthenticationResultType | undefined): CognitoTokens | null
 
 // ---------- 가입 ----------
 
-export async function signUp(email: string, password: string, nickname: string): Promise<{ error?: string }> {
+export async function signUp(email: string, password: string, nickname?: string): Promise<{ error?: string }> {
   const cfg = requireCognito();
   try {
     await idp(cfg).send(
@@ -123,10 +123,7 @@ export async function signUp(email: string, password: string, nickname: string):
         SecretHash: secretHash(email, cfg.clientId, cfg.clientSecret),
         Username: email,
         Password: password,
-        UserAttributes: [
-          { Name: "email", Value: email },
-          { Name: "nickname", Value: nickname },
-        ],
+        UserAttributes: [{ Name: "email", Value: email }, ...(nickname ? [{ Name: "nickname", Value: nickname }] : [])],
       }),
     );
     return {};
