@@ -5,7 +5,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./schema": "./src/db/schema.ts",
-    "./regions": "./src/regions/regions.ts"
+    "./regions": "./src/regions/regions.ts",
+    "./gsc": "./src/gsc/sync.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
@@ -18,7 +19,8 @@
     "etl:license": "tsx src/etl/license/load.ts",
     "etl:stats": "tsx src/etl/stats/load.ts",
     "etl:direct": "tsx src/etl/direct/load.ts",
-    "etl:rehab": "tsx src/etl/rehab/load.ts"
+    "etl:rehab": "tsx src/etl/rehab/load.ts",
+    "gsc:sync": "tsx src/gsc/run.ts"
   },
   "dependencies": {
     "csv-parse": "^5.6.0",

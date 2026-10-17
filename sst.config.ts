@@ -203,12 +203,45 @@ export default $config({
       description: "펫라이프위드미 운영자 (관리자 화면 접근)",
     });
 
+    // ---------- 검색 유입 보관 — 매일 Search Console 받아 DB 에 쌓기 (data/src/gsc) ----------
+    // Search Console 은 16개월만 보관한다. .env.deploy.<stage> 에 서비스 계정 키가 있을 때만 만든다
+    // (키 등록 전에도 배포가 되게). 매일 03:10 KST — CronV2(EventBridge Scheduler, 시간대 지정 가능).
+    // 비공개 키는 이 함수에만 넣는다 — 웹 Lambda 환경변수(4KB 상한)에 싣지 않고,
+    // 관리자 "지금 가져오기"는 이 함수를 비동기 호출한다 (web/src/app/admin/search-actions.ts).
+    const gscSync =
+      deployEnv.GSC_CLIENT_EMAIL && deployEnv.GSC_PRIVATE_KEY
+        ? new sst.aws.CronV2("GscSync", {
+            schedule: "cron(10 3 * * ? *)",
+            timezone: "Asia/Seoul",
+            retries: 1,
+            function: {
+              handler: "data/src/gsc/handler.handler",
+              runtime: "nodejs22.x",
+              architecture: "arm64",
+              timeout: "10 minutes",
+              memory: "512 MB",
+              environment: {
+                DATABASE_URL: deployEnv.DATABASE_URL,
+                DB_POOL_MAX: "2",
+                GSC_CLIENT_EMAIL: deployEnv.GSC_CLIENT_EMAIL,
+                GSC_PRIVATE_KEY: deployEnv.GSC_PRIVATE_KEY,
+                GSC_SITE_URL: deployEnv.GSC_SITE_URL ?? "https://petlifewith.me/",
+              },
+            },
+          })
+        : undefined;
+    const webDeployEnv = Object.fromEntries(Object.entries(deployEnv).filter(([k]) => !k.startsWith("GSC_")));
+
     const web = new sst.aws.Nextjs("Web", {
       path: "web",
       link: [media, auth], // 버킷(presign·삭제) + 사용자 풀(cognito-idp:* — 관리자 API) 권한
       // 저장·삭제 뒤 CloudFront 캐시 비우기(web/src/lib/cdn.ts) — CreateInvalidation 은 SST 가 기본으로 주고,
       // 배포 ID 를 별칭으로 찾는 목록 조회만 더한다 (배포 ID 를 env 로 넘기면 순환 참조)
-      permissions: [{ actions: ["cloudfront:ListDistributions"], resources: ["*"] }],
+      permissions: [
+        { actions: ["cloudfront:ListDistributions"], resources: ["*"] },
+        // 관리자 "지금 가져오기" — 검색 유입 보관 함수 비동기 호출
+        ...(gscSync ? [{ actions: ["lambda:InvokeFunction"], resources: [gscSync.nodes.function.arn] }] : []),
+      ],
       domain: site.domain,
       warm: site.warm,
       server: {
@@ -219,7 +252,8 @@ export default $config({
       environment: {
         // 기본값 — .env.deploy.<stage> 가 덮어쓸 수 있는 것
         DB_POOL_MAX: "2", // Lambda 동시 실행 x 풀 크기가 RDS 상한(micro 약 100)을 넘지 않게
-        ...deployEnv,
+        ...webDeployEnv,
+        GSC_SYNC_FUNCTION: gscSync ? gscSync.nodes.function.name : "",
         // 스테이지 고정값 — env 파일보다 우선한다
         NEXT_PUBLIC_SITE_URL: site.url,
         NEXT_PUBLIC_SITE_ENV: site.siteEnv,

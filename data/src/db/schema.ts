@@ -1091,3 +1091,39 @@ export const toolSaves = pgTable(
   },
   (t) => [index("tool_saves_user_tool_idx").on(t.userId, t.toolKey, t.updatedAt)],
 );
+
+// ---------- 검색 유입 (Google Search Console) ----------
+// Search Console 은 16개월만 보관한다 → 매일 받아 우리 DB 에 계속 쌓는다 (data/src/gsc/sync.ts).
+//  - gsc_daily_totals: 날짜별 사이트 전체 합계. 드문 검색어(익명 처리분)까지 포함한 정확한 합계이고,
+//    "그 날짜를 받았다"는 표시이기도 하다(유입 0인 날도 행을 남겨 다시 받지 않는다)
+//  - gsc_query_daily: 날짜 × 검색어 × 페이지 × 기기. 익명 처리된 검색어는 빠지므로 합이 위 합계보다 작다
+// page 는 사이트 경로(/place/…)만 저장한다 — 도메인은 바뀔 수 있다.
+
+export const gscDailyTotals = pgTable("gsc_daily_totals", {
+  date: date("date").primaryKey(),
+  clicks: integer("clicks").notNull(),
+  impressions: integer("impressions").notNull(),
+  ctr: doublePrecision("ctr").notNull(),
+  position: doublePrecision("position").notNull(),
+  fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const gscQueryDaily = pgTable(
+  "gsc_query_daily",
+  {
+    id: bigint("id", { mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
+    date: date("date").notNull(),
+    query: text("query").notNull(),
+    page: text("page").notNull(),
+    device: text("device").notNull(), // DESKTOP | MOBILE | TABLET
+    clicks: integer("clicks").notNull(),
+    impressions: integer("impressions").notNull(),
+    ctr: doublePrecision("ctr").notNull(),
+    position: doublePrecision("position").notNull(),
+  },
+  (t) => [
+    index("gsc_query_daily_date_idx").on(t.date),
+    index("gsc_query_daily_query_idx").on(t.query),
+    index("gsc_query_daily_page_date_idx").on(t.page, t.date),
+  ],
+);

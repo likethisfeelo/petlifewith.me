@@ -23,6 +23,7 @@ const NAV = [
   { href: "/admin/meetups", label: "펫모임" },
   { href: "/admin/curations", label: "큐레이션" },
   { href: "/admin/news", label: "뉴스" },
+  { href: "/admin/search", label: "검색어" },
   { href: "/admin/media", label: "미디어" },
   { href: "/admin/members", label: "회원" },
   { href: "/admin/comments", label: "댓글" },
@@ -36,16 +37,17 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
-      <div className="flex items-center justify-between rounded-xl border border-line bg-surface px-4 py-3">
-        <nav className="flex items-center gap-1 text-sm font-medium">
+      <div className="flex items-start justify-between gap-3 rounded-xl border border-line bg-surface px-4 py-3">
+        {/* 메뉴가 늘어나 한 줄을 넘으면 줄바꿈한다 */}
+        <nav className="flex min-w-0 flex-wrap items-center gap-1 text-sm font-medium">
           <span className="mr-2 rounded bg-ink px-2 py-0.5 text-xs font-bold text-cream">ADMIN</span>
           {NAV.map((n) => (
-            <Link key={n.href} href={n.href} className="rounded-full px-3 py-1.5 text-ink-soft hover:bg-sand hover:text-ink">
+            <Link key={n.href} href={n.href} className="whitespace-nowrap rounded-full px-3 py-1.5 text-ink-soft hover:bg-sand hover:text-ink">
               {n.label}
             </Link>
           ))}
         </nav>
-        <div className="flex items-center gap-3">
+        <div className="flex shrink-0 items-center gap-3 pt-1.5">
           <span className="text-xs text-ink-faint" title="ADMIN_TOKEN 의 계정 라벨">
             {session.sub}
           </span>
