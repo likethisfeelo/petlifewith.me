@@ -66,6 +66,7 @@
     "key_param": "serviceKey",
     "fixed_params": {
       "type": "json",
+      "_type": "json",
       "numOfRows": 1000
     },
     "page_param": "pageNo",
@@ -81,10 +82,11 @@
       "totalCount"
     ],
     "fields": {
-      "status": "TODO: 영업상태명 필드 (probe_api.py 출력에서 확인)",
-      "address_road": "TODO: 도로명주소 필드",
-      "address_lot": "TODO: 지번주소 필드",
-      "name": "TODO: 사업장명 필드"
+      "status": "SALS_STTS_NM",
+      "address_road": "ROAD_NM_ADDR",
+      "address_lot": "LOTNO_ADDR",
+      "name": "BPLC_NM",
+      "_comment": "행정안전부 동물 인허가 API(1741000/*/info) 응답 필드. SALS_STTS_NM·ROAD_NM_ADDR 은 probe 로 확인, LOTNO_ADDR·BPLC_NM 은 같은 계열 표준명(없으면 collect 가 실제 필드 목록을 보여 주고 멈춘다)."
     },
     "active_status_values": [
       "영업/정상"
