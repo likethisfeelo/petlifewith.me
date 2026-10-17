@@ -63,8 +63,8 @@ export interface PetsegwonStats {
 
 export const THRESHOLDS = { short: 120, dense: 80, minShops: 3 } as const;
 
-/** 업종 표시 순서 — 보호자가 자주 쓰는 업종부터 */
-export const INDUSTRY_ORDER = ["grooming", "boarding", "sales", "exhibition", "transport", "funeral", "production", "import"] as const;
+/** 업종 표시 순서 — 보호자가 자주 쓰는 업종부터. 동물판매업(sales)은 도구에 보이지 않게 뺐다 (계산 자료에는 남아 있다) */
+export const INDUSTRY_ORDER = ["grooming", "boarding", "exhibition", "transport", "funeral", "production", "import"] as const;
 
 /** 업종 이름에서 "동물" 떼기 (동물미용업 → 미용업) */
 export function industryShort(name: string): string {
@@ -230,7 +230,7 @@ export function normalizeStats(raw: unknown): { ok: true; value: PetsegwonStats 
 
 // ---------- 화면용 계산 ----------
 
-/** 업종 목록 — 시군구 자료가 있으면 그 업종들, 없으면 실태조사 8개 (표시 순서대로) */
+/** 업종 목록 — 시군구 자료가 있으면 그 업종들, 없으면 실태조사 업종 (표시 순서대로, 판매업 제외) */
 export function industryList(stats: PetsegwonStats, all = false): string[] {
   const keys = all ? Object.keys(baseline.industries) : Object.keys(stats.meta.industries);
   return INDUSTRY_ORDER.filter((k) => keys.includes(k));

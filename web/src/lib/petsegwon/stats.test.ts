@@ -16,8 +16,9 @@ describe("baselineStats", () => {
   it("업장 0곳 업종은 값 없음", () => {
     expect(s.sido["울산"]!.industries.import!.per_shop).toBeNull();
   });
-  it("업종은 8개 전부, 미용업이 먼저", () => {
-    expect(industryList(s)).toHaveLength(8);
+  it("업종은 판매업을 뺀 7개, 미용업이 먼저", () => {
+    expect(industryList(s)).toHaveLength(7);
+    expect(industryList(s)).not.toContain("sales");
     expect(industryList(s)[0]).toBe("grooming");
   });
 });

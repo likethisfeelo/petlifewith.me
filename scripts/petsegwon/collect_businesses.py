@@ -7,12 +7,27 @@ Outputs:
   raw/business_status_values.csv every 영업상태 value seen, with counts (to verify the active filter)
 
 Usage: python collect_businesses.py [industry ...]   (default: every industry in config)
+
+An industry with "csv_path" reads a downloaded 인허가 file (공공데이터포털 파일데이터, cp949 or utf-8)
+instead of calling the API. Column names come from businesses.csv_fields.
 """
 import csv
 import sys
 from collections import Counter, defaultdict
 
-from common import RAW, check_todo, dig, ensure_dirs, load_config, paginate, region_from_address
+from common import ROOT, RAW, check_todo, dig, ensure_dirs, load_config, paginate, region_from_address
+
+
+def read_csv_rows(path):
+    """Downloaded files are usually cp949. Try utf-8 first, then cp949."""
+    full = ROOT / path
+    for enc in ("utf-8-sig", "cp949"):
+        try:
+            with open(full, encoding=enc) as fh:
+                return list(csv.DictReader(fh))
+        except UnicodeDecodeError:
+            continue
+    raise SystemExit(f"cannot decode {full} (expected utf-8 or cp949)")
 
 
 def main():
@@ -29,18 +44,25 @@ def main():
 
     for ind in targets:
         spec = biz["industries"][ind]
-        check_todo({"base_url": spec["base_url"], "fields": f}, f"businesses.{ind}")
-        print(f"  businesses: {ind}")
+        if spec.get("csv_path"):
+            fields = biz["csv_fields"]
+            items = read_csv_rows(spec["csv_path"])
+            print(f"  businesses: {ind} (csv {spec['csv_path']})")
+        else:
+            fields = f
+            check_todo({"base_url": spec["base_url"], "fields": f}, f"businesses.{ind}")
+            items = paginate(spec["base_url"], biz["key_param"], biz["fixed_params"], biz["page_param"],
+                             biz["items_path"], biz["total_count_path"])
+            print(f"  businesses: {ind}")
         rows = []
         unparsed = 0
-        for item in paginate(spec["base_url"], biz["key_param"], biz["fixed_params"], biz["page_param"],
-                             biz["items_path"], biz["total_count_path"]):
-            status = str(dig(item, [f["status"]]) or "").strip()
+        for item in items:
+            status = str(dig(item, [fields["status"]]) or "").strip()
             status_seen[(ind, status)] += 1
-            addr = str(dig(item, [f["address_road"]]) or "").strip() or str(dig(item, [f["address_lot"]]) or "").strip()
+            addr = str(dig(item, [fields["address_road"]]) or "").strip() or str(dig(item, [fields["address_lot"]]) or "").strip()
             sido, sgg = region_from_address(addr, merge)
             active = status in active_values
-            rows.append([dig(item, [f["name"]]), status, active, addr, sido, sgg])
+            rows.append([dig(item, [fields["name"]]), status, active, addr, sido, sgg])
             if sido is None or sgg is None:
                 unparsed += 1
                 continue

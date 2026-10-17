@@ -32,6 +32,19 @@ SIDO_ALIASES = {
 }
 _SIDO_LOOKUP = {alias: short for short, aliases in SIDO_ALIASES.items() for alias in aliases}
 
+# 2026 통합: 인허가 주소에 "전남광주통합특별시"가 나온다. 기준 통계(2025)는 광주·전남이 나뉘어 있으므로
+# 옛 광주광역시의 자치구 5곳은 광주로, 나머지 시·군은 전남으로 돌려 맞춘다. (전남에는 자치구가 없다)
+MERGED_GWANGJU_JEONNAM = ("전남광주통합특별시", "전남광주특별시")
+GWANGJU_GU = {"동구", "서구", "남구", "북구", "광산구"}
+
+
+def split_merged_sido(sido_text, sigungu_text):
+    """('전남광주통합특별시', '광산구 ...') -> '광주', 시·군이면 '전남'. 통합 표기가 아니면 None."""
+    if not sido_text or not sido_text.strip().startswith(MERGED_GWANGJU_JEONNAM):
+        return None
+    first = (sigungu_text or "").strip().split(" ")[0] if sigungu_text else ""
+    return "광주" if first in GWANGJU_GU else "전남"
+
 
 def load_config():
     path = ROOT / "config.json"
@@ -114,10 +127,13 @@ def paginate(base_url, key_param, fixed_params, page_param, items_path, total_pa
         time.sleep(0.2)
 
 
-def normalize_sido(text):
+def normalize_sido(text, sigungu_text=None):
     if not text:
         return None
     text = text.strip()
+    merged = split_merged_sido(text, sigungu_text)
+    if merged:
+        return merged
     if text in _SIDO_LOOKUP:
         return _SIDO_LOOKUP[text]
     for alias, short in _SIDO_LOOKUP.items():
@@ -147,7 +163,7 @@ def region_from_address(address, merge_general_gu=True):
     tokens = address.strip().split()
     if not tokens:
         return None, None
-    sido = normalize_sido(tokens[0])
+    sido = normalize_sido(tokens[0], " ".join(tokens[1:2]))
     if sido is None:
         return None, None
     if sido == "세종":
