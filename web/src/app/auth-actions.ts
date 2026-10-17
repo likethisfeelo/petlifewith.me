@@ -129,18 +129,15 @@ export async function memberLogoutAction(): Promise<void> {
 export async function signupAction(_prev: AuthActionState, formData: FormData): Promise<AuthActionState> {
   const blocked = notReady();
   if (blocked) return blocked;
+  // 닉네임은 여기서 받지 않는다 — 첫 로그인 때 온보딩 팝업에서 정한다 (components/onboarding-modal.tsx)
   const email = str(formData, "email").toLowerCase();
-  const displayName = str(formData, "displayName");
   const password = String(formData.get("password") ?? "");
-  const values = { email, displayName, agree: formData.get("agree") === "on" ? "on" : "" };
+  const values = { email, agree: formData.get("agree") === "on" ? "on" : "" };
   if (!EMAIL_RE.test(email) || email.length > 254) return { error: "이메일 형식을 확인해 주세요.", values };
-  if (!DISPLAY_NAME_RE.test(displayName)) return { error: "닉네임은 2~20자로, 한글·영문·숫자·공백·._- 만 쓸 수 있습니다.", values };
   if (password !== String(formData.get("passwordConfirm") ?? "")) return { error: "비밀번호 확인이 일치하지 않습니다.", values };
   if (formData.get("agree") !== "on") return { error: "안내 사항을 확인하고 동의해 주세요.", values };
-  const taken = await getDb().select({ id: users.id }).from(users).where(sql`lower(${users.displayName}) = lower(${displayName})`).limit(1);
-  if (taken.length > 0) return { error: "이미 쓰이는 닉네임입니다. 다른 닉네임을 골라 주세요.", values };
 
-  const res = await signUp(email, password, displayName);
+  const res = await signUp(email, password);
   if (res.error) return { error: res.error, values };
   return { step: "confirm", values: { email }, notice: `${email} 로 6자리 확인 코드를 보냈습니다.` };
 }
@@ -174,6 +171,26 @@ export async function profileAction(_prev: AuthActionState, formData: FormData):
   await clearAuthFlow();
   await startMemberSession(flow.uid, res.sessionVersion);
   redirect(flow.next ?? "/me");
+}
+
+// ---------- 첫 로그인 온보딩 팝업 (components/onboarding-modal.tsx) ----------
+// 페이지를 옮기지 않고 그 자리에서 닉네임을 정한다. 성공하면 회원 세션을 굽고 팝업이 페이지를 새로 읽는다.
+
+export async function onboardingProfileAction(_prev: AuthActionState, formData: FormData): Promise<AuthActionState> {
+  const flow = await getAuthFlow("profile");
+  if (!flow?.uid) return { error: "시간이 지났습니다. 다시 로그인해 주세요." };
+  const displayName = str(formData, "displayName");
+  if (formData.get("agree") !== "on") return { error: "안내 사항을 확인해 주세요.", values: { displayName } };
+  const res = await finishProfile(flow.uid, displayName);
+  if (res.error || res.sessionVersion === undefined) return { error: res.error ?? "저장하지 못했습니다.", values: { displayName } };
+  await clearAuthFlow();
+  await startMemberSession(flow.uid, res.sessionVersion);
+  return { saved: true };
+}
+
+/** 팝업에서 "다음에 할게요" — 로그인을 마치지 않고 흐름만 지운다 (닉네임이 있어야 회원 세션이 생긴다) */
+export async function onboardingCancelAction(): Promise<void> {
+  await clearAuthFlow();
 }
 
 // ---------- 비밀번호 찾기 ----------

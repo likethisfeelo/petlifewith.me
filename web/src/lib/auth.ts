@@ -286,24 +286,29 @@ export interface AuthFlow {
   state?: string;
   /** totp_setup: 인증 앱 등록에 쓰는 액세스 토큰(10분) */
   accessToken?: string;
+  /** profile: 닉네임 입력칸에 미리 채울 값 (카카오 닉네임 등) */
+  suggest?: string;
   exp: number;
 }
 
 const FLOW_COOKIE = "auth_flow";
 const FLOW_TTL_SEC = 10 * 60;
+/** 첫 로그인 닉네임 정하기(온보딩 팝업)는 둘러보다 정해도 되게 길게 */
+const PROFILE_FLOW_TTL_SEC = 60 * 60;
 
 /** 서명만 하고 암호화하지 않는다 — httpOnly·10분, 담기는 것은 Cognito 세션 문자열·state 같은 일회성 값뿐 */
 export async function setAuthFlow(flow: Omit<AuthFlow, "exp">): Promise<void> {
   const secret = authSecret();
   if (!secret) throw new Error("AUTH_SECRET 미설정");
-  const payload = b64url(Buffer.from(JSON.stringify({ ...flow, exp: Math.floor(Date.now() / 1000) + FLOW_TTL_SEC }), "utf8"));
+  const ttl = flow.step === "profile" ? PROFILE_FLOW_TTL_SEC : FLOW_TTL_SEC;
+  const payload = b64url(Buffer.from(JSON.stringify({ ...flow, exp: Math.floor(Date.now() / 1000) + ttl }), "utf8"));
   const store = await cookies();
   store.set(FLOW_COOKIE, `${payload}.${sign(payload, secret)}`, {
     httpOnly: true,
     sameSite: "lax", // 카카오에서 돌아오는 최상위 이동(GET)에도 실려야 한다
     secure: isHttpsSite(),
     path: "/",
-    maxAge: FLOW_TTL_SEC,
+    maxAge: ttl,
   });
 }
 
