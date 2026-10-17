@@ -70,6 +70,8 @@ export default async function SigunguPage({ params }: Props) {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10">
+      <SpotRegisterBanner regionLabel={`${region.sidoName} ${region.sigunguName}`} regionId={region.id} />
+
       <RememberRegion
         region={{
           sidoSlug: region.sidoSlug,
@@ -155,7 +157,6 @@ export default async function SigunguPage({ params }: Props) {
         하며, 각 장소 페이지에 출처·기준일을 표기합니다.
       </p>
 
-      <SpotRegisterBanner regionLabel={`${region.sidoName} ${region.sigunguName}`} regionId={region.id} />
 
       {spots.length > 0 && (
         <JsonLd
