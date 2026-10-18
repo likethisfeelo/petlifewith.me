@@ -2,24 +2,35 @@
 
 // 내 업체 등록 요청 폼 — spot_register. 운영자가 확인한 뒤 /admin/spots/new?from=<요청> 으로 스팟을 만든다.
 import Link from "next/link";
-import { useEffect, useState } from "react";
 import { RegionSelect, selectClass } from "@/components/requests/region-picker";
 import { RequestForm, inputClass, labelClass } from "@/components/requests/request-form";
 import type { RegionOption, SpotTypeOption } from "@/lib/queries/requests";
 import { REQUEST_LIMITS } from "@/lib/requests";
+import type { OwnerSearchHit } from "@/lib/queries/spot-register";
 
-export function SpotRegisterForm({ types, regions }: { types: SpotTypeOption[]; regions: RegionOption[] }) {
-  // 지역 스팟 페이지의 등록 배너에서 오면 지역·업종을 미리 채운다 (?region=<id>&type=<slug>)
-  const [prefill, setPrefill] = useState<{ regionId: number | null; typeSlug: string }>({ regionId: null, typeSlug: "" });
-  useEffect(() => {
-    const q = new URLSearchParams(window.location.search);
-    const id = Number(q.get("region"));
-    const type = q.get("type") ?? "";
-    setPrefill({
-      regionId: regions.some((r) => r.id === id) ? id : null,
-      typeSlug: types.some((t) => t.slug === type) ? type : "",
-    });
-  }, [regions, types]);
+export interface RegisterInitial {
+  businessName?: string;
+  phone?: string;
+  regionId?: number | null;
+  typeSlug?: string | null;
+}
+
+export function SpotRegisterForm({
+  types,
+  regions,
+  initial = {},
+  onPickDuplicate,
+}: {
+  types: SpotTypeOption[];
+  regions: RegionOption[];
+  /** 찾기 단계에서 넘어온 값 (검색어·지역·업종) — 등록 흐름(register-flow.tsx)이 채운다 */
+  initial?: RegisterInitial;
+  onPickDuplicate?: (hit: OwnerSearchHit) => void;
+}) {
+  const prefill = {
+    regionId: initial.regionId && regions.some((r) => r.id === initial.regionId) ? initial.regionId : null,
+    typeSlug: initial.typeSlug && types.some((t) => t.slug === initial.typeSlug) ? initial.typeSlug : "",
+  };
 
   return (
     <RequestForm
@@ -38,12 +49,13 @@ export function SpotRegisterForm({ types, regions }: { types: SpotTypeOption[]; 
       messagePlaceholder="운영시간·요금·주차 등 페이지에 실을 정보나 궁금한 점을 적어 주세요."
       // 연락처만 있으면 접수된다 — 업체 정보는 모두 선택이라 연락받을 분을 맨 위에
       requesterFirst
+      onPickDuplicate={onPickDuplicate}
       requesterExtra={(v) => (
         <div>
           <label htmlFor="businessName" className={labelClass}>
             업체명 (선택)
           </label>
-          <input id="businessName" name="businessName" minLength={2} maxLength={REQUEST_LIMITS.businessName} defaultValue={v.businessName} placeholder="예: 멍멍스파" className={inputClass} />
+          <input id="businessName" name="businessName" minLength={2} maxLength={REQUEST_LIMITS.businessName} defaultValue={v.businessName ?? initial.businessName} placeholder="예: 멍멍스파" className={inputClass} />
         </div>
       )}
     >
@@ -100,7 +112,7 @@ export function SpotRegisterForm({ types, regions }: { types: SpotTypeOption[]; 
               <label htmlFor="phone" className={labelClass}>
                 업체 전화 (페이지에 표시)
               </label>
-              <input id="phone" name="phone" maxLength={REQUEST_LIMITS.contact} defaultValue={v.phone} placeholder="02-000-0000" className={inputClass} />
+              <input id="phone" name="phone" maxLength={REQUEST_LIMITS.contact} defaultValue={v.phone ?? initial.phone} placeholder="02-000-0000" className={inputClass} />
             </div>
           </div>
           <div className="grid gap-4 sm:grid-cols-3">

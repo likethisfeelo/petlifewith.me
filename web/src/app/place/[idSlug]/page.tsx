@@ -308,7 +308,7 @@ export default async function PlacePage({ params }: Props) {
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
           <Link
-            href={`/claim/spot/${spot.id}`}
+            href={`/portal/spot?spot=${spot.id}#register`}
             className="rounded-full bg-ink px-4 py-2 text-xs font-medium text-cream hover:opacity-90"
           >
             정보 관리 요청 (무료)
