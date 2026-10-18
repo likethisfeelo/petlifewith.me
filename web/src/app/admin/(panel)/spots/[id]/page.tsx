@@ -9,6 +9,7 @@ import { getSpotLinks } from "@/lib/queries/spots";
 import { listDeviceOptions, listDevicesForSpot } from "@/lib/queries/devices";
 import { AdminPageHeader } from "../../../_components/fields";
 import { detachOwnerAction } from "../../../request-actions";
+import { SpotPagePanel } from "@/components/linkpage/spot-page-panel";
 import { SpotEditor } from "./spot-editor";
 
 const { spots, spotTypes, regions, users } = schema;
@@ -28,9 +29,10 @@ export default async function AdminSpotEditPage({ params, searchParams }: Props)
   const db = getDb();
   const row = (
     await db
-      .select({ spot: spots, sigunguName: regions.sigunguName, sidoName: regions.sidoName })
+      .select({ spot: spots, sigunguName: regions.sigunguName, sidoName: regions.sidoName, monetizable: spotTypes.monetizable })
       .from(spots)
       .innerJoin(regions, eq(spots.regionId, regions.id))
+      .innerJoin(spotTypes, eq(spots.typeId, spotTypes.id))
       .where(eq(spots.id, spotId))
       .limit(1)
   )[0];
@@ -124,11 +126,15 @@ export default async function AdminSpotEditPage({ params, searchParams }: Props)
                 </form>
               </span>
             ) : (
-              <span className="text-ink-faint">없음 — 요청함의 정보 관리 요청에서 &quot;소유자로 연결&quot;</span>
+              <span className="text-ink-faint">없음 — 요청함의 정보 관리 요청에서 &quot;소유자로 연결&quot; 또는 아래 링크 페이지에서 이메일로 지정</span>
             )}
           </dd>
         </div>
       </dl>
+
+      <div className="mt-5">
+        <SpotPagePanel spotId={spot.id} admin monetizable={row.monetizable} />
+      </div>
 
       <div className="mt-5">
         <SpotEditor

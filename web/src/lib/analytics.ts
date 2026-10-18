@@ -30,7 +30,7 @@ export const ADS_OPT_OUT_META = "petlife-ads";
 
 export function isAdsExcludedPath(pathname: string): boolean {
   if (isAnalyticsExcludedPath(pathname)) return true;
-  return ["/portal", "/claim", "/rehab", "/login", "/signup", "/me", "/write", "/meetup", "/consult", "/reservations", "/book", "/chat"].some(
+  return ["/portal", "/claim", "/rehab", "/login", "/signup", "/me", "/write", "/meetup", "/consult", "/reservations", "/book", "/chat", "/l"].some(
     (p) => pathname === p || pathname.startsWith(`${p}/`),
   );
 }
@@ -38,5 +38,5 @@ export function isAdsExcludedPath(pathname: string): boolean {
 export function isAdsExcluded(pathname: string, host: string, apex: string): boolean {
   if (isAdsExcludedPath(pathname)) return true;
   const sub = subdomainOf(host, apex);
-  return sub === "admin" || sub === "service" || sub === "product";
+  return sub === "admin" || sub === "service" || sub === "product" || sub === "link";
 }

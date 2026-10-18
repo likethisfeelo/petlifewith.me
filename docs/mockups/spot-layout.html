@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>스팟 레이아웃 목업</title>
+<style>
+  :root {
+    --bg: #faf8f4; --surface: #ffffff; --ink: #222; --soft: #666; --faint: #999;
+    --line: #e5e0d8; --block: #efeae2; --sea: #3d6f99; --sea-soft: #e4edf4; --accent: #d4531f; --accent-soft: #fcebe1; --sage: #e6efe4;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #1b1a18; --surface: #252421; --ink: #eee; --soft: #bbb; --faint: #888;
+      --line: #3a3833; --block: #2f2d29; --sea: #8fb6da; --sea-soft: #2a3540; --accent: #f08a5d; --accent-soft: #3a2a22; --sage: #2c3529;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #1b1a18; --surface: #252421; --ink: #eee; --soft: #bbb; --faint: #888;
+    --line: #3a3833; --block: #2f2d29; --sea: #8fb6da; --sea-soft: #2a3540; --accent: #f08a5d; --accent-soft: #3a2a22; --sage: #2c3529;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.5 -apple-system, "Pretendard", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif; }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 24px 16px 80px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .lead { color: var(--soft); margin: 0 0 20px; }
+  .tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+  .tabs button, .view button { border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 999px; padding: 7px 14px; font: inherit; cursor: pointer; }
+  .tabs button[aria-pressed="true"], .view button[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+  .view { display: flex; gap: 6px; margin-bottom: 16px; }
+  .note { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; margin-bottom: 18px; }
+  .note b { color: var(--sea); }
+  .note ul { margin: 6px 0 0; padding-left: 18px; }
+  .stage { display: flex; justify-content: center; }
+  .frame { width: 100%; max-width: 1040px; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 18px; transition: max-width .2s; }
+  .frame.mobile { max-width: 380px; }
+  .blk { background: var(--block); border: 1px dashed var(--line); border-radius: 10px; padding: 12px; color: var(--soft); font-size: 13px; }
+  .blk strong { display: block; color: var(--ink); font-size: 13px; margin-bottom: 2px; }
+  .blk.sea { background: var(--sea-soft); }
+  .blk.accent { background: var(--accent-soft); }
+  .blk.sage { background: var(--sage); }
+  .blk.hero { padding: 22px; }
+  .row { display: grid; gap: 10px; margin-top: 10px; }
+  .c2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .c3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .c4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .split { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); }
+  .side { grid-template-columns: 220px minmax(0, 1fr); }
+  .frame.mobile .c2, .frame.mobile .c3, .frame.mobile .c4, .frame.mobile .split, .frame.mobile .side { grid-template-columns: minmax(0, 1fr); }
+  .frame.mobile .m2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .chip { background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; font-size: 12px; color: var(--soft); }
+  .tall { min-height: 220px; }
+  .mid { min-height: 120px; }
+  .crumb { font-size: 12px; color: var(--faint); margin-bottom: 8px; }
+  .hidden { display: none; }
+  @media (max-width: 640px) { .c2, .c3, .c4, .split, .side { grid-template-columns: minmax(0, 1fr); } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>/spot 레이아웃 목업</h1>
+  <p class="lead">영역만 구획한 와이어프레임입니다. 위에서 안을 고르고, PC·모바일을 바꿔 보세요.</p>
+
+  <div class="tabs" role="group" aria-label="안 고르기">
+    <button data-tab="now" aria-pressed="false">지금</button>
+    <button data-tab="a" aria-pressed="true">A. 검색 우선</button>
+    <button data-tab="b" aria-pressed="false">B. 지도 우선</button>
+    <button data-tab="c" aria-pressed="false">C. 목적별 카드</button>
+  </div>
+  <div class="view" role="group" aria-label="화면 크기">
+    <button data-view="pc" aria-pressed="true">PC</button>
+    <button data-view="mobile" aria-pressed="false">모바일</button>
+  </div>
+
+  <!-- 지금 -->
+  <section data-panel="now" class="hidden">
+    <div class="note"><b>지금 구조의 아쉬운 점</b>
+      <ul>
+        <li>"유형으로 찾을지, 지역으로 찾을지"가 첫 화면에서 정해지지 않아요. 유형 칩 17개가 한 줄로 쭉 나열돼요.</li>
+        <li>지역 카드는 이름·개수 텍스트뿐이라 눈에 잘 안 들어오고, 하위 페이지에 있는 지도가 여기엔 없어요.</li>
+        <li>업체 등록 안내가 맨 아래에 있어서, 지역 페이지 맨 위 배너와 위치가 달라요.</li>
+      </ul>
+    </div>
+    <div class="stage"><div class="frame">
+      <div class="crumb">홈 › 스팟</div>
+      <div class="blk"><strong>제목 + 소개 문단</strong>스팟 — 가는 곳 · 즐거움에 직접 기여하는 시설만</div>
+      <div class="row"><div class="blk"><strong>최근 본 지역 배너</strong></div></div>
+      <div class="row"><div class="blk"><strong>유형 칩 (17개 한 줄 나열)</strong><div class="chips"><span class="chip">미용·스파</span><span class="chip">셀프목욕</span><span class="chip">수영장</span><span class="chip">놀이터</span><span class="chip">유치원·위탁</span><span class="chip">펫시터</span><span class="chip">…</span><span class="chip">장묘 · 광고 없음</span></div></div></div>
+      <div class="row"><div class="blk sage"><strong>재활·한방·특수치료 안내 박스</strong></div></div>
+      <div class="row c3"><div class="blk">서울특별시 · n곳</div><div class="blk">부산광역시 · n곳</div><div class="blk">… 17개 시도 텍스트 카드</div></div>
+      <div class="row"><div class="blk"><strong>업체를 운영하시나요? (맨 아래)</strong></div></div>
+    </div></div>
+  </section>
+
+  <!-- A -->
+  <section data-panel="a">
+    <div class="note"><b>A. 검색 우선</b> — 첫 화면에서 "어디서 · 무엇을"을 한 번에 고르게 합니다. 펫세권 분석 검색창과 같은 방식이에요.
+      <ul>
+        <li>큰 검색창 하나: 지역(시군구까지)과 유형을 함께 받아 바로 목록 페이지로 이동</li>
+        <li>바로 아래 "최근 본 지역", "인기 지역" 칩으로 한 번에 들어가기</li>
+        <li>유형은 목적별 4묶음으로 정리해서 17개 나열을 줄여요</li>
+        <li>장점: 다시 오는 사용자에게 가장 빨라요 / 단점: 둘러보는 재미는 약해요</li>
+      </ul>
+    </div>
+    <div class="stage"><div class="frame">
+      <div class="blk accent"><strong>업체 등록 배너 (가는 띠 형태)</strong>지역 페이지와 같은 자리 · 높이만 줄임</div>
+      <div class="row"><div class="blk sea hero"><strong>히어로: 큰 검색창</strong>[ 지역명 검색 (예: 영통구, 해운대) ] [ 유형 ▾ ] [ 찾기 ]<div class="chips"><span class="chip">최근: 서울 강남구</span><span class="chip">인기: 해운대구</span><span class="chip">인기: 분당구</span></div></div></div>
+      <div class="row c4 m2">
+        <div class="blk mid"><strong>놀이·운동</strong>놀이터 · 수영장 · 운동·재활</div>
+        <div class="blk mid"><strong>관리·미용</strong>미용·스파 · 셀프목욕 · 방문미용</div>
+        <div class="blk mid"><strong>맡기기·돌봄</strong>유치원·위탁 · 펫시터 · 산책</div>
+        <div class="blk mid"><strong>이동·기타</strong>이동·운송 · 동반 카페</div>
+      </div>
+      <div class="row"><div class="blk"><strong>시도 그리드 (개수 막대 포함)</strong>서울 ███ 1,240 · 경기 █████ 2,010 · …</div></div>
+      <div class="row c2">
+        <div class="blk sage"><strong>재활·특수치료 찾기</strong>치료법으로 찾기 →</div>
+        <div class="blk"><strong>사실 정보 디렉토리</strong>장묘 · 동물약국 (광고 없음) · B2B 참고는 작은 링크로</div>
+      </div>
+    </div></div>
+  </section>
+
+  <!-- B -->
+  <section data-panel="b" class="hidden">
+    <div class="note"><b>B. 지도 우선</b> — 시도 페이지에 이미 있는 지도 컴포넌트를 첫 화면에 올려요.
+      <ul>
+        <li>왼쪽: 전국 지도(시도 타일). 누르면 오른쪽 패널이 그 시도로 바뀜</li>
+        <li>오른쪽: 고른 시도의 유형별 개수와 "시군구 바로 가기"</li>
+        <li>지도 위에 유형 필터 탭 → 지도 숫자가 그 유형 기준으로 바뀜</li>
+        <li>장점: 한눈에 "우리 지역에 얼마나 있나"가 보여요 / 단점: 모바일에선 지도가 길어져서 접어 두는 게 좋아요</li>
+      </ul>
+    </div>
+    <div class="stage"><div class="frame">
+      <div class="crumb">홈 › 스팟</div>
+      <div class="blk"><strong>짧은 제목 한 줄</strong>반려동물이 즐거운 곳, 지역에서 찾기</div>
+      <div class="row"><div class="blk"><strong>유형 필터 탭</strong><div class="chips"><span class="chip">전체</span><span class="chip">미용·스파</span><span class="chip">놀이터</span><span class="chip">수영장</span><span class="chip">유치원·위탁</span><span class="chip">돌봄</span><span class="chip">더보기 ▾</span></div></div></div>
+      <div class="row split">
+        <div class="blk sea tall"><strong>전국 지도 (시도 타일 + 개수)</strong>지역 페이지의 SpotDirectory 지도 재사용 · 모바일은 "지도 펼치기"로 접기</div>
+        <div class="blk tall"><strong>선택한 시도 패널</strong>서울 · 1,240곳<br />유형별 개수 막대<br />시군구 바로 가기 칩 (강남구 · 마포구 · …)<br />→ 서울 전체 보기</div>
+      </div>
+      <div class="row c3">
+        <div class="blk accent"><strong>업체 등록 (카드)</strong></div>
+        <div class="blk sage"><strong>재활·특수치료</strong></div>
+        <div class="blk"><strong>장묘·약국 (사실 정보)</strong></div>
+      </div>
+    </div></div>
+  </section>
+
+  <!-- C -->
+  <section data-panel="c" class="hidden">
+    <div class="note"><b>C. 목적별 카드</b> — "오늘 뭐 하지?"로 들어오는 보호자를 위한 둘러보기형이에요.
+      <ul>
+        <li>목적 카드 6~8개 (사진·아이콘 + 전국 개수). 누르면 유형 페이지로 이동</li>
+        <li>최근 본 지역이 있으면 카드 숫자를 "우리 동네 n곳"으로 바꿔 보여 줘요</li>
+        <li>아래에 "새로 등록된 곳", "관련 가이드" 줄을 넣어 콘텐츠와 연결</li>
+        <li>장점: 처음 온 사람도 고르기 쉽고 SEO 본문이 풍부해져요 / 단점: 사진·콘텐츠를 계속 채워야 해요</li>
+      </ul>
+    </div>
+    <div class="stage"><div class="frame">
+      <div class="row split">
+        <div class="blk hero"><strong>제목 + 한 줄 소개</strong>오늘은 어디로 갈까요?</div>
+        <div class="blk accent"><strong>업체 등록 (오른쪽 작은 카드)</strong>사장님이신가요? 무료 등록 →</div>
+      </div>
+      <div class="row"><div class="blk sea"><strong>지역 선택 바</strong>[ 지역: 서울 강남구 ▾ ] — 고르면 아래 카드 숫자가 그 지역 기준으로</div></div>
+      <div class="row c4 m2">
+        <div class="blk mid"><strong>신나게 뛰기</strong>놀이터 · 수영장</div>
+        <div class="blk mid"><strong>예쁘게 관리</strong>미용·스파 · 셀프목욕</div>
+        <div class="blk mid"><strong>맡기고 출근</strong>유치원·위탁 · 펫시터</div>
+        <div class="blk mid"><strong>함께 쉬기</strong>동반 카페</div>
+        <div class="blk mid"><strong>건강·재활</strong>운동·재활 · 특수치료</div>
+        <div class="blk mid"><strong>이동</strong>펫택시·운송</div>
+        <div class="blk mid"><strong>방문 서비스</strong>방문미용 · 방문목욕</div>
+        <div class="blk mid"><strong>사실 정보</strong>장묘 · 동물약국</div>
+      </div>
+      <div class="row"><div class="blk"><strong>새로 등록된 곳 (가로 스크롤 카드)</strong></div></div>
+      <div class="row c2">
+        <div class="blk"><strong>관련 가이드 3편</strong>첫 미용 고르는 법 · …</div>
+        <div class="blk"><strong>시도 목록 (작게)</strong>서울 · 부산 · … 텍스트 링크</div>
+      </div>
+    </div></div>
+  </section>
+
+  <div class="note" style="margin-top:18px"><b>어느 안이든 같이 하면 좋은 것</b>
+    <ul>
+      <li>유형 17개를 목적별 4~5묶음으로 정리 (지금은 한 줄 나열)</li>
+      <li>장묘·동물약국은 "사실 정보", B2B 유형은 작은 링크로 분리 (광고 없음 원칙 유지)</li>
+      <li>업체 등록 안내를 지역 페이지와 같은 위치·모양으로 통일</li>
+      <li>최근 본 지역이 있으면 첫 화면을 그 지역 기준으로 보여 주기</li>
+    </ul>
+  </div>
+</div>
+<script>
+  const tabs = document.querySelectorAll("[data-tab]");
+  const panels = document.querySelectorAll("[data-panel]");
+  tabs.forEach((b) => b.addEventListener("click", () => {
+    tabs.forEach((t) => t.setAttribute("aria-pressed", String(t === b)));
+    panels.forEach((p) => p.classList.toggle("hidden", p.dataset.panel !== b.dataset.tab));
+  }));
+  const views = document.querySelectorAll("[data-view]");
+  views.forEach((b) => b.addEventListener("click", () => {
+    views.forEach((v) => v.setAttribute("aria-pressed", String(v === b)));
+    document.querySelectorAll(".frame").forEach((f) => f.classList.toggle("mobile", b.dataset.view === "mobile"));
+  }));
+</script>
+</body>
+</html>

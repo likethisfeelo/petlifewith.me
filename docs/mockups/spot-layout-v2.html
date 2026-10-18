@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>스팟 탐색 목업</title>
+<style>
+  :root {
+    --bg: #faf8f4; --surface: #ffffff; --ink: #222; --soft: #666; --faint: #999;
+    --line: #e5e0d8; --block: #efeae2; --sea: #3d6f99; --sea-soft: #e4edf4; --accent: #d4531f; --accent-soft: #fcebe1; --sage: #e6efe4;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #1b1a18; --surface: #252421; --ink: #eee; --soft: #bbb; --faint: #888;
+      --line: #3a3833; --block: #2f2d29; --sea: #8fb6da; --sea-soft: #2a3540; --accent: #f08a5d; --accent-soft: #3a2a22; --sage: #2c3529;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #1b1a18; --surface: #252421; --ink: #eee; --soft: #bbb; --faint: #888;
+    --line: #3a3833; --block: #2f2d29; --sea: #8fb6da; --sea-soft: #2a3540; --accent: #f08a5d; --accent-soft: #3a2a22; --sage: #2c3529;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.5 -apple-system, "Pretendard", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 24px 16px 80px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .lead { color: var(--soft); margin: 0 0 18px; }
+  .tabs, .view { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+  .tabs button, .view button { border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 999px; padding: 7px 14px; font: inherit; cursor: pointer; }
+  .tabs button[aria-pressed="true"], .view button[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+  .note { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; margin-bottom: 16px; }
+  .note b { color: var(--sea); }
+  .note ul { margin: 6px 0 0; padding-left: 18px; }
+  .note li { margin: 2px 0; }
+  .stage { display: flex; justify-content: center; }
+  .frame { width: 100%; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 16px; transition: max-width .2s; }
+  .frame.mobile { max-width: 380px; }
+  .blk { background: var(--block); border: 1px dashed var(--line); border-radius: 10px; padding: 10px 12px; color: var(--soft); font-size: 12.5px; }
+  .blk strong { display: block; color: var(--ink); font-size: 13px; margin-bottom: 2px; }
+  .sea { background: var(--sea-soft); } .accent { background: var(--accent-soft); } .sage { background: var(--sage); }
+  .grid { display: grid; gap: 10px; }
+  .layout { grid-template-columns: 230px minmax(0, 1fr); align-items: start; }
+  .splitmap { grid-template-columns: 210px minmax(0, 1fr) minmax(0, 1fr); align-items: start; }
+  .cards3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .cards2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .chips { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; }
+  .chip { flex: none; background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 5px 12px; font-size: 12px; color: var(--soft); white-space: nowrap; }
+  .chip.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+  .bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+  .seg { display: flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .seg span { padding: 4px 10px; font-size: 12px; color: var(--soft); background: var(--surface); }
+  .seg span.on { background: var(--ink); color: var(--bg); }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+  .card .img { height: 92px; background: var(--block); display: flex; align-items: center; justify-content: center; color: var(--faint); font-size: 12px; position: relative; }
+  .card .img.noimg { background: var(--sea-soft); }
+  .card .body { padding: 10px 12px; font-size: 12px; color: var(--soft); }
+  .card .name { color: var(--ink); font-weight: 700; font-size: 13px; }
+  .tag { display: inline-block; border-radius: 999px; padding: 1px 7px; font-size: 11px; background: var(--block); color: var(--soft); margin: 4px 4px 0 0; }
+  .ad { position: absolute; top: 6px; left: 6px; background: var(--accent); color: #fff; font-size: 10px; border-radius: 4px; padding: 1px 6px; }
+  .save { position: absolute; top: 6px; right: 6px; width: 24px; height: 24px; border-radius: 50%; background: var(--surface); border: 1px solid var(--line); font-size: 12px; display: flex; align-items: center; justify-content: center; }
+  .foot { border-top: 1px solid var(--line); padding: 6px 12px; font-size: 11.5px; color: var(--faint); }
+  .empty { border: 1px dashed var(--accent); background: var(--accent-soft); border-radius: 12px; padding: 12px; font-size: 12px; color: var(--soft); display: flex; flex-direction: column; justify-content: center; }
+  .map { min-height: 420px; background: var(--sea-soft); border-radius: 12px; border: 1px dashed var(--line); position: relative; color: var(--soft); font-size: 12px; padding: 10px; }
+  .pin { position: absolute; width: 26px; height: 26px; border-radius: 50%; background: var(--surface); border: 2px solid var(--sea); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: var(--ink); }
+  .side .blk { margin-bottom: 8px; }
+  .frame.mobile .layout, .frame.mobile .splitmap { grid-template-columns: minmax(0, 1fr); }
+  .frame.mobile .cards3, .frame.mobile .cards2 { grid-template-columns: minmax(0, 1fr); }
+  .frame.mobile .side, .frame.mobile .map.desk { display: none; }
+  .mob { display: none; }
+  .frame.mobile .mob { display: block; }
+  .hidden { display: none; }
+  @media (max-width: 760px) {
+    .layout, .splitmap, .cards3, .cards2 { grid-template-columns: minmax(0, 1fr); }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>/spot 탐색형 목업 (예시 사이트 구조 반영)</h1>
+  <p class="lead">영역만 구획한 와이어프레임입니다. 안을 고르고 PC·모바일을 바꿔 보세요.</p>
+
+  <div class="note"><b>예시 사이트에서 가져올 것 / 바꿀 것 / 빼는 것</b>
+    <ul>
+      <li><b>가져올 것</b> — 왼쪽 필터 패널, 위쪽 유형 탭(아이콘), "1–24 / 1,240곳" 결과 줄, 카드·목록·지도 보기 전환, 목록+지도 나란히 보기, 카드 아래 "유형 › 지역" 줄</li>
+      <li><b>바꿀 것</b> — 가격·할인 배지 → 우리 데이터에 있는 <em>운영시간·주차·요금 안내</em> 태그로. 큰 사진 칸 → 사진 없는 곳이 대부분이라 <em>유형 아이콘 + 색</em>을 기본으로, 사진은 있을 때만. 파란 체크 → "사장님 관리 중"(소유 연결된 곳). 모서리 ★ 표시 → <em>지역 상단 노출(유료)</em>을 "광고"로 표기</li>
+      <li><b>빼는 것</b> — 별점·평점(순위·평점 구조를 만들지 않는 원칙), 카드 아래 접기 화살표(의미 불분명), "Black Friday" 같은 홍보 카테고리</li>
+      <li><b>SEO 원칙</b> — 필터를 바꾸면 쿼리스트링이 아니라 기존 SEO 주소(<code>/spot/서울/강남구/미용</code>)로 이동. 색인 페이지는 그대로 두고 화면만 탐색형으로</li>
+    </ul>
+  </div>
+
+  <div class="tabs" role="group" aria-label="안 고르기">
+    <button data-tab="list" aria-pressed="true">① 탐색형 (카드 목록)</button>
+    <button data-tab="map" aria-pressed="false">② 목록 + 지도</button>
+    <button data-tab="hub" aria-pressed="false">③ 첫 화면(/spot)과 연결</button>
+  </div>
+  <div class="view" role="group" aria-label="화면 크기">
+    <button data-view="pc" aria-pressed="true">PC</button>
+    <button data-view="mobile" aria-pressed="false">모바일</button>
+  </div>
+
+  <!-- ① 탐색형 -->
+  <section data-panel="list">
+    <div class="note"><b>① 탐색형</b> — 지역·유형 페이지를 "필터 + 카드 목록" 한 화면으로 합칩니다. 지금 지역 페이지의 지도 타일은 왼쪽 필터의 "지역" 안으로 들어가요.</div>
+    <div class="stage"><div class="frame">
+      <div class="blk accent"><strong>업체 등록 띠 (얇게)</strong>서울 강남구에서 업체를 운영하신다면 무료로 소개해 드려요 · [회원가입 후 등록] [바로 가기]</div>
+      <div class="grid" style="margin-top:10px">
+        <div class="chips"><span class="chip on">전체</span><span class="chip">✂ 미용·스파</span><span class="chip">🛁 셀프목욕</span><span class="chip">🏊 수영장</span><span class="chip">🌳 놀이터</span><span class="chip">🏠 유치원·위탁</span><span class="chip">🧑 펫시터</span><span class="chip">🚗 이동·운송</span><span class="chip">☕ 동반 카페</span><span class="chip">더보기 ›</span></div>
+      </div>
+      <div class="mob" style="margin-top:10px"><div class="blk sea"><strong>모바일: [필터 ⚙ 2] [정렬 ▾] [지도 보기]</strong>필터는 아래에서 올라오는 시트로</div></div>
+      <div class="grid layout" style="margin-top:10px">
+        <aside class="side">
+          <div class="blk sea"><strong>지역</strong>지역명 검색 (펫세권과 같은 검색창)<br />시도 ▸ 시군구 칩</div>
+          <div class="blk"><strong>유형</strong>목적별 묶음 체크<br />놀이·운동 / 관리·미용 / 맡기기·돌봄 / 이동·기타</div>
+          <div class="blk"><strong>편의 정보</strong>☐ 주차 안내 있음<br />☐ 운영시간 있음<br />☐ 예약 가능<br />☐ 사장님 관리 중</div>
+          <div class="blk"><strong>정렬</strong>가나다순 / 최근 등록 / 정보 많은 순<br /><span style="color:var(--faint)">(평점·인기순 없음)</span></div>
+          <div class="blk"><strong>필터 초기화</strong></div>
+        </aside>
+        <div>
+          <div class="blk bar"><span><strong style="display:inline">서울 강남구 미용·스파</strong> · 1–24 / 132곳</span><span class="seg"><span class="on">카드</span><span>목록</span><span>지도</span></span></div>
+          <div class="grid cards3" style="margin-top:10px">
+            <div class="card"><div class="img">사진 (있을 때)<span class="ad">광고</span><span class="save">♡</span></div><div class="body"><div class="name">멍멍스파 강남점 ✓사장님 관리 중</div>역삼동 · 02-000-0000<br /><span class="tag">10:00–20:00</span><span class="tag">주차 가능</span><span class="tag">예약</span></div><div class="foot">미용·스파 › 서울 강남구</div></div>
+            <div class="card"><div class="img noimg">✂ 유형 아이콘 (사진 없음)<span class="save">♡</span></div><div class="body"><div class="name">해피독 미용</div>논현동<br /><span class="tag">정보 준비 중</span></div><div class="foot">미용·스파 › 서울 강남구</div></div>
+            <div class="card"><div class="img noimg">✂ 유형 아이콘<span class="save">♡</span></div><div class="body"><div class="name">○○펫살롱</div>대치동<br /><span class="tag">주차 안내</span></div><div class="foot">미용·스파 › 서울 강남구</div></div>
+            <div class="card"><div class="img noimg">✂<span class="save">♡</span></div><div class="body"><div class="name">…</div>삼성동</div><div class="foot">미용·스파 › 서울 강남구</div></div>
+            <div class="empty"><strong style="color:var(--ink)">여기에 내 업체를 소개하세요</strong>목록에 없는 업체라면 무료로 등록해 드려요 →</div>
+            <div class="card"><div class="img noimg">✂<span class="save">♡</span></div><div class="body"><div class="name">…</div>청담동</div><div class="foot">미용·스파 › 서울 강남구</div></div>
+          </div>
+          <div class="blk" style="margin-top:10px;text-align:center"><strong>페이지 이동 (1 2 3 … ›)</strong>SEO 주소 + ?page=2</div>
+          <div class="blk sage" style="margin-top:10px"><strong>이 지역 데이터·가이드 (지금 있는 RegionDataBlock)</strong>강남구 반려견 등록 수 · 펫세권 분석 링크 · 관련 가이드</div>
+        </div>
+      </div>
+    </div></div>
+  </section>
+
+  <!-- ② 목록 + 지도 -->
+  <section data-panel="map" class="hidden">
+    <div class="note"><b>② 목록 + 지도</b> — 예시 사이트 마지막 화면처럼 오른쪽에 지도를 고정하고, 목록을 스크롤하면 지도 핀이 따라 강조돼요.
+      <ul>
+        <li>스팟에 위도·경도(lat/lng)가 이미 있어서 핀은 바로 찍을 수 있어요</li>
+        <li>지도는 카카오맵 등 외부 지도 API 키가 필요해요 (지금 사이트엔 지도 라이브러리가 없음). 확대 축소에 따라 숫자 묶음(클러스터)으로 보여 줘요</li>
+        <li>모바일은 "지도 보기" 버튼으로 전체 화면 지도 ↔ 목록 전환</li>
+      </ul>
+    </div>
+    <div class="stage"><div class="frame">
+      <div class="chips"><span class="chip on">전체</span><span class="chip">✂ 미용·스파</span><span class="chip">🏊 수영장</span><span class="chip">🌳 놀이터</span><span class="chip">🏠 유치원·위탁</span><span class="chip">더보기 ›</span></div>
+      <div class="mob" style="margin-top:10px"><div class="blk sea"><strong>모바일: [필터] [정렬] [지도 보기 ⇄ 목록]</strong></div></div>
+      <div class="grid splitmap" style="margin-top:10px">
+        <aside class="side">
+          <div class="blk sea"><strong>지역</strong>검색 + 시군구</div>
+          <div class="blk"><strong>유형</strong></div>
+          <div class="blk"><strong>편의 정보</strong></div>
+          <div class="blk"><strong>정렬</strong></div>
+        </aside>
+        <div>
+          <div class="blk bar"><span>1–20 / 132곳</span><span class="seg"><span>카드</span><span class="on">목록</span></span></div>
+          <div class="grid" style="margin-top:10px">
+            <div class="card"><div class="body"><div class="name">멍멍스파 강남점 <span class="tag">광고</span></div>역삼동 · 10:00–20:00 · 주차</div><div class="foot">미용·스파 › 강남구 · 지도에서 보기</div></div>
+            <div class="card"><div class="body"><div class="name">해피독 미용</div>논현동</div><div class="foot">미용·스파 › 강남구</div></div>
+            <div class="card"><div class="body"><div class="name">○○펫살롱</div>대치동 · 주차 안내</div><div class="foot">미용·스파 › 강남구</div></div>
+            <div class="card"><div class="body"><div class="name">…</div></div></div>
+          </div>
+        </div>
+        <div class="map desk">지도 (고정, 스크롤 따라오지 않음)
+          <span class="pin" style="top:90px;left:80px">12</span>
+          <span class="pin" style="top:160px;left:170px">5</span>
+          <span class="pin" style="top:250px;left:110px">8</span>
+          <span class="pin" style="top:300px;left:220px">3</span>
+        </div>
+      </div>
+    </div></div>
+  </section>
+
+  <!-- ③ 첫 화면 -->
+  <section data-panel="hub" class="hidden">
+    <div class="note"><b>③ 첫 화면(/spot)</b> — 탐색형 목록으로 들어가는 입구만 남겨 가볍게 만들어요.
+      <ul>
+        <li>위: 지역 검색창 + 유형 탭 → 고르면 ①의 목록 화면(SEO 주소)으로</li>
+        <li>최근 본 지역이 있으면 "서울 강남구 스팟 132곳 보기" 바로가기</li>
+        <li>유형 카드(목적별 묶음, 전국 개수) + 시도 목록은 아래로</li>
+        <li>재활·특수치료, 장묘·약국(사실 정보)은 별도 줄로 분리</li>
+      </ul>
+    </div>
+    <div class="stage"><div class="frame">
+      <div class="blk accent"><strong>업체 등록 띠 (얇게)</strong></div>
+      <div class="blk sea" style="margin-top:10px;padding:20px"><strong>지역 검색 + 유형</strong>[ 지역명 검색 (예: 영통구, 해운대) ] [ 유형 ▾ ] [ 찾기 ]<br /><span class="tag">최근: 서울 강남구 132곳 →</span></div>
+      <div class="grid cards3" style="margin-top:10px">
+        <div class="blk"><strong>놀이·운동</strong>놀이터 · 수영장 · 운동·재활</div>
+        <div class="blk"><strong>관리·미용</strong>미용·스파 · 셀프목욕 · 방문미용</div>
+        <div class="blk"><strong>맡기기·돌봄</strong>유치원·위탁 · 펫시터 · 산책</div>
+      </div>
+      <div class="grid cards2" style="margin-top:10px">
+        <div class="blk sage"><strong>재활·특수치료 찾기</strong></div>
+        <div class="blk"><strong>사실 정보: 장묘 · 동물약국</strong>광고·순위 없음</div>
+      </div>
+      <div class="blk" style="margin-top:10px"><strong>시도 목록 (개수 막대)</strong></div>
+    </div></div>
+  </section>
+
+  <div class="note" style="margin-top:16px"><b>추천 순서</b>
+    <ul>
+      <li><b>1단계</b> — ① 탐색형 카드 목록 + 필터 (지금 데이터만으로 가능). 시군구×유형 페이지부터 적용</li>
+      <li><b>2단계</b> — ③ 첫 화면 정리 (검색창·유형 묶음)</li>
+      <li><b>3단계</b> — ② 지도 (지도 API 키 발급·비용 확인 후). 찜(♡)은 회원 기능이라 저장 테이블이 새로 필요</li>
+    </ul>
+  </div>
+</div>
+<script>
+  const tabs = document.querySelectorAll("[data-tab]");
+  const panels = document.querySelectorAll("[data-panel]");
+  tabs.forEach((b) => b.addEventListener("click", () => {
+    tabs.forEach((t) => t.setAttribute("aria-pressed", String(t === b)));
+    panels.forEach((p) => p.classList.toggle("hidden", p.dataset.panel !== b.dataset.tab));
+  }));
+  const views = document.querySelectorAll("[data-view]");
+  views.forEach((b) => b.addEventListener("click", () => {
+    views.forEach((v) => v.setAttribute("aria-pressed", String(v === b)));
+    document.querySelectorAll(".frame").forEach((f) => f.classList.toggle("mobile", b.dataset.view === "mobile"));
+  }));
+</script>
+</body>
+</html>

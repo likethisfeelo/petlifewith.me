@@ -8,6 +8,8 @@ import { eq } from "drizzle-orm";
 import { getDb, isDbConfigured, schema } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { REQUEST_STATUSES, type RequestStatus } from "@/lib/requests";
+import { spotPageRelatedPaths } from "@/lib/revalidate-paths";
+import { ensureSpotPage } from "@/lib/spot-page-write";
 
 const { serviceRequests, spots, makers } = schema;
 
@@ -87,6 +89,9 @@ export async function attachOwnerAction(formData: FormData): Promise<void> {
     const spot = (await db.select({ claimedBy: spots.claimedBy }).from(spots).where(eq(spots.id, req.spotId)).limit(1))[0];
     if (!spot || (spot.claimedBy && spot.claimedBy !== req.userId)) return;
     await db.update(spots).set({ claimedBy: req.userId, updatedAt: new Date() }).where(eq(spots.id, req.spotId));
+    // 소유가 확인되면 무료 링크 페이지를 연다 (관리자가 먼저 만들어 둔 페이지가 있으면 그대로 이어받는다)
+    await ensureSpotPage(db, req.spotId);
+    for (const p of await spotPageRelatedPaths(req.spotId)) revalidatePath(p);
   } else if (req.makerId) {
     const maker = (await db.select({ claimedBy: makers.claimedBy }).from(makers).where(eq(makers.id, req.makerId)).limit(1))[0];
     if (!maker || (maker.claimedBy && maker.claimedBy !== req.userId)) return;

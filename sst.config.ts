@@ -88,12 +88,13 @@ export default $config({
             siteEnv: "production",
             domain: {
               name: "petlifewith.me",
-              // 같은 배포에 별칭 4개 — 호스트 라우팅은 앱 미들웨어가 한다
+              // 같은 배포에 별칭 5개 — 호스트 라우팅은 앱 미들웨어가 한다
               aliases: [
                 "www.petlifewith.me",
                 "admin.petlifewith.me",
                 "service.petlifewith.me",
                 "product.petlifewith.me",
+                "link.petlifewith.me",
               ],
               cert: certArn,
               dns: sst.aws.dns(),
@@ -112,6 +113,7 @@ export default $config({
                 "admin-dev.petlifewith.me",
                 "service-dev.petlifewith.me",
                 "product-dev.petlifewith.me",
+                "link-dev.petlifewith.me",
               ],
               cert: certArn,
               dns: sst.aws.dns(),

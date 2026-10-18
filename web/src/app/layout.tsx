@@ -60,9 +60,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {gtmId && <GtmNoScript gtmId={gtmId} />}
         {/* 태그라인 토픽 공유 — 글 페이지가 머리글·푸터에 토픽(놀이 → "즐거운 삶")을 알려 준다 */}
         <TopicTaglineProvider>
-          <SiteHeader />
+          {/* data-site-chrome — 업체 링크 페이지(/l)처럼 한 장짜리 화면은 CSS 로 머리글·푸터를 감춘다 (globals.css) */}
+          <div data-site-chrome className="contents">
+            <SiteHeader />
+          </div>
           <main className="flex-1">{children}</main>
-          <SiteFooter />
+          <div data-site-chrome className="contents">
+            <SiteFooter />
+          </div>
         </TopicTaglineProvider>
         <JsonLd data={websiteLd()} />
         {/* 측정 이벤트(dataLayer) — GTM 이 없는 환경에서는 쌓이기만 하고 어디로도 가지 않는다 */}

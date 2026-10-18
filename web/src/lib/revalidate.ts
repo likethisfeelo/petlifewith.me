@@ -20,6 +20,8 @@ export const REVALIDATE = {
   spotDirectory: 21600,
   /** 개별 장소 */
   place: 21600,
+  /** 업체 링크 페이지 (편집은 저장 때 재검증, 유료 기간 경계는 이 주기로 반영) */
+  linkPage: 3600,
   /** 메이커 프로필 */
   maker: 21600,
   /** 큐레이션 */
