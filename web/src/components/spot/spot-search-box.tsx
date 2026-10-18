@@ -12,7 +12,10 @@ export function SpotSearchBox({
   types,
   size = "lg",
   placeholder = "지역명 검색 (예: 영통구, 해운대, 강남)",
+  defaultType = "",
 }: {
+  /** 처음 골라 둘 유형 (유형 페이지) */
+  defaultType?: string;
   tiles: RegionTile[];
   types: Array<{ slug: string; name: string }>;
   size?: "lg" | "md";
@@ -25,7 +28,7 @@ export function SpotSearchBox({
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
   const [picked, setPicked] = useState<SpotRegionOption | null>(null);
-  const [type, setType] = useState("");
+  const [type, setType] = useState(defaultType);
   const [hint, setHint] = useState<string | null>(null);
   const options = useMemo(() => searchSpotRegions(tiles, text), [tiles, text]);
 
