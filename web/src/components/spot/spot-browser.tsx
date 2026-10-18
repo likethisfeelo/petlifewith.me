@@ -5,9 +5,9 @@
 // 미리보기: 카드는 진짜 링크(/place/...)라 크롤러·새 탭·공유는 그대로. 그냥 누르면 주소만 /place/... 로 바꾸고
 // 미리보기 창을 연다 (새로고침하면 장소 페이지, 뒤로 가기는 창 닫기).
 //   PC 1280px 이상: 목록을 밀어내는 오른쪽 칸 / 그보다 좁으면 오른쪽에서 덮는 창 / 모바일: 아래 시트(60%, 펼치면 전체)
-// 지도 보기: [카드 | 목록 | 지도] — ?view=map 으로 공유되고 마지막 선택은 브라우저에 기억한다.
+// 보기: [카드 | 목록 | 지도] — 기본은 지도. ?view=card|list 로 공유되고 마지막 선택은 브라우저에 기억한다.
 //   PC: 필터를 접고 좁은 목록 + 지도. 카드에 마우스를 올리면 핀 강조, 핀을 누르면 목록이 그 카드로 스크롤되고 미리보기.
-//   모바일: "지도 보기" 버튼 → 전체 화면 지도, 핀 → 아래 시트.
+//   모바일: 위에 지도 + 아래 카드, "지도 보기" 버튼 → 전체 화면 지도, 핀 → 아래 시트.
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { MultiMap, type MapBounds, type MapPin } from "@/components/map/multi-map";
 import {
@@ -46,7 +46,7 @@ export function SpotBrowser({
 }) {
   const [filters, setFilters] = useState<BrowserFilters>(EMPTY_FILTERS);
   const [sort, setSort] = useState<BrowserSort>("default");
-  const [view, setView] = useState<BrowserView>("card");
+  const [view, setView] = useState<BrowserView>("map");
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [hoverId, setHoverId] = useState<number | null>(null);
   const [bounds, setBounds] = useState<MapBounds | null>(null);
@@ -67,7 +67,7 @@ export function SpotBrowser({
   const selected = selectedId != null ? byId.get(selectedId) ?? null : null;
   const activeCount = countActiveFilters(filters);
 
-  // 처음: ?view= → 기억한 보기 → 카드
+  // 처음: ?view= → 기억한 보기 → 지도(기본)
   useEffect(() => {
     listUrl.current = window.location.pathname + window.location.search;
     let v = parseView(new URLSearchParams(window.location.search).get("view"));
@@ -78,8 +78,6 @@ export function SpotBrowser({
         v = null;
       }
     }
-    // 모바일은 지도를 버튼으로 연다 — 기억한 지도 보기는 PC 에서만
-    if (v === "map" && window.matchMedia("(max-width: 767px)").matches) v = "card";
     if (v) setView(v);
   }, []);
 
@@ -92,7 +90,7 @@ export function SpotBrowser({
       // 기억 못 해도 괜찮다
     }
     const url = new URL(window.location.href);
-    if (v === "card") url.searchParams.delete("view");
+    if (v === "map") url.searchParams.delete("view");
     else url.searchParams.set("view", v);
     if (!placeIdFromPath(url.pathname)) {
       window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash);
@@ -287,8 +285,13 @@ export function SpotBrowser({
           ) : (
             <NoMatch />
           )}
-          {/* 모바일에서 저장된 지도 보기면 카드로 보여 준다 (지도는 아래 버튼) */}
-          {isMap && items.length > 0 && <div className="md:hidden">{shown.length ? cards(false) : <NoMatch />}</div>}
+          {/* 모바일 지도 보기: 위에 지도(핀 → 아래 시트), 아래 카드. 전체 화면 지도는 아래 버튼 */}
+          {isMap && items.length > 0 && (
+            <div className="space-y-3 md:hidden">
+              {!mobileMap && <MultiMap pins={pins} hoverId={null} selectedId={selectedId} onSelect={open} onSearchArea={setBounds} className="h-[45vh] min-h-[280px]" />}
+              {shown.length ? cards(false) : <NoMatch />}
+            </div>
+          )}
         </div>
       </div>
 
