@@ -13,6 +13,7 @@ import { isSafeHttpUrl } from "@/lib/links";
 import { isValidObjectKey } from "@/lib/assets";
 import { countExposedInArea } from "@/lib/queries/care";
 import { careRelatedPaths } from "@/lib/revalidate-paths";
+import { ensureSpotPage } from "@/lib/spot-page-write";
 import { parseRows, rowBool, rowString, type ParsedRow } from "./_components/parse-rows";
 
 const {
@@ -274,6 +275,8 @@ export async function createSpotAction(_prev: ActionState, formData: FormData): 
     await db.update(serviceRequests).set({ spotId, updatedAt: new Date() }).where(eq(serviceRequests.id, fromRequestId));
     // 로그인 회원이 보낸 등록 요청이면 그 회원을 소유자로 — /me 에서 바로 관리한다
     if (req?.userId) await db.update(spots).set({ claimedBy: req.userId }).where(eq(spots.id, spotId));
+    // 등록 요청으로 만든 업체는 무료 링크 페이지를 바로 연다 (사장님이 /me 에서 편집)
+    await ensureSpotPage(db, spotId);
     revalidatePath("/admin/requests");
     revalidatePath("/me/business");
   }

@@ -165,3 +165,27 @@ body {
   background: var(--color-ink, #1f1e1b);
   color: var(--color-cream, #fbf8f2);
 }
+
+/* 업체 링크 페이지 — 사이트 머리글·푸터 없이 한 장짜리로 (app/l) */
+body:has([data-linkpage]) [data-site-chrome] {
+  display: none;
+}
+
+/* 지도 핀 (components/map/multi-map.tsx) — 카카오 지도 위 이름표 */
+.map-pin {
+  position: relative;
+  white-space: nowrap;
+  border-radius: 9999px;
+  border: 1px solid rgb(0 0 0 / 0.12);
+  background: #fff;
+  color: #1f1d1a;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  padding: 6px 10px;
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.15);
+  cursor: pointer;
+  transition: transform 0.12s ease;
+}
+.map-pin-strong { background: #1f1d1a; color: #fff; }
+.map-pin-hover, .map-pin-active { transform: scale(1.12); background: #e8590c; color: #fff; border-color: #e8590c; }

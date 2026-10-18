@@ -4,6 +4,8 @@ import { isCareType } from "@app/data";
 import { idSlugPath } from "@/lib/format";
 import { getCurrentMember } from "@/lib/member";
 import { getOwnedSpot } from "@/lib/queries/owner";
+import { getPlace } from "@/lib/queries/spots";
+import { SpotPagePanel } from "@/components/linkpage/spot-page-panel";
 import { OwnerSpotForm } from "./owner-spot-form";
 
 export default async function OwnerSpotPage({ params }: { params: Promise<{ id: string }> }) {
@@ -14,6 +16,7 @@ export default async function OwnerSpotPage({ params }: { params: Promise<{ id: 
   const found = await getOwnedSpot(spotId, member.id);
   if (!found) notFound();
   const { spot, typeName, typeSlug, sidoName, sigunguName, links } = found;
+  const monetizable = (await getPlace(spot.id))?.typeMonetizable ?? false;
 
   return (
     <div>
@@ -58,6 +61,9 @@ export default async function OwnerSpotPage({ params }: { params: Promise<{ id: 
           }}
           links={links.map((l) => ({ kind: l.kind, url: l.url, label: l.label ?? "" }))}
         />
+      </div>
+      <div className="mt-6">
+        <SpotPagePanel spotId={spot.id} admin={false} monetizable={monetizable} />
       </div>
     </div>
   );

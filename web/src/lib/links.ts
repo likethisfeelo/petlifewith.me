@@ -20,6 +20,9 @@ export const SPOT_LINK_KINDS: LinkKindDef[] = [
   { kind: "naver", label: "네이버 플레이스", placeholder: "https://map.naver.com/..." },
   { kind: "instagram", label: "인스타그램", placeholder: "https://instagram.com/..." },
   { kind: "blog", label: "블로그", placeholder: "https://blog.naver.com/..." },
+  { kind: "youtube", label: "유튜브", placeholder: "https://youtube.com/@..." },
+  { kind: "tiktok", label: "틱톡", placeholder: "https://tiktok.com/@..." },
+  { kind: "tistory", label: "티스토리", placeholder: "https://xxx.tistory.com" },
   { kind: "etc", label: "기타", placeholder: "https://..." },
 ];
 
