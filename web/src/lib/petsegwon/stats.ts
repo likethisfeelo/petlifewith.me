@@ -346,7 +346,7 @@ const SIDO_FULL: Record<string, string> = {
 const squash = (s: string) => s.replace(/[\s·]/g, "");
 
 /** 일반구 → 시 (자료는 시 단위로 합쳐져 있다). "영통구"로 찾아도 수원시가 나오게 */
-const GENERAL_GU: Array<[string, string, string[]]> = [
+export const GENERAL_GU: Array<[string, string, string[]]> = [
   ["경기", "수원시", ["장안구", "권선구", "팔달구", "영통구"]],
   ["경기", "성남시", ["수정구", "중원구", "분당구"]],
   ["경기", "고양시", ["덕양구", "일산동구", "일산서구"]],

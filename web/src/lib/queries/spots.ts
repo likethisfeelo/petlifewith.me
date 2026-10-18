@@ -385,3 +385,18 @@ export async function listLinkKindsBySpot(spotIds: number[]): Promise<Map<number
   }
   return out;
 }
+
+/** 유형별 영업 중 스팟 수 (전국 또는 한 시도) — 스팟 첫 화면·시도 페이지의 유형 묶음 카드 */
+export async function countSpotsByType(sidoSlug?: string): Promise<Map<string, number>> {
+  if (!isDbConfigured()) return new Map();
+  const conds = [eq(spots.status, "operating")];
+  if (sidoSlug) conds.push(eq(regions.sidoSlug, sidoSlug));
+  const rows = await getDb()
+    .select({ slug: spotTypes.slug, count: sql<number>`count(*)`.mapWith(Number) })
+    .from(spots)
+    .innerJoin(spotTypes, eq(spots.typeId, spotTypes.id))
+    .innerJoin(regions, eq(spots.regionId, regions.id))
+    .where(and(...conds))
+    .groupBy(spotTypes.slug);
+  return new Map(rows.map((r) => [r.slug, r.count]));
+}
