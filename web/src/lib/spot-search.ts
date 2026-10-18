@@ -95,3 +95,9 @@ export function groupTypes<T extends { slug: string; monetizable: boolean }>(typ
   if (rest.length) groups.push({ key: "etc", title: "그 밖의 곳", hint: "", slugs: rest.map((t) => t.slug), types: rest });
   return { groups: groups.filter((g) => g.types.length > 0), facts };
 }
+
+/** 유형 아이콘 — 유형 묶음·유형 탭·지도 위 칩 */
+export const TYPE_ICON: Record<string, string> = {
+  playground: "🌳", pool: "🏊", rehab: "🦮", cafe: "☕", grooming: "✂️", "self-wash": "🛁", "visiting-bath": "🚿", "visiting-groom": "💇",
+  boarding: "🏠", "pet-sitter": "🧑", "hourly-sitter": "⏱️", "dog-walk": "🐕", transport: "🚗", memorial: "🕊️", pharmacy: "💊",
+};

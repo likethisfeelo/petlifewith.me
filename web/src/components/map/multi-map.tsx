@@ -5,6 +5,7 @@
 // 공급자: 카카오 (lib/map.ts). 키가 없으면 안내만 보이고 목록은 그대로 쓴다.
 import { useEffect, useRef, useState } from "react";
 import { kakaoMapKey } from "@/lib/map";
+import { fitPins } from "@/lib/spot-browser";
 import { loadKakaoMaps } from "./kakao-sdk";
 
 export interface MapPin {
@@ -31,7 +32,10 @@ export function MultiMap({
   onSelect,
   onSearchArea,
   className = "",
+  overlay,
 }: {
+  /** 지도 위 왼쪽 위에 띄울 것 (유형 칩) */
+  overlay?: React.ReactNode;
   pins: MapPin[];
   hoverId: number | null;
   selectedId: number | null;
@@ -75,7 +79,15 @@ export function MultiMap({
   // 지도 칸 크기가 바뀌면(미리보기 창이 밀고 들어올 때) 다시 그린다
   useEffect(() => {
     if (!box.current || typeof ResizeObserver === "undefined") return;
-    const ro = new ResizeObserver(() => mapRef.current?.relayout());
+    let wasEmpty = true;
+    const ro = new ResizeObserver((entries) => {
+      mapRef.current?.relayout();
+      const r = entries[0]?.contentRect;
+      const empty = !r || r.width < 10 || r.height < 10;
+      // 숨어 있다가(크기 0) 처음 보이면 핀에 맞춰 다시 확대
+      if (wasEmpty && !empty) setPinsVersion((v) => v + 1);
+      wasEmpty = empty;
+    });
     ro.observe(box.current);
     return () => ro.disconnect();
   }, []);
@@ -104,10 +116,16 @@ export function MultiMap({
     });
     cluster.addMarkers(overlays);
     if (pins.length > 0) {
-      const bounds = new kakao.maps.LatLngBounds();
-      for (const p of pins) bounds.extend(new kakao.maps.LatLng(p.lat, p.lng));
+      // 지도 칸 크기를 다시 잰 뒤에 맞춘다 (크기 0 일 때 맞추면 아주 멀리서 시작한다)
+      map.relayout();
+      const fit = fitPins(pins);
       fitting.current = true;
-      map.setBounds(bounds, 40, 40, 40, 40);
+      if (fit.length === 1) map.setCenter(new kakao.maps.LatLng(fit[0]!.lat, fit[0]!.lng)), map.setLevel(4);
+      else {
+        const bounds = new kakao.maps.LatLngBounds();
+        for (const p of fit) bounds.extend(new kakao.maps.LatLng(p.lat, p.lng));
+        map.setBounds(bounds, 60, 40, 40, 40);
+      }
       setTimeout(() => (fitting.current = false), 300);
     }
     setMoved(false);
@@ -148,8 +166,9 @@ export function MultiMap({
   return (
     <div className={`relative overflow-hidden rounded-2xl border border-line bg-sand ${className}`}>
       <div ref={box} className="absolute inset-0" />
+      {overlay && <div className="absolute inset-x-3 top-3 z-20 pr-12">{overlay}</div>}
       {moved && (
-        <button type="button" onClick={searchHere} className="absolute left-1/2 top-3 z-20 -translate-x-1/2 rounded-full bg-ink px-4 py-2 text-xs font-bold text-cream shadow-lg hover:opacity-90">
+        <button type="button" onClick={searchHere} className="absolute left-1/2 bottom-6 z-20 -translate-x-1/2 rounded-full bg-ink px-4 py-2 text-xs font-bold text-cream shadow-lg hover:opacity-90">
           ↻ 이 지역 다시 검색
         </button>
       )}

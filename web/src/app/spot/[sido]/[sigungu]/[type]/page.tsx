@@ -12,6 +12,7 @@ import { B2BNote, PharmacyNote } from "@/components/notices";
 import { SpotBrowser } from "@/components/spot/spot-browser";
 import { SpotSidebar } from "@/components/spot/spot-sidebar";
 import { toBrowserSpots } from "@/lib/spot-browser-server";
+import { TYPE_ICON } from "@/lib/spot-search";
 import {
   countIndexableSpotsInRegion,
   countSpotsByTypeInRegion,
@@ -190,6 +191,12 @@ export default async function RegionTypePage({ params }: Props) {
         <SpotBrowser
           items={items}
           title={`${region.sigunguName} ${spotType.name}`}
+          typeTabs={[
+            { key: "all", label: "전체", count: typeCounts.filter((t) => t.listed).reduce((a, t) => a + t.count, 0), href: basePath, active: false },
+            ...typeCounts
+              .filter((t) => t.listed)
+              .map((t) => ({ key: t.typeSlug, label: t.typeName, count: t.count, href: `${basePath}/${t.typeSlug}`, icon: TYPE_ICON[t.typeSlug], active: t.typeSlug === spotType.slug })),
+          ]}
           registerCard={canAdvertise ? { href: `/portal/spot?${registerQs}#register`, label: "여기에 내 업체를 소개하세요" } : null}
           sidebar={
             <SpotSidebar

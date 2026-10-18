@@ -24,6 +24,7 @@ import {
   type BrowserView,
 } from "@/lib/spot-browser";
 import { SpotPreview, TierBadge } from "./spot-preview";
+import { TypeTabs, type TypeTab } from "./type-tabs";
 
 const VIEW_KEY = "spot-view";
 
@@ -34,7 +35,10 @@ export function SpotBrowser({
   registerCard,
   emptyText = "아직 등록된 곳이 없습니다.",
   showSidebar = true,
+  typeTabs = [],
 }: {
+  /** 유형 탭 — 목록 위(크게)와 지도 위(칩) */
+  typeTabs?: TypeTab[];
   items: BrowserSpot[];
   title: ReactNode;
   /** 왼쪽 칸 아래쪽에 붙일 서버 콘텐츠 (다른 유형·지역 바꾸기) */
@@ -230,6 +234,11 @@ export function SpotBrowser({
       )}
 
       <div className="min-w-0">
+        {typeTabs.length > 1 && (
+          <div className="sticky top-14 z-20 -mx-1 mb-3 bg-cream/95 px-1 py-2 backdrop-blur">
+            <TypeTabs tabs={typeTabs} />
+          </div>
+        )}
         {/* 도구 줄: 결과 수 · (좁은 화면/지도 보기) 필터 · 보기 전환 */}
         <div className="flex flex-wrap items-center gap-2">
           <h2 className="mr-auto text-sm font-bold text-ink">
@@ -277,8 +286,8 @@ export function SpotBrowser({
             <p className="rounded-xl border border-dashed border-line p-8 text-center text-sm text-ink-faint">{emptyText}</p>
           ) : isMap ? (
             <div className="hidden gap-3 md:grid md:grid-cols-[minmax(260px,340px)_minmax(0,1fr)]">
-              <div className="max-h-[calc(100vh-10rem)] overflow-y-auto pr-1">{shown.length ? cards(true) : <NoMatch />}</div>
-              <MultiMap pins={pins} hoverId={hoverId} selectedId={selectedId} onSelect={selectFromMap} onSearchArea={setBounds} className="sticky top-20 h-[calc(100vh-10rem)] min-h-[420px]" />
+              <div className="max-h-[calc(100vh-12rem)] overflow-y-auto pr-1">{shown.length ? cards(true) : <NoMatch />}</div>
+              <MultiMap pins={pins} hoverId={hoverId} selectedId={selectedId} onSelect={selectFromMap} onSearchArea={setBounds} className="sticky top-32 h-[calc(100vh-12rem)] min-h-[420px]" overlay={<TypeTabs tabs={typeTabs} variant="map" />} />
             </div>
           ) : shown.length ? (
             cards(false)
@@ -288,7 +297,7 @@ export function SpotBrowser({
           {/* 모바일 지도 보기: 위에 지도(핀 → 아래 시트), 아래 카드. 전체 화면 지도는 아래 버튼 */}
           {isMap && items.length > 0 && (
             <div className="space-y-3 md:hidden">
-              {!mobileMap && <MultiMap pins={pins} hoverId={null} selectedId={selectedId} onSelect={open} onSearchArea={setBounds} className="h-[45vh] min-h-[280px]" />}
+              {!mobileMap && <MultiMap pins={pins} hoverId={null} selectedId={selectedId} onSelect={open} onSearchArea={setBounds} className="h-[45vh] min-h-[280px]" overlay={<TypeTabs tabs={typeTabs} variant="map" />} />}
               {shown.length ? cards(false) : <NoMatch />}
             </div>
           )}
@@ -310,7 +319,7 @@ export function SpotBrowser({
       )}
       {mobileMap && (
         <div className="fixed inset-0 z-30 bg-cream md:hidden">
-          <MultiMap pins={pins} hoverId={null} selectedId={selectedId} onSelect={open} onSearchArea={setBounds} className="h-full rounded-none border-0" />
+          <MultiMap pins={pins} hoverId={null} selectedId={selectedId} onSelect={open} onSearchArea={setBounds} className="h-full rounded-none border-0" overlay={<TypeTabs tabs={typeTabs} variant="map" />} />
         </div>
       )}
 

@@ -1,6 +1,7 @@
 // 지역 페이지 고유 데이터 블록 (claude.md 5-3)
 // 인허가 덤프 사이트와 갈라지는 지점: 스팟 밀도·유형 분포·노령견 비율·관련 콘텐츠.
 import Link from "next/link";
+import { TYPE_ICON } from "@/lib/spot-search";
 import type { RegionTypeCount } from "@/lib/queries/spots";
 import type { GuideRow } from "@/lib/queries/guides";
 import { SENIOR_AGE_YEARS, computeSeniorRatio, type DogStatRow } from "@/lib/stats";
@@ -47,16 +48,22 @@ export function RegionDataBlock({ sidoSlug, sigunguSlug, sigunguName, typeCounts
       </dl>
 
       {typeCounts.length > 0 && (
-        <div className="mt-4 flex flex-wrap gap-2">
-          {typeCounts.map((c) => (
-            <Link
-              key={c.typeId}
-              href={`/spot/${sidoSlug}/${sigunguSlug}/${c.typeSlug}`}
-              className="rounded-full bg-sea-soft px-3 py-1 text-xs font-medium text-sea hover:bg-sea hover:text-white"
-            >
-              {c.typeName} {c.count}
-            </Link>
-          ))}
+        <div className="mt-5">
+          <p className="text-xs font-semibold text-ink-soft">유형을 골라 보세요</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {typeCounts.map((c) => (
+              <Link
+                key={c.typeId}
+                href={`/spot/${sidoSlug}/${sigunguSlug}/${c.typeSlug}`}
+                className="flex items-center gap-2 rounded-2xl border-2 border-line bg-surface px-4 py-2.5 text-sm font-bold text-ink transition-colors hover:border-sea hover:text-sea"
+              >
+                {TYPE_ICON[c.typeSlug] && <span aria-hidden className="text-base">{TYPE_ICON[c.typeSlug]}</span>}
+                {c.typeName}
+                <span className="rounded-full bg-sand px-2 py-0.5 text-xs text-ink-soft">{c.count}</span>
+                <span aria-hidden className="text-ink-faint">›</span>
+              </Link>
+            ))}
+          </div>
         </div>
       )}
 

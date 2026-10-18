@@ -1,11 +1,7 @@
 // 유형 묶음 카드 (서버) — 스팟 첫 화면·시도 페이지. 목적별로 묶어 17개 칩 나열을 줄인다.
 import Link from "next/link";
-import { groupTypes } from "@/lib/spot-search";
+import { TYPE_ICON as ICON, groupTypes } from "@/lib/spot-search";
 
-const ICON: Record<string, string> = {
-  playground: "🌳", pool: "🏊", rehab: "🦮", cafe: "☕", grooming: "✂️", "self-wash": "🛁", "visiting-bath": "🚿", "visiting-groom": "💇",
-  boarding: "🏠", "pet-sitter": "🧑", "hourly-sitter": "⏱️", "dog-walk": "🐕", transport: "🚗", memorial: "🕊️", pharmacy: "💊",
-};
 
 export function TypeGroups({
   types,
