@@ -8,7 +8,11 @@ import { SpotDirectory } from "@/components/spot/spot-directory";
 import { B2BNote, MedicalNotice, PharmacyNote } from "@/components/notices";
 import { CARE_INTRO, countProvidersByRegion, countProvidersBySido, primaryArea, type CareRegion } from "@/lib/care";
 import { countIndexableCareProviders, listCareProviders, listCareRegions } from "@/lib/queries/care";
-import { countIndexableSpotsForType, getSpotTypeBySlug, listRegionCountsForType, listRegionTiles } from "@/lib/queries/spots";
+import { countIndexableSpotsForType, countSpotsByType, getSpotTypeBySlug, listRegionCountsForType, listRegionTiles, listSpotTypes } from "@/lib/queries/spots";
+import { SpotRegisterBanner } from "@/components/spot-register-banner";
+import { SpotSearchBox } from "@/components/spot/spot-search-box";
+import { TypeGroups } from "@/components/spot/type-groups";
+import { shortSido } from "@/lib/spot-search";
 import { regionHref } from "@/lib/regions";
 import { buildMeta, robotsMeta, shouldIndexRegionPage } from "@/lib/seo";
 import { formatNumber } from "@/lib/format";
@@ -54,7 +58,7 @@ export default async function SpotTypeHubPage({ params }: Props) {
 
   if (isCareType(spotType.slug)) return <CareTypeHub spotType={spotType} />;
 
-  const [rows, regionTiles] = await Promise.all([listRegionCountsForType(spotType.id), listRegionTiles()]);
+  const [rows, regionTiles, allTypes, typeCounts] = await Promise.all([listRegionCountsForType(spotType.id), listRegionTiles(), listSpotTypes(), countSpotsByType()]);
   const total = rows.reduce((a, r) => a + r.count, 0);
   const countsByRegion = Object.fromEntries(rows.map((r) => [r.region.id, r.count]));
 
@@ -68,9 +72,13 @@ export default async function SpotTypeHubPage({ params }: Props) {
     bySido.set(key, group);
   }
   const sidoRows = [...bySido.entries()].map(([slug, v]) => ({ slug, ...v })).sort((a, b) => b.subtotal - a.subtotal);
+  const maxSido = Math.max(1, ...sidoRows.map((r) => r.subtotal));
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-10">
+    <div className="mx-auto max-w-[1680px] px-4 py-8 sm:px-6">
+      {/* 장묘·약국·B2B 유형은 광고·영업 유도를 붙이지 않는다 */}
+      {spotType.listed && spotType.monetizable && <SpotRegisterBanner regionLabel="우리 동네" typeSlug={spotType.slug} typeName={spotType.name} />}
+
       <Breadcrumbs
         crumbs={[
           { name: "홈", path: "/" },
@@ -86,13 +94,10 @@ export default async function SpotTypeHubPage({ params }: Props) {
         영업 중 {formatNumber(total)}곳 · 지도에서 시도를 누르면 구·시·군이 펼쳐지고, 구·시·군을 누르면 그 지역의 목록 페이지로 갑니다.
         {spotType.description ? ` ${spotType.description}` : ""}
       </p>
-      {spotType.listed && spotType.monetizable && (
-        <p className="mt-3 rounded-lg border border-line bg-sand/60 px-4 py-2.5 text-sm text-ink-soft">
-          이 유형의 업체를 운영하시나요? 기본 등록은 무료입니다 —{" "}
-          <Link href="/portal/spot#register" className="font-medium text-sea underline">
-            내 업체 등록 요청
-          </Link>
-        </p>
+      {spotType.listed && (
+        <div className="mt-5 max-w-3xl">
+          <SpotSearchBox tiles={regionTiles} types={allTypes.map((t) => ({ slug: t.slug, name: t.name }))} defaultType={spotType.slug} size="md" placeholder={`${spotType.name} — 지역명 검색 (예: 영통구, 해운대)`} />
+        </div>
       )}
 
       {/* 장묘·동물약국: 광고를 붙이지 않는 영역 — 담담한 실무 정보만 (기획서 4-1·6-2) */}
@@ -140,22 +145,34 @@ export default async function SpotTypeHubPage({ params }: Props) {
                 시도별 현황 <span className="text-sm font-medium text-ink-faint">{spotType.name} {formatNumber(total)}곳</span>
               </h2>
               <p className="mt-1 text-xs text-ink-faint">지도에서 구·시·군을 고르면 그 지역의 {spotType.name} 목록이 이 자리에 나옵니다.</p>
-              <ul className="mt-4 divide-y divide-line">
+              <div className="mt-4 grid gap-2 sm:grid-cols-2 2xl:grid-cols-3">
                 {sidoRows.map((row) => (
-                  <li key={row.slug}>
-                    <Link href={`/spot/${row.slug}`} className="group flex items-center justify-between py-2.5 text-sm">
-                      <span className="font-semibold text-ink group-hover:underline">{row.sidoName}</span>
+                  <Link key={row.slug} href={`/spot/${row.slug}`} className="group rounded-xl border border-line bg-cream px-4 py-2.5 transition-shadow hover:shadow-md">
+                    <span className="flex items-center justify-between text-sm">
+                      <span className="font-semibold text-ink group-hover:underline">{shortSido(row.sidoName)}</span>
                       <span className="text-ink-faint">
                         {formatNumber(row.subtotal)}곳 · {row.regionCount}개 지역
                       </span>
-                    </Link>
-                  </li>
+                    </span>
+                    <span className="mt-1.5 block h-1 overflow-hidden rounded-full bg-sand" aria-hidden>
+                      <span className="block h-full rounded-full bg-sea/60" style={{ width: `${(row.subtotal / maxSido) * 100}%` }} />
+                    </span>
+                  </Link>
                 ))}
-              </ul>
+              </div>
             </section>
           )}
         </SpotDirectory>
       </div>
+
+      {spotType.listed && (
+        <section aria-labelledby="other-types-heading" className="mt-10">
+          <h2 id="other-types-heading" className="mb-4 text-lg font-bold text-ink">
+            다른 유형 보기
+          </h2>
+          <TypeGroups types={allTypes} counts={typeCounts} hrefFor={(slug) => `/spot/type/${slug}`} currentSlug={spotType.slug} unitFor={(slug) => (isCareType(slug) ? "명" : "곳")} />
+        </section>
+      )}
 
       <p className="mt-10 text-xs text-ink-faint">
         시설 정보는 행정안전부 지방행정 인허가데이터(공공데이터포털 data.go.kr)와 직접 확인을 바탕으로
@@ -170,7 +187,7 @@ export default async function SpotTypeHubPage({ params }: Props) {
 // 우측은 파트너가 있는 시도·시군구 현황. 최근 본 지역이 있으면 그 지역 페이지로 가는 제안 배너를 띄운다.
 async function CareTypeHub({ spotType }: { spotType: NonNullable<Awaited<ReturnType<typeof getSpotTypeBySlug>>> }) {
   const person = carePersonLabel(spotType.slug);
-  const [regions, providers] = await Promise.all([listCareRegions(), listCareProviders(spotType.id)]);
+  const [regions, providers, allTypes, typeCounts] = await Promise.all([listCareRegions(), listCareProviders(spotType.id), listSpotTypes(), countSpotsByType()]);
   const countsByRegion = countProvidersByRegion(providers);
   const countsBySido = countProvidersBySido(providers, regions);
   const areaCount = Object.keys(countsByRegion).length;
@@ -191,7 +208,9 @@ async function CareTypeHub({ spotType }: { spotType: NonNullable<Awaited<ReturnT
   const openSido = (first && regions.find((r) => r.id === first.regionId)?.sidoSlug) || "seoul";
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-10">
+    <div className="mx-auto max-w-[1680px] px-4 py-8 sm:px-6">
+      <SpotRegisterBanner regionLabel="우리 동네" typeSlug={spotType.slug} typeName={person} care />
+
       <Breadcrumbs
         crumbs={[
           { name: "홈", path: "/" },
@@ -206,12 +225,6 @@ async function CareTypeHub({ spotType }: { spotType: NonNullable<Awaited<ReturnT
         {CARE_INTRO[spotType.slug] ?? `${person}를 지역별로 찾습니다.`} 서울·경기·광역시는 구 단위, 그 밖은 시·군 단위로 지역마다 5자리를 둡니다.{" "}
         지도에서 구·시·군을 누르면 그 지역의 {person} 페이지로 갑니다. 예약 신청을 남기면 운영자가 확인해 연결하고, 카카오톡 채널이 있는
         파트너는 바로 상담할 수 있습니다.
-      </p>
-      <p className="mt-3 rounded-lg border border-line bg-sand/60 px-4 py-2.5 text-sm text-ink-soft">
-        {person}로 활동하시나요? 지역별 자리는 무료이고 운영자 확인 후 노출됩니다 —{" "}
-        <Link href={`/portal/care?type=${spotType.slug}`} className="font-medium text-sea underline">
-          {person} 등록 요청
-        </Link>
       </p>
       <div className="mt-4">
         <RegionSuggestBanner typeSlug={spotType.slug} />
@@ -269,6 +282,13 @@ async function CareTypeHub({ spotType }: { spotType: NonNullable<Awaited<ReturnT
           )}
         </SpotDirectory>
       </div>
+
+      <section aria-labelledby="other-types-heading" className="mt-10">
+        <h2 id="other-types-heading" className="mb-4 text-lg font-bold text-ink">
+          다른 유형 보기
+        </h2>
+        <TypeGroups types={allTypes} counts={typeCounts} hrefFor={(slug) => `/spot/type/${slug}`} currentSlug={spotType.slug} unitFor={(slug) => (isCareType(slug) ? "명" : "곳")} />
+      </section>
 
       <p className="mt-10 text-xs text-ink-faint">
         파트너 정보는 직접 확인과 등록 신청을 바탕으로 하며, 순위·평점을 매기지 않습니다. 개인 사업자의 상세 주소는 싣지 않고 활동

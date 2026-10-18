@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { isCareType } from "@app/data";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { RegionSuggestBanner } from "@/components/region-banner";
 import { SpotRegisterBanner } from "@/components/spot-register-banner";
@@ -64,7 +65,7 @@ export default async function SpotIndexPage() {
             <p className="text-xs text-ink-faint">유형을 누르면 전국 지역 지도로 갑니다</p>
           </div>
           <div className="mt-4">
-            <TypeGroups types={types} counts={typeCounts} hrefFor={(slug) => `/spot/type/${slug}`} />
+            <TypeGroups types={types} counts={typeCounts} hrefFor={(slug) => `/spot/type/${slug}`} unitFor={(slug) => (isCareType(slug) ? "명" : "곳")} />
           </div>
         </section>
       )}

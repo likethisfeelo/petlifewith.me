@@ -129,22 +129,22 @@ export default async function SidoPage({ params }: Props) {
             </div>
           </section>
 
-          {types.length > 0 && (
-            <section aria-labelledby="type-links-heading" className="mt-5">
-              <h2 id="type-links-heading" className="mb-3 text-sm font-bold text-ink">
-                {sidoName} 유형별 <span className="font-medium text-ink-faint">누르면 전국 지역 지도로 갑니다</span>
-              </h2>
-              <TypeGroups
-                types={allTypes.filter((t) => typeTotals.has(t.slug))}
-                counts={typeTotals}
-                hrefFor={(slug) => `/spot/type/${slug}`}
-                unitFor={(slug) => (careSidoTotals[slug] !== undefined ? "명" : "곳")}
-                gridClass="sm:grid-cols-2"
-              />
-            </section>
-          )}
         </SpotDirectory>
       </div>
+
+      {types.length > 0 && (
+        <section aria-labelledby="type-links-heading" className="mt-10">
+          <h2 id="type-links-heading" className="mb-4 text-lg font-bold text-ink">
+            {sidoName} 유형별 <span className="font-medium text-ink-faint">누르면 전국 지역 지도로 갑니다</span>
+          </h2>
+          <TypeGroups
+            types={allTypes.filter((t) => typeTotals.has(t.slug))}
+            counts={typeTotals}
+            hrefFor={(slug) => `/spot/type/${slug}`}
+            unitFor={(slug) => (careSidoTotals[slug] !== undefined ? "명" : "곳")}
+          />
+        </section>
+      )}
 
     </div>
   );

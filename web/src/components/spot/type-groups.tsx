@@ -13,7 +13,10 @@ export function TypeGroups({
   hrefFor,
   unitFor,
   gridClass = "sm:grid-cols-2 xl:grid-cols-4",
+  currentSlug = null,
 }: {
+  /** 지금 보고 있는 유형 (유형 페이지) — 강조 */
+  currentSlug?: string | null;
   gridClass?: string;
   types: Array<{ slug: string; name: string; monetizable: boolean }>;
   counts: Map<string, number>;
@@ -34,7 +37,11 @@ export function TypeGroups({
                 const n = counts.get(t.slug) ?? 0;
                 return (
                   <li key={t.slug}>
-                    <Link href={hrefFor(t.slug)} className="flex items-center justify-between rounded-lg px-2 py-1.5 text-sm text-ink hover:bg-sand">
+                    <Link
+                      href={hrefFor(t.slug)}
+                      aria-current={t.slug === currentSlug ? "page" : undefined}
+                      className={`flex items-center justify-between rounded-lg px-2 py-1.5 text-sm ${t.slug === currentSlug ? "bg-sea-soft font-bold text-sea" : "text-ink hover:bg-sand"}`}
+                    >
                       <span>
                         <span aria-hidden className="mr-2">{ICON[t.slug] ?? "📍"}</span>
                         {t.name}
@@ -53,7 +60,12 @@ export function TypeGroups({
           <span className="font-semibold text-ink">사실 정보</span>
           <span className="text-xs text-ink-faint">광고·순위 없이 인허가 정보만</span>
           {facts.map((t) => (
-            <Link key={t.slug} href={hrefFor(t.slug)} className="rounded-full bg-surface px-3 py-1 text-xs font-medium text-ink-soft hover:text-ink">
+            <Link
+              key={t.slug}
+              href={hrefFor(t.slug)}
+              aria-current={t.slug === currentSlug ? "page" : undefined}
+              className={`rounded-full px-3 py-1 text-xs font-medium ${t.slug === currentSlug ? "bg-ink text-cream" : "bg-surface text-ink-soft hover:text-ink"}`}
+            >
               {ICON[t.slug] ?? ""} {t.name} {(counts.get(t.slug) ?? 0) > 0 && <span className="opacity-60">{(counts.get(t.slug) ?? 0).toLocaleString("ko-KR")}</span>}
             </Link>
           ))}
