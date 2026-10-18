@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { contactEmail, siteName } from "@/lib/config";
 import { listRegionOptions, listRegistrableSpotTypes } from "@/lib/queries/requests";
-import { SpotRegisterForm } from "./spot-register-form";
+import { RegisterFlow } from "./register-flow";
 
 // service.petlifewith.me 가 이 페이지로 라우팅된다 (middleware).
 // 사장님용 유틸리티 페이지라 색인하지 않는다 — 콘텐츠 SEO 는 메인 도메인에 집중.
@@ -15,11 +15,6 @@ export const metadata: Metadata = {
 export const revalidate = 21600; // REVALIDATE.spotDirectory
 
 const ROUTES = [
-  {
-    title: "이미 등록돼 있다면",
-    body: "인허가 공공데이터로 기본 정보를 미리 올려 둡니다. 지역에서 내 업체를 찾아 업체 페이지의 \"정보 관리 요청\"을 누르세요.",
-    link: { href: "/spot", label: "지역에서 내 업체 찾기 →" },
-  },
   {
     title: "지역 상단에 노출하고 싶다면",
     body: "지역 페이지 상단 노출은 유료입니다(A·B·C 형). 요청을 남기면 운영자가 안내하고, 확인 후 노출을 켭니다.",
@@ -40,16 +35,36 @@ export default async function SpotPortalPage() {
     <div className="mx-auto max-w-3xl px-4 py-12">
       <p className="text-sm font-semibold text-sea">{siteName()} 사장님 페이지</p>
       <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-ink">
-        반려동물이 즐거운 곳이라면,
+        업체 정보 등록,
         <br />
-        무료로 소개해 드립니다
+        생각보다 훨씬 간단해요
       </h1>
-      <p className="mt-4 text-ink-soft">
-        스파·셀프목욕·수영장·운동장·카페·유치원·재활 시설을 다루는 디렉토리입니다. 기본 등록과 정보 관리는 무료이고, 잘못된 정보 정정도 같은
-        창구로 받습니다. 요청은 운영자가 확인한 뒤 반영합니다.
-      </p>
+      <p className="mt-4 text-ink-soft">반려동물이 즐거운 곳이라면 무료로 소개해 드려요. 어려운 서류도, 긴 입력도 없어요.</p>
 
-      <div className="mt-8 grid gap-3 sm:grid-cols-3">
+      {/* 시작 전 안심 — 짧고 큰 약속 세 가지 */}
+      <ul className="mt-6 grid gap-2 sm:grid-cols-3">
+        {[
+          ["무료", "기본 등록·정보 관리·링크 페이지 모두 무료"],
+          ["1분이면 끝", "연락처만 남기면 접수 — 나머지는 비워도 돼요"],
+          ["가입 없이도", "로그인 없이 보내도 되고, 상담은 카카오톡으로"],
+        ].map(([t, d]) => (
+          <li key={t} className="rounded-2xl bg-sea-soft/70 px-4 py-3">
+            <p className="text-base font-extrabold text-ink">{t}</p>
+            <p className="mt-0.5 text-xs leading-relaxed text-ink-soft">{d}</p>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-3 text-xs text-ink-faint">보내 주시면 보통 1~2일 안에 운영자가 연락드려요. 확인되면 채널·예약·위치를 모은 무료 링크 페이지가 열려요.</p>
+
+      <section className="mt-10" id="register" aria-label="업체 등록">
+        {types.length === 0 ? (
+          <p className="rounded-xl border border-dashed border-line p-6 text-sm text-ink-faint">지금은 등록 요청을 받을 수 없습니다. 잠시 후 다시 시도해 주세요.</p>
+        ) : (
+          <RegisterFlow types={types} regions={regions} />
+        )}
+      </section>
+
+      <div className="mt-10 grid gap-3 sm:grid-cols-2">
         {ROUTES.map((s) => (
           <section key={s.title} className="rounded-2xl border border-line bg-surface p-4">
             <h2 className="text-sm font-bold text-ink">{s.title}</h2>
@@ -60,18 +75,6 @@ export default async function SpotPortalPage() {
           </section>
         ))}
       </div>
-
-      <section className="mt-10" id="register">
-        <h2 className="text-xl font-extrabold tracking-tight text-ink">내 업체 등록 요청 (무료)</h2>
-        <p className="mt-2 text-sm text-ink-soft">
-          디렉토리에 아직 없는 업체를 등록합니다. 셀프목욕·방문목욕·재활처럼 인허가 데이터에 잡히지 않는 업종도 여기로 보내 주세요.
-        </p>
-        {types.length === 0 ? (
-          <p className="mt-6 rounded-xl border border-dashed border-line p-6 text-sm text-ink-faint">지금은 등록 요청을 받을 수 없습니다. 잠시 후 다시 시도해 주세요.</p>
-        ) : (
-          <SpotRegisterForm types={types} regions={regions} />
-        )}
-      </section>
 
       <section className="mt-10 rounded-2xl border border-line bg-sand/60 p-5 text-sm text-ink-soft">
         <h2 className="font-bold text-ink">관리할 수 있는 정보</h2>

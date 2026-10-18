@@ -3,10 +3,11 @@
 // 요청함 공개 폼의 공통 껍데기 — 종류(hidden)·봇 함정·종류별 칸(children)·담당자 칸·동의·전송·접수 안내.
 // 서버 액션 하나(createServiceRequestAction)로 모든 종류가 들어간다. 에러가 나면 입력값을 되돌려 채운다.
 import type { ReactNode } from "react";
-import { useActionState, useEffect } from "react";
+import { startTransition, useActionState, useEffect } from "react";
 import { track } from "@/components/tracker";
 import { createServiceRequestAction, type RequestActionState } from "@/app/request-actions";
 import { REQUEST_LIMITS, type RequestKind } from "@/lib/requests";
+import type { OwnerSearchHit } from "@/lib/queries/spot-register";
 
 export const inputClass = "mt-1 w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm outline-none focus:border-ink";
 export const labelClass = "block text-sm font-medium text-ink";
@@ -26,8 +27,11 @@ export function RequestForm({
   messagePlaceholder = "덧붙일 내용이 있으면 적어 주세요.",
   requesterFirst = false,
   requesterExtra,
+  onPickDuplicate,
   children,
 }: {
+  /** 업체 등록에서 "혹시 이 업체인가요?" 카드의 "이 업체가 맞아요" — 고른 업체로 정보 관리 요청을 이어 간다 */
+  onPickDuplicate?: (hit: OwnerSearchHit) => void;
   kind: RequestKind;
   /** 함께 보낼 값 (대상 id 등) */
   hidden?: Record<string, string | number>;
@@ -78,7 +82,17 @@ export function RequestForm({
   }
 
   return (
-    <form action={formAction} className="mt-6 space-y-5">
+    <form
+      // action={...} 대신 onSubmit — 서버 액션 뒤 React 가 폼을 비우지 않게 한다
+      // ("혹시 이 업체인가요?"·오류 뒤에도 고른 지역·업종·체크가 그대로 남아야 다시 보내기 쉽다)
+      onSubmit={(e) => {
+        e.preventDefault();
+        const submitter = (e.nativeEvent as SubmitEvent).submitter as HTMLElement | null;
+        const fd = new FormData(e.currentTarget, submitter);
+        startTransition(() => formAction(fd));
+      }}
+      className="mt-6 space-y-5"
+    >
       <input type="hidden" name="kind" value={kind} />
       {Object.entries(hidden).map(([k, val]) => (
         <input key={k} type="hidden" name={k} value={val} />
@@ -136,9 +150,46 @@ export function RequestForm({
         </p>
       )}
 
-      <button type="submit" disabled={pending} className="rounded-full bg-ink px-5 py-2.5 text-sm font-medium text-cream hover:opacity-90 disabled:opacity-50">
-        {pending ? "보내는 중..." : submitLabel}
-      </button>
+      {state.duplicates && state.duplicates.length > 0 ? (
+        <div role="alert" className="space-y-3 rounded-2xl border-2 border-honey/50 bg-honey-soft p-4">
+          <p className="font-bold text-ink">혹시 이 업체인가요?</p>
+          <p className="text-sm text-ink-soft">이미 소개 중인 업체 같아요. 맞다면 새로 등록하지 않고 정보 관리 요청으로 바로 넘어갈 수 있어요.</p>
+          <ul className="space-y-2">
+            {state.duplicates.map((d) => (
+              <li key={d.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-surface px-3 py-2.5">
+                <span className="min-w-0">
+                  <span className="block font-semibold text-ink">{d.name}</span>
+                  <span className="block text-xs text-ink-soft">
+                    {d.typeName} · {d.address ?? d.regionLabel}
+                  </span>
+                </span>
+                {d.owner === "mine" ? (
+                  <a href={`/me/business/spot/${d.id}`} className="rounded-full bg-ink px-3 py-1.5 text-xs font-bold text-cream">
+                    내 업체 관리하기
+                  </a>
+                ) : d.owner === "other" ? (
+                  <span className="text-xs text-ink-faint">다른 회원이 관리 중</span>
+                ) : onPickDuplicate ? (
+                  <button type="button" onClick={() => onPickDuplicate(d)} className="rounded-full bg-ink px-3 py-1.5 text-xs font-bold text-cream">
+                    이 업체가 맞아요
+                  </button>
+                ) : (
+                  <a href={`/portal/spot?spot=${d.id}#register`} className="rounded-full bg-ink px-3 py-1.5 text-xs font-bold text-cream">
+                    이 업체가 맞아요
+                  </a>
+                )}
+              </li>
+            ))}
+          </ul>
+          <button type="submit" name="confirmNew" value="1" disabled={pending} className="rounded-full border border-line bg-surface px-4 py-2 text-sm font-medium text-ink hover:bg-sand disabled:opacity-50">
+            {pending ? "보내는 중..." : "아니요, 다른 업체예요 — 새로 등록할게요"}
+          </button>
+        </div>
+      ) : (
+        <button type="submit" disabled={pending} className="rounded-full bg-ink px-5 py-2.5 text-sm font-medium text-cream hover:opacity-90 disabled:opacity-50">
+          {pending ? "보내는 중..." : submitLabel}
+        </button>
+      )}
     </form>
   );
 }
