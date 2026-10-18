@@ -82,3 +82,14 @@ export function placeIdFromPath(pathname: string): number | null {
   const m = /^\/place\/(\d+)(?:-|$)/.exec(pathname);
   return m ? Number(m[1]) : null;
 }
+
+/** 처음 화면 맞출 핀 — 가운데(중앙값)에서 40km 넘게 떨어진 튀는 좌표는 빼고 맞춘다 (전부 빠지면 전체) */
+export function fitPins<T extends { lat: number; lng: number }>(pins: T[]): T[] {
+  if (pins.length < 3) return pins;
+  const mid = (xs: number[]) => [...xs].sort((a, b) => a - b)[Math.floor(xs.length / 2)]!;
+  const lat = mid(pins.map((p) => p.lat));
+  const lng = mid(pins.map((p) => p.lng));
+  const km = (p: T) => Math.hypot((p.lat - lat) * 111, (p.lng - lng) * 88);
+  const near = pins.filter((p) => km(p) <= 40);
+  return near.length ? near : pins;
+}

@@ -131,9 +131,9 @@ export async function listSpotsInRegion(regionId: number, typeId?: number, limit
         where p.spot_id = ${spots.id} and p.active = true and p.kind = 'region_top'
       )`;
   // 노출 순서: 상단 노출(광고) → 유료 링크 페이지 → 무료(등록) → 미등록, 같은 등급 안은 가나다순
-  // 광고 없는 유형(장묘 등)은 섞인 목록에서도 등급으로 앞세우지 않는다 — 무료 등록과 같은 자리
+  // 광고 없는 유형(장묘·약국)은 섞인 목록에서 등급으로 앞세우지 않는다 — 미등록과 같은 자리에서 가나다순
   const tierSql = sql`case
-      when not ${spotTypes.monetizable} then 2
+      when not ${spotTypes.monetizable} then 3
       when ${promotedSql} then 0
       when ${spotPages.published} and ${spotPages.paidFrom} <= ${today} and ${spotPages.paidUntil} >= ${today} then 1
       when ${spotPages.published} then 2
