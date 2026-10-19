@@ -75,8 +75,8 @@ export async function saveSpotPageAction(_prev: SpotPageActionState, formData: F
 
   const values: Partial<typeof spotPages.$inferInsert> = { intro: intro || null, services, updatedAt: new Date() };
 
-  // 짧은 주소 — 관리자는 언제나, 사장님은 유료 기간 중에만
-  const canHandle = actor.admin || (monetizable && isPaidActive(existing));
+  // 짧은 주소 — 사장님은 유료 기간 중에만 (관리자는 유료 상품 칸 savePremiumAction 에서)
+  const canHandle = !actor.admin && monetizable && isPaidActive(existing);
   if (canHandle && formData.has("handle")) {
     const raw = str(formData, "handle");
     if (!raw) values.handle = null;
@@ -91,15 +91,6 @@ export async function saveSpotPageAction(_prev: SpotPageActionState, formData: F
 
   if (actor.admin) {
     values.published = formData.get("published") === "on";
-    const from = dateOrNull(str(formData, "paidFrom"));
-    const until = dateOrNull(str(formData, "paidUntil"));
-    if (from === "invalid" || until === "invalid") return { error: "유료 기간 날짜를 확인해 주세요." };
-    if ((from || until) && !monetizable) return { error: "장묘·동물약국·B2B 유형은 유료 페이지를 켤 수 없습니다." };
-    if ((from && !until) || (!from && until)) return { error: "유료 기간은 시작일과 종료일을 모두 적어 주세요." };
-    if (from && until && from > until) return { error: "유료 종료일이 시작일보다 빠릅니다." };
-    values.paidFrom = from;
-    values.paidUntil = until;
-
     // 소유자 지정 — 이메일로 회원을 찾는다. 비우면 그대로 (해제는 소유자 칸의 "해제")
     const ownerEmail = str(formData, "ownerEmail").toLowerCase();
     if (ownerEmail) {
@@ -114,6 +105,52 @@ export async function saveSpotPageAction(_prev: SpotPageActionState, formData: F
 
   await refresh(spotId, existing?.handle);
   return { saved: true };
+}
+
+// ---------- 유료 상품 (관리자) ----------
+
+async function handleOrError(db: ReturnType<typeof getDb>, spotId: number, raw: string): Promise<{ handle: string | null } | { error: string }> {
+  if (!raw) return { handle: null };
+  const v = validateHandle(raw);
+  if (!v.ok) return { error: v.error };
+  const taken = (await db.select({ id: spotPages.spotId }).from(spotPages).where(and(eq(spotPages.handle, v.handle), ne(spotPages.spotId, spotId))).limit(1))[0];
+  if (taken) return { error: "이미 다른 업체가 쓰는 짧은 주소입니다." };
+  return { handle: v.handle };
+}
+
+/** 프리미엄 링크 페이지 기간·짧은 주소 — 지역 상단 노출과 별개 상품. 페이지가 없으면 함께 만든다 */
+export async function savePremiumAction(_prev: SpotPageActionState, formData: FormData): Promise<SpotPageActionState> {
+  const spotId = Number(str(formData, "spotId"));
+  if (!Number.isSafeInteger(spotId) || spotId <= 0) return { error: "업체 번호를 확인해 주세요." };
+  const auth = await authorize(spotId);
+  if (!auth) return { error: "업체를 찾을 수 없습니다." };
+  if (!auth.actor.admin) return { error: "권한이 없습니다." };
+  const { db, monetizable } = auth;
+  if (!monetizable) return { error: "장묘·동물약국·B2B 유형은 프리미엄을 켤 수 없습니다." };
+  const from = dateOrNull(str(formData, "paidFrom"));
+  const until = dateOrNull(str(formData, "paidUntil"));
+  if (from === "invalid" || until === "invalid" || !from || !until) return { error: "시작일과 종료일을 모두 골라 주세요." };
+  if (from > until) return { error: "종료일이 시작일보다 빠릅니다." };
+  const h = await handleOrError(db, spotId, str(formData, "handle"));
+  if ("error" in h) return { error: h.error };
+  const existing = (await db.select({ handle: spotPages.handle }).from(spotPages).where(eq(spotPages.spotId, spotId)).limit(1))[0];
+  const values = { paidFrom: from, paidUntil: until, handle: h.handle, updatedAt: new Date() };
+  if (existing) await db.update(spotPages).set(values).where(eq(spotPages.spotId, spotId));
+  else await db.insert(spotPages).values({ spotId, published: true, ...values });
+  await refresh(spotId, existing?.handle);
+  revalidatePath("/admin/paid");
+  return { saved: true };
+}
+
+/** 프리미엄 끝내기 — 기간만 지운다 (짧은 주소·사진은 남고, 공개 페이지는 무료 디자인으로) */
+export async function endPremiumAction(formData: FormData): Promise<void> {
+  const spotId = Number(formData.get("spotId"));
+  if (!Number.isSafeInteger(spotId) || spotId <= 0) return;
+  const auth = await authorize(spotId);
+  if (!auth?.actor.admin) return;
+  await auth.db.update(spotPages).set({ paidFrom: null, paidUntil: null, updatedAt: new Date() }).where(eq(spotPages.spotId, spotId));
+  await refresh(spotId);
+  revalidatePath("/admin/paid");
 }
 
 /** 관리자: 링크 페이지 삭제 (사진·영상 연결도 함께 — 자산 파일은 미디어 관리에 남는다) */
