@@ -93,3 +93,20 @@ export function fitPins<T extends { lat: number; lng: number }>(pins: T[]): T[] 
   const near = pins.filter((p) => km(p) <= 40);
   return near.length ? near : pins;
 }
+
+/** 일반구 칩 — 주소의 낱말 중 구 이름이 있으면 그 구 (천안시 동남구, 포항시 남구 …). 없으면 null */
+export function subAreaOf(address: string | null | undefined, gus: string[]): string | null {
+  if (!address || gus.length === 0) return null;
+  const words = address.split(/\s+/);
+  return gus.find((g) => words.includes(g)) ?? null;
+}
+
+/** 일반구별 개수 — 칩에 붙인다 (주소로 구를 알 수 없는 곳은 "전체"에만) */
+export function countSubAreas(items: Array<{ address: string | null }>, gus: string[]): Record<string, number> {
+  const out: Record<string, number> = Object.fromEntries(gus.map((g) => [g, 0]));
+  for (const s of items) {
+    const g = subAreaOf(s.address, gus);
+    if (g) out[g]! += 1;
+  }
+  return out;
+}

@@ -101,3 +101,9 @@ export const TYPE_ICON: Record<string, string> = {
   playground: "🌳", pool: "🏊", rehab: "🦮", cafe: "☕", grooming: "✂️", "self-wash": "🛁", "visiting-bath": "🚿", "visiting-groom": "💇",
   boarding: "🏠", "pet-sitter": "🧑", "hourly-sitter": "⏱️", "dog-walk": "🐕", transport: "🚗", memorial: "🕊️", pharmacy: "💊",
 };
+
+/** 일반구가 있는 시 (천안시 → 동남구·서북구). 없으면 빈 목록 */
+export function generalGusOf(sidoName: string, sigunguName: string): string[] {
+  const short = shortSido(sidoName);
+  return GENERAL_GU.find(([s, city]) => s === short && city === sigunguName)?.[2] ?? [];
+}

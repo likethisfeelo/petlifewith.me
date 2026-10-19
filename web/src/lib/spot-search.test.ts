@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { groupTypes, searchSpotRegions, shortSido, spotSearchHref } from "./spot-search";
+import { generalGusOf, groupTypes, searchSpotRegions, shortSido, spotSearchHref } from "./spot-search";
 
 const tiles = [
   { id: 1, sidoName: "서울특별시", sidoSlug: "seoul", sigunguName: "강남구", sigunguSlug: "gangnam-gu" },
@@ -25,6 +25,11 @@ describe("spot search", () => {
     expect(spotSearchHref({ sidoSlug: "seoul", sigunguSlug: "gangnam-gu" }, "grooming")).toBe("/spot/seoul/gangnam-gu/grooming");
     expect(spotSearchHref({ sidoSlug: "seoul", sigunguSlug: "gangnam-gu" }, null)).toBe("/spot/seoul/gangnam-gu");
     expect(spotSearchHref({ sidoSlug: "seoul", sigunguSlug: null }, "grooming")).toBe("/spot/seoul");
+  });
+  it("일반구 있는 시", () => {
+    expect(generalGusOf("충청남도", "천안시")).toEqual(["동남구", "서북구"]);
+    expect(generalGusOf("경기도", "수원시")).toHaveLength(4);
+    expect(generalGusOf("서울특별시", "강남구")).toEqual([]);
   });
   it("유형 묶음", () => {
     const r = groupTypes([

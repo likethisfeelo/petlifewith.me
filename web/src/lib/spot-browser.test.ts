@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fitPins, EMPTY_FILTERS, countActiveFilters, filterSpots, parseView, placeIdFromPath, withinBounds, type BrowserSpot } from "./spot-browser";
+import { countSubAreas, subAreaOf, fitPins, EMPTY_FILTERS, countActiveFilters, filterSpots, parseView, placeIdFromPath, withinBounds, type BrowserSpot } from "./spot-browser";
 
 const base: BrowserSpot = {
   id: 1, name: "가", href: "/place/1-a", typeName: "미용", typeSlug: "grooming", regionLabel: "서울 종로구", address: null,
@@ -31,6 +31,14 @@ describe("spot browser", () => {
     const near = [{ lat: 37.76, lng: 126.78 }, { lat: 37.75, lng: 126.77 }, { lat: 37.77, lng: 126.8 }];
     expect(fitPins([...near, { lat: 35.1, lng: 129 }])).toEqual(near);
     expect(fitPins(near.slice(0, 2))).toHaveLength(2);
+  });
+  it("일반구", () => {
+    const gus = ["동남구", "서북구"];
+    expect(subAreaOf("충청남도 천안시 동남구 신부동 1", gus)).toBe("동남구");
+    expect(subAreaOf("충청남도 천안시 서북구 불당로 2", gus)).toBe("서북구");
+    expect(subAreaOf("충청남도 천안시 어딘가 3", gus)).toBeNull();
+    expect(subAreaOf("경상북도 포항시 남구 대잠동", ["남구", "북구"])).toBe("남구");
+    expect(countSubAreas([{ address: "천안시 동남구 a" }, { address: "천안시 동남구 b" }, { address: null }], gus)).toEqual({ 동남구: 2, 서북구: 0 });
   });
   it("주소 해석", () => {
     expect(parseView("map")).toBe("map");
