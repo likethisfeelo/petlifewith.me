@@ -253,11 +253,7 @@ export function SpotBrowser({
   );
 
   return (
-    <div
-      className={`grid gap-6 ${showSidebar && !isMap ? "lg:grid-cols-[240px_minmax(0,1fr)]" : ""} ${
-        selected ? (showSidebar && !isMap ? "xl:grid-cols-[240px_minmax(0,1fr)_400px]" : "xl:grid-cols-[minmax(0,1fr)_400px]") : ""
-      }`}
-    >
+    <div className={`grid gap-6 ${showSidebar && !isMap ? "lg:grid-cols-[240px_minmax(0,1fr)]" : ""}`}>
       {showSidebar && !isMap && (
         <aside className="hidden lg:block">
           <div className="sticky top-20 space-y-6">
@@ -268,35 +264,14 @@ export function SpotBrowser({
       )}
 
       <div className="min-w-0">
-        {typeTabs.length > 1 && (
-          <div className="sticky top-14 z-20 -mx-1 mb-3 bg-cream/95 px-1 py-2 backdrop-blur">
-            <TypeTabs tabs={typeTabs} />
-          </div>
-        )}
-        {subAreas.length > 0 && (
-          <nav aria-label="구 고르기" className="mb-3 flex flex-wrap items-center gap-2">
-            {[null, ...subAreas].map((g) => {
-              const active = g === subArea;
-              const n = g ? subCounts[g] ?? 0 : items.length;
-              return (
-                <button
-                  key={g ?? "all"}
-                  type="button"
-                  onClick={() => pickSubArea(g)}
-                  aria-pressed={active}
-                  className={`rounded-full border-2 px-4 py-1.5 text-sm font-bold transition-colors ${active ? "border-sea bg-sea text-white" : "border-line bg-surface text-ink hover:border-sea hover:text-sea"}`}
-                >
-                  {g ?? "구 전체"} <span className={`text-xs font-medium ${active ? "text-white/80" : "text-ink-faint"}`}>{n.toLocaleString("ko-KR")}</span>
-                </button>
-              );
-            })}
-          </nav>
-        )}
-        {/* 도구 줄: 결과 수 · (좁은 화면/지도 보기) 필터 · 보기 전환 */}
-        <div className="flex flex-wrap items-center gap-2">
-          <h2 className="mr-auto text-sm font-bold text-ink">
-            {title} <span className="font-medium text-ink-faint">{shown.length.toLocaleString("ko-KR")}곳{shown.length !== items.length ? ` / 전체 ${items.length.toLocaleString("ko-KR")}` : ""}</span>
-          </h2>
+        {/* 위 줄: 유형 탭 + (오른쪽) 필터·보기 전환 — 아래 [제목·목록 | 지도 | 미리보기] 의 윗선을 맞추려고 도구는 여기로 */}
+        <div className={`${isMap ? "" : "sticky top-14 z-20 bg-cream/95 backdrop-blur"} -mx-1 mb-3 flex flex-wrap items-center gap-2 px-1 py-2`}>
+          {typeTabs.length > 1 && (
+            <div className="min-w-0 flex-1">
+              <TypeTabs tabs={typeTabs} />
+            </div>
+          )}
+          <div className="ml-auto flex shrink-0 items-center gap-2">
           <button
             type="button"
             onClick={() => setFiltersOpen((o) => !o)}
@@ -318,7 +293,27 @@ export function SpotBrowser({
               </button>
             ))}
           </div>
+          </div>
         </div>
+        {subAreas.length > 0 && (
+          <nav aria-label="구 고르기" className="mb-3 flex flex-wrap items-center gap-2">
+            {[null, ...subAreas].map((g) => {
+              const active = g === subArea;
+              const n = g ? subCounts[g] ?? 0 : items.length;
+              return (
+                <button
+                  key={g ?? "all"}
+                  type="button"
+                  onClick={() => pickSubArea(g)}
+                  aria-pressed={active}
+                  className={`rounded-full border-2 px-4 py-1.5 text-sm font-bold transition-colors ${active ? "border-sea bg-sea text-white" : "border-line bg-surface text-ink hover:border-sea hover:text-sea"}`}
+                >
+                  {g ?? "구 전체"} <span className={`text-xs font-medium ${active ? "text-white/80" : "text-ink-faint"}`}>{n.toLocaleString("ko-KR")}</span>
+                </button>
+              );
+            })}
+          </nav>
+        )}
         {filtersOpen && (
           <div className={`mt-3 rounded-2xl border border-line bg-cream p-4 ${showSidebar && !isMap ? "lg:hidden" : ""}`}>
             {filterPanel}
@@ -334,13 +329,26 @@ export function SpotBrowser({
           </p>
         )}
 
-        <div className="mt-3">
+        <div className={`mt-3 grid gap-4 ${selected ? "xl:grid-cols-[minmax(0,1fr)_400px]" : ""}`}>
+        <div className="min-w-0">
+          {!isMap && <div className="mb-3">
+          <h2 className="text-sm font-bold text-ink">
+            {title} <span className="font-medium text-ink-faint">{shown.length.toLocaleString("ko-KR")}곳{shown.length !== items.length ? ` / 전체 ${items.length.toLocaleString("ko-KR")}` : ""}</span>
+          </h2>
+          </div>}
           {items.length === 0 ? (
             <p className="rounded-xl border border-dashed border-line p-8 text-center text-sm text-ink-faint">{emptyText}</p>
           ) : isMap ? (
             <div className="hidden gap-3 md:grid md:grid-cols-[minmax(260px,340px)_minmax(0,1fr)]">
-              <div className="max-h-[calc(100vh-12rem)] overflow-y-auto pr-1">{shown.length ? cards(true) : <NoMatch />}</div>
-              <MultiMap pins={pins} hoverId={hoverId} selectedId={selectedId} onSelect={selectFromMap} onSearchArea={setBounds} className="sticky top-32 h-[calc(100vh-12rem)] min-h-[420px]" overlay={<TypeTabs tabs={typeTabs} variant="map" />} />
+              <div className="sticky top-36 flex h-[calc(100vh-13rem)] min-h-[420px] flex-col">
+                <div className="mb-2 shrink-0">
+                  <h2 className="text-sm font-bold text-ink">
+            {title} <span className="font-medium text-ink-faint">{shown.length.toLocaleString("ko-KR")}곳{shown.length !== items.length ? ` / 전체 ${items.length.toLocaleString("ko-KR")}` : ""}</span>
+          </h2>
+                </div>
+                <div className="min-h-0 flex-1 overflow-y-auto pr-1">{shown.length ? cards(true) : <NoMatch />}</div>
+              </div>
+              <MultiMap pins={pins} hoverId={hoverId} selectedId={selectedId} onSelect={selectFromMap} onSearchArea={setBounds} className="sticky top-36 h-[calc(100vh-13rem)] min-h-[420px]" overlay={<TypeTabs tabs={typeTabs} variant="map" />} />
             </div>
           ) : shown.length ? (
             cards(false)
@@ -350,10 +358,41 @@ export function SpotBrowser({
           {/* 모바일 지도 보기: 위에 지도(핀 → 아래 시트), 아래 카드. 전체 화면 지도는 아래 버튼 */}
           {isMap && items.length > 0 && (
             <div className="space-y-3 md:hidden">
+          <h2 className="text-sm font-bold text-ink">
+            {title} <span className="font-medium text-ink-faint">{shown.length.toLocaleString("ko-KR")}곳{shown.length !== items.length ? ` / 전체 ${items.length.toLocaleString("ko-KR")}` : ""}</span>
+          </h2>
               {!mobileMap && <MultiMap pins={pins} hoverId={null} selectedId={selectedId} onSelect={open} onSearchArea={setBounds} className="h-[45vh] min-h-[280px]" overlay={<TypeTabs tabs={typeTabs} variant="map" />} />}
               {shown.length ? cards(false) : <NoMatch />}
             </div>
           )}
+        </div>
+        {/* 미리보기: xl 은 밀어내는 칸, md~xl 은 덮는 창, 모바일은 아래 시트 */}
+        {selected && (
+          <>
+            <button type="button" aria-label="미리보기 닫기" onClick={close} className="fixed inset-0 z-40 bg-black/30 xl:hidden" />
+            <aside
+              role="dialog"
+              aria-label={`${selected.name} 미리보기`}
+              className={`fixed inset-x-0 bottom-0 z-50 flex flex-col rounded-t-2xl bg-surface shadow-2xl transition-[height] md:inset-y-0 md:left-auto md:right-0 md:h-auto md:w-[420px] md:rounded-none xl:sticky xl:top-36 xl:z-0 xl:h-[calc(100vh-13rem)] xl:min-h-[420px] xl:w-auto xl:rounded-2xl xl:border xl:border-line xl:shadow-none ${
+                sheetFull ? "h-[100dvh] rounded-none" : "h-[60dvh]"
+              }`}
+            >
+              <div className="flex items-center justify-between border-b border-line px-4 py-2">
+                <button type="button" onClick={() => setSheetFull((f) => !f)} className="text-xs font-semibold text-ink-soft md:hidden" aria-label={sheetFull ? "시트 줄이기" : "시트 펼치기"}>
+                  <span className="mx-auto mb-1 block h-1 w-10 rounded-full bg-line" aria-hidden="true" />
+                  {sheetFull ? "줄이기 ▾" : "펼치기 ▴"}
+                </button>
+                <span className="hidden text-xs font-semibold text-ink-faint md:inline">미리보기</span>
+                <button type="button" onClick={close} className="rounded-full px-2 py-1 text-lg leading-none text-ink-soft hover:bg-sand" aria-label="닫기">
+                  ×
+                </button>
+              </div>
+              <div className="min-h-0 flex-1 overflow-y-auto p-4">
+                <SpotPreview item={selected} />
+              </div>
+            </aside>
+          </>
+        )}
         </div>
       </div>
 
@@ -376,33 +415,6 @@ export function SpotBrowser({
         </div>
       )}
 
-      {/* 미리보기: xl 은 밀어내는 칸, md~xl 은 덮는 창, 모바일은 아래 시트 */}
-      {selected && (
-        <>
-          <button type="button" aria-label="미리보기 닫기" onClick={close} className="fixed inset-0 z-40 bg-black/30 xl:hidden" />
-          <aside
-            role="dialog"
-            aria-label={`${selected.name} 미리보기`}
-            className={`fixed inset-x-0 bottom-0 z-50 flex flex-col rounded-t-2xl bg-surface shadow-2xl transition-[height] md:inset-y-0 md:left-auto md:right-0 md:h-auto md:w-[420px] md:rounded-none xl:sticky xl:top-20 xl:z-0 xl:h-[calc(100vh-6rem)] xl:w-auto xl:rounded-2xl xl:border xl:border-line xl:shadow-none ${
-              sheetFull ? "h-[100dvh] rounded-none" : "h-[60dvh]"
-            }`}
-          >
-            <div className="flex items-center justify-between border-b border-line px-4 py-2">
-              <button type="button" onClick={() => setSheetFull((f) => !f)} className="text-xs font-semibold text-ink-soft md:hidden" aria-label={sheetFull ? "시트 줄이기" : "시트 펼치기"}>
-                <span className="mx-auto mb-1 block h-1 w-10 rounded-full bg-line" aria-hidden="true" />
-                {sheetFull ? "줄이기 ▾" : "펼치기 ▴"}
-              </button>
-              <span className="hidden text-xs font-semibold text-ink-faint md:inline">미리보기</span>
-              <button type="button" onClick={close} className="rounded-full px-2 py-1 text-lg leading-none text-ink-soft hover:bg-sand" aria-label="닫기">
-                ×
-              </button>
-            </div>
-            <div className="min-h-0 flex-1 overflow-y-auto p-4">
-              <SpotPreview item={selected} />
-            </div>
-          </aside>
-        </>
-      )}
     </div>
   );
 }
