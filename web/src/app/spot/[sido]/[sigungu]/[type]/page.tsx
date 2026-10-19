@@ -12,7 +12,7 @@ import { B2BNote, PharmacyNote } from "@/components/notices";
 import { SpotBrowser } from "@/components/spot/spot-browser";
 import { SpotSidebar } from "@/components/spot/spot-sidebar";
 import { toBrowserSpots } from "@/lib/spot-browser-server";
-import { TYPE_ICON, shortSido } from "@/lib/spot-search";
+import { TYPE_ICON, generalGusOf, shortSido } from "@/lib/spot-search";
 import {
   countIndexableSpotsInRegion,
   countSpotsByTypeInRegion,
@@ -196,6 +196,7 @@ export default async function RegionTypePage({ params }: Props) {
         <SpotBrowser
           items={items}
           title={`${region.sigunguName} ${spotType.name}`}
+          subAreas={generalGusOf(region.sidoName, region.sigunguName)}
           typeTabs={[
             { key: "all", label: "전체", count: typeCounts.filter((t) => t.listed).reduce((a, t) => a + t.count, 0), href: basePath, active: false },
             ...typeCounts
