@@ -104,3 +104,38 @@ export function parseServices(raw: string): string[] {
 /** 사장님이 직접 확인하지 않은 업체 안내 (미등록) */
 export const UNVERIFIED_NOTICE =
   "업체가 직접 확인하지 않은 정보입니다. 공공데이터포털에서 확인된 정보 중 일부만 제공되고 있어 위치·연락처가 정확하지 않을 수 있으니, 이용 전 업체에 직접 문의하세요.";
+
+// ---------- 프리미엄 상태 (관리자 유료 상품 화면) ----------
+
+export type PremiumState = "active" | "scheduled" | "expired" | "none";
+
+export const PREMIUM_STATE_LABEL: Record<PremiumState, string> = {
+  active: "진행 중",
+  scheduled: "시작 예정",
+  expired: "끝남",
+  none: "미적용",
+};
+
+function dayDiff(a: string, b: string): number {
+  return Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86_400_000);
+}
+
+/** 프리미엄 상태와 남은 날 (진행 중이면 종료일까지, 예정이면 시작일까지) */
+export function premiumStatus(page: Pick<SpotPageLike, "paidFrom" | "paidUntil"> | null | undefined, today: string = todayKst()): { state: PremiumState; days: number | null } {
+  if (!page?.paidFrom || !page.paidUntil) return { state: "none", days: null };
+  if (today < page.paidFrom) return { state: "scheduled", days: dayDiff(today, page.paidFrom) };
+  if (today > page.paidUntil) return { state: "expired", days: dayDiff(page.paidUntil, today) };
+  return { state: "active", days: dayDiff(today, page.paidUntil) };
+}
+
+/** 기간 빠른 선택 — 시작일부터 n개월 뒤 하루 전 (2026-10-19 + 1개월 → 2026-11-18) */
+export function addMonths(start: string, months: number): string {
+  const d = new Date(`${start}T00:00:00Z`);
+  const day = d.getUTCDate();
+  d.setUTCDate(1);
+  d.setUTCMonth(d.getUTCMonth() + months);
+  const last = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate();
+  d.setUTCDate(Math.min(day, last));
+  d.setUTCDate(d.getUTCDate() - 1);
+  return d.toISOString().slice(0, 10);
+}

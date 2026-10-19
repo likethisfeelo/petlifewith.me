@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isPaidActive, linkBaseUrl, linkPageUrl, parseLinkKey, parseServices, tierOf, todayKst, validateHandle } from "./spot-pages";
+import { addMonths, premiumStatus, isPaidActive, linkBaseUrl, linkPageUrl, parseLinkKey, parseServices, tierOf, todayKst, validateHandle } from "./spot-pages";
 
 const page = (o: Partial<{ published: boolean; paidFrom: string | null; paidUntil: string | null; handle: string | null }> = {}) => ({
   published: true,
@@ -57,5 +57,17 @@ describe("spot pages", () => {
   });
   it("주요 서비스 줄 나누기", () => {
     expect(parseServices("• 병원 동행\n\n- 공항 픽업 \n긴급 이동")).toEqual(["병원 동행", "공항 픽업", "긴급 이동"]);
+  });
+  it("프리미엄 상태", () => {
+    const p = { paidFrom: "2026-10-10", paidUntil: "2026-10-31" };
+    expect(premiumStatus(p, "2026-10-19")).toEqual({ state: "active", days: 12 });
+    expect(premiumStatus(p, "2026-10-01")).toEqual({ state: "scheduled", days: 9 });
+    expect(premiumStatus(p, "2026-11-02")).toEqual({ state: "expired", days: 2 });
+    expect(premiumStatus(null)).toEqual({ state: "none", days: null });
+  });
+  it("기간 빠른 선택", () => {
+    expect(addMonths("2026-10-19", 1)).toBe("2026-11-18");
+    expect(addMonths("2026-01-31", 1)).toBe("2026-02-27");
+    expect(addMonths("2026-10-19", 12)).toBe("2027-10-18");
   });
 });

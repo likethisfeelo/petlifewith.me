@@ -1,6 +1,7 @@
 "use server";
 
 // 관리자 서버 액션 — 인증은 lib/auth.ts 만 거친다.
+import { spotPageRelatedPaths } from "@/lib/revalidate-paths";
 import { revalidatePath } from "@/lib/cdn";
 import { redirect } from "next/navigation";
 import { and, eq, ne } from "drizzle-orm";
@@ -367,6 +368,9 @@ export async function togglePromotionAction(formData: FormData): Promise<void> {
     await db.insert(promotions).values({ spotId, kind: "region_top", active: true });
   }
   revalidatePath("/admin/spots");
+  revalidatePath("/admin/paid");
+  revalidatePath(`/admin/spots/${spotId}`);
+  for (const p of await spotPageRelatedPaths(spotId)) revalidatePath(p);
 }
 
 // ---------- 회원 · 댓글 관리 ----------

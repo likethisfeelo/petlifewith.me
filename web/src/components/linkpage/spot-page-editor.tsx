@@ -46,7 +46,8 @@ const label = "mb-1 block text-xs font-semibold text-ink-soft";
 
 export function SpotPageEditor({ spotId, admin, monetizable, paidActive, linkUrl, page, media, stats, mediaLimit }: Props) {
   const [state, action, pending] = useActionState<SpotPageActionState, FormData>(saveSpotPageAction, {});
-  const canHandle = admin || (monetizable && paidActive);
+  // 짧은 주소는 사장님만 여기서 (관리자는 유료 상품 칸에서)
+  const canHandle = !admin && monetizable && paidActive;
   const canMedia = !!page && (admin || (monetizable && paidActive));
 
   if (!page && !admin) return null;
@@ -55,7 +56,7 @@ export function SpotPageEditor({ spotId, admin, monetizable, paidActive, linkUrl
     <section className="rounded-2xl border border-line bg-surface p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-base font-bold text-ink">
-          링크 페이지{" "}
+          {admin ? "링크 페이지 내용" : "링크 페이지"}{" "}
           {page && (
             <span className={`ml-1 rounded-full px-2 py-0.5 text-xs font-semibold ${paidActive ? "bg-ink text-cream" : "bg-sea-soft text-sea"}`}>
               {paidActive ? "프리미엄" : page.published ? "무료" : "비공개"}
@@ -70,7 +71,8 @@ export function SpotPageEditor({ spotId, admin, monetizable, paidActive, linkUrl
       </div>
       <p className="mt-1 text-xs text-ink-faint">
         채널·예약·위치를 한 장에 모은 페이지입니다. 인스타그램 프로필·명함·카카오톡 채널에 주소를 걸어 두세요.
-        {!paidActive && monetizable && " 프리미엄은 짧은 주소, 사진·영상(각 10개), 어두운 디자인이 추가됩니다."}
+        {!paidActive && monetizable && !admin && " 프리미엄은 짧은 주소, 사진·영상(각 10개), 어두운 디자인이 추가됩니다."}
+        {admin && " 프리미엄 기간·짧은 주소는 위 \"유료 상품\" 칸에서 정합니다."}
       </p>
 
       {stats && page && (
@@ -98,17 +100,6 @@ export function SpotPageEditor({ spotId, admin, monetizable, paidActive, linkUrl
               <input type="checkbox" name="published" defaultChecked={page?.published ?? true} />
               공개 (끄면 링크 페이지가 열리지 않고 목록에서도 미등록으로 보입니다)
             </label>
-            <div>
-              <span className={label}>유료 시작일</span>
-              <input type="date" name="paidFrom" defaultValue={page?.paidFrom ?? ""} className={input} disabled={!monetizable} />
-            </div>
-            <div>
-              <span className={label}>유료 종료일</span>
-              <input type="date" name="paidUntil" defaultValue={page?.paidUntil ?? ""} className={input} disabled={!monetizable} />
-            </div>
-            <p className="text-[11px] text-ink-faint sm:col-span-2">
-              {monetizable ? "기간 안(한국 날짜)에만 프리미엄으로 보입니다. 지역 상단 노출과는 별개 상품입니다. 비우면 무료." : "이 유형(장묘·약국·B2B)은 유료 페이지를 켤 수 없습니다."}
-            </p>
             <div className="sm:col-span-2">
               <span className={label}>소유자 지정 (회원 이메일)</span>
               <input type="email" name="ownerEmail" placeholder="비워 두면 그대로 — 소유자 없이도 페이지를 만들 수 있습니다" className={input} />
