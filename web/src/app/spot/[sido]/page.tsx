@@ -135,12 +135,13 @@ export default async function SidoPage({ params }: Props) {
       {types.length > 0 && (
         <section aria-labelledby="type-links-heading" className="mt-10">
           <h2 id="type-links-heading" className="mb-4 text-lg font-bold text-ink">
-            {sidoName} 유형별 <span className="font-medium text-ink-faint">누르면 전국 지역 지도로 갑니다</span>
+            {sidoName} 유형별 <span className="font-medium text-ink-faint">누르면 {sidoName} 전체 지도·목록이 나와요</span>
           </h2>
           <TypeGroups
             types={allTypes.filter((t) => typeTotals.has(t.slug))}
             counts={typeTotals}
-            hrefFor={(slug) => `/spot/type/${slug}`}
+            // 시설 유형은 이 시도의 지도·목록(시도 x 유형), 돌봄 유형은 서비스 지역 기준 전국 허브로
+            hrefFor={(slug) => (careSidoTotals[slug] !== undefined ? `/spot/type/${slug}` : `/spot/${sidoSlug}/${slug}`)}
             unitFor={(slug) => (careSidoTotals[slug] !== undefined ? "명" : "곳")}
           />
         </section>

@@ -27,6 +27,7 @@ import { SpotPreview, TierBadge } from "./spot-preview";
 import { TypeTabs, type TypeTab } from "./type-tabs";
 
 const VIEW_KEY = "spot-view";
+const PAGE_SIZE = 60;
 
 export function SpotBrowser({
   items,
@@ -64,6 +65,9 @@ export function SpotBrowser({
   const byId = useMemo(() => new Map(items.map((s) => [s.id, s])), [items]);
   const filtered = useMemo(() => filterSpots(items, filters, sort), [items, filters, sort]);
   const shown = useMemo(() => (view === "map" || mobileMap ? withinBounds(filtered, bounds) : filtered), [filtered, bounds, view, mobileMap]);
+  // 시도 전체처럼 수백~수천 곳이면 목록은 나눠 그린다 (지도는 전부 — 묶음으로 보인다)
+  const [limit, setLimit] = useState(PAGE_SIZE);
+  useEffect(() => setLimit(PAGE_SIZE), [filters, sort, bounds, view]);
   const pins = useMemo<MapPin[]>(
     () => filtered.filter((s) => s.lat != null && s.lng != null).map((s) => ({ id: s.id, name: s.name, lat: s.lat!, lng: s.lng!, strong: s.monetizable && (s.tier === "paid" || s.tier === "promoted") })),
     [filtered],
@@ -151,9 +155,11 @@ export function SpotBrowser({
   const selectFromMap = useCallback(
     (id: number) => {
       open(id);
-      cardRefs.current.get(id)?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      const idx = shown.findIndex((x) => x.id === id);
+      if (idx >= limit) setLimit(idx + 1);
+      requestAnimationFrame(() => cardRefs.current.get(id)?.scrollIntoView({ behavior: "smooth", block: "nearest" }));
     },
-    [open],
+    [open, shown, limit],
   );
 
   const onCardClick = (e: React.MouseEvent<HTMLAnchorElement>, id: number) => {
@@ -192,8 +198,9 @@ export function SpotBrowser({
   );
 
   const cards = (compact: boolean) => (
+    <>
     <ul className={compact || view === "list" ? "divide-y divide-line overflow-hidden rounded-2xl border border-line bg-surface" : `grid gap-3 sm:grid-cols-2 ${selected ? "2xl:grid-cols-3" : "lg:grid-cols-3 2xl:grid-cols-4"}`}>
-      {shown.map((s) => (
+      {shown.slice(0, limit).map((s) => (
         <li
           key={s.id}
           ref={(el) => {
@@ -216,6 +223,12 @@ export function SpotBrowser({
         </li>
       )}
     </ul>
+    {shown.length > limit && (
+      <button type="button" onClick={() => setLimit((l) => l + PAGE_SIZE * 2)} className="mt-3 w-full rounded-xl border border-line bg-surface py-3 text-sm font-semibold text-ink hover:bg-sand">
+        더 보기 <span className="text-ink-faint">({(shown.length - limit).toLocaleString("ko-KR")}곳 남음)</span>
+      </button>
+    )}
+    </>
   );
 
   return (

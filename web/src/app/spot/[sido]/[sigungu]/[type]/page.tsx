@@ -12,7 +12,7 @@ import { B2BNote, PharmacyNote } from "@/components/notices";
 import { SpotBrowser } from "@/components/spot/spot-browser";
 import { SpotSidebar } from "@/components/spot/spot-sidebar";
 import { toBrowserSpots } from "@/lib/spot-browser-server";
-import { TYPE_ICON } from "@/lib/spot-search";
+import { TYPE_ICON, shortSido } from "@/lib/spot-search";
 import {
   countIndexableSpotsInRegion,
   countSpotsByTypeInRegion,
@@ -176,7 +176,12 @@ export default async function RegionTypePage({ params }: Props) {
       <h1 className="mt-6 text-3xl font-extrabold tracking-tight text-ink">
         {region.sigunguName} <span className="text-sea">{spotType.name}</span>
       </h1>
-      {spotType.description && <p className="mt-2 text-sm text-ink-soft">{spotType.description}</p>}
+      <p className="mt-2 text-sm text-ink-soft">
+        {spotType.description ? `${spotType.description} · ` : ""}
+        <a href={`/spot/${region.sidoSlug}/${spotType.slug}`} className="font-medium text-sea hover:underline">
+          {shortSido(region.sidoName)} 전체 {spotType.name} 보기 →
+        </a>
+      </p>
 
       {/* 장묘·동물약국: 광고를 붙이지 않는 영역 — 담담한 실무 정보만 (기획서 4-1·6-2) */}
       {!spotType.monetizable && (
