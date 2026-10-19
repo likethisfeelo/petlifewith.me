@@ -1,13 +1,14 @@
 "use client";
 
-// 스팟 목록 브라우저 — 전체 너비. 왼쪽 필터 · 가운데 카드/목록/지도 · 오른쪽 미리보기 창.
+// 스팟 목록 브라우저 — 전체 너비. 위 도구 막대(제목·필터·보기 전환·유형 칩, 모든 보기에서 같은 자리)
+// · 가운데 카드/목록/지도 · 오른쪽 패널(필터 또는 미리보기 — 같은 자리).
 //
 // 미리보기: 카드는 진짜 링크(/place/...)라 크롤러·새 탭·공유는 그대로. 그냥 누르면 주소만 /place/... 로 바꾸고
 // 미리보기 창을 연다 (새로고침하면 장소 페이지, 뒤로 가기는 창 닫기).
 //   PC 1280px 이상: 목록을 밀어내는 오른쪽 칸 / 그보다 좁으면 오른쪽에서 덮는 창 / 모바일: 아래 시트(60%, 펼치면 전체)
 // 보기: [카드 | 목록 | 지도] — 기본은 지도. ?view=card|list 로 공유되고 마지막 선택은 브라우저에 기억한다.
-//   PC: 필터를 접고 좁은 목록 + 지도. 카드에 마우스를 올리면 핀 강조, 핀을 누르면 목록이 그 카드로 스크롤되고 미리보기.
-//   모바일: 위에 지도 + 아래 카드, "지도 보기" 버튼 → 전체 화면 지도, 핀 → 아래 시트.
+//   PC: 좁은 목록 + 지도. 카드에 마우스를 올리면 핀 강조, 핀을 누르면 목록이 그 카드로 스크롤되고 미리보기.
+//   모바일: 막대의 [목록|지도] (카드는 PC 만), 지도는 한 화면, 핀·필터 → 아래 시트.
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { MultiMap, type MapBounds, type MapPin } from "@/components/map/multi-map";
 import {
@@ -37,17 +38,16 @@ export function SpotBrowser({
   sidebar,
   registerCard,
   emptyText = "아직 등록된 곳이 없습니다.",
-  showSidebar = true,
   typeTabs = [],
   subAreas = [],
 }: {
   /** 일반구 칩 (천안시 → 동남구·서북구) — 주소로 나눠 이 화면 안에서 좁힌다 (?gu=) */
   subAreas?: string[];
-  /** 유형 탭 — 목록 위(크게)와 지도 위(칩) */
+  /** 유형 칩 — 도구 막대 아래 한 줄 */
   typeTabs?: TypeTab[];
   items: BrowserSpot[];
   title: ReactNode;
-  /** 왼쪽 칸 아래쪽에 붙일 서버 콘텐츠 (다른 유형·지역 바꾸기) */
+  /** 필터 패널 아래쪽에 붙일 서버 콘텐츠 (다른 유형·지역 바꾸기) */
   sidebar?: ReactNode;
   /** "여기에 내 업체를 소개하세요" 카드 */
   registerCard?: { href: string; label: string } | null;
@@ -62,7 +62,6 @@ export function SpotBrowser({
   const [bounds, setBounds] = useState<MapBounds | null>(null);
   const [sheetFull, setSheetFull] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [mobileMap, setMobileMap] = useState(false);
   const listUrl = useRef<string | null>(null);
   const pushed = useRef(false);
   const cardRefs = useRef(new Map<number, HTMLElement>());
@@ -83,7 +82,7 @@ export function SpotBrowser({
       listUrl.current = url.pathname + url.search;
     }
   }, []);
-  const shown = useMemo(() => (view === "map" || mobileMap ? withinBounds(filtered, bounds) : filtered), [filtered, bounds, view, mobileMap]);
+  const shown = useMemo(() => (view === "map" ? withinBounds(filtered, bounds) : filtered), [filtered, bounds, view]);
   // 시도 전체처럼 수백~수천 곳이면 목록은 나눠 그린다 (지도는 전부 — 묶음으로 보인다)
   const [limit, setLimit] = useState(PAGE_SIZE);
   useEffect(() => setLimit(PAGE_SIZE), [filters, sort, bounds, view]);
@@ -132,6 +131,7 @@ export function SpotBrowser({
       const s = byId.get(id);
       if (!s) return;
       setSelectedId(id);
+      setFiltersOpen(false);
       setSheetFull(false);
       if (placeIdFromPath(window.location.pathname)) window.history.replaceState(window.history.state, "", s.href);
       else {
@@ -220,7 +220,7 @@ export function SpotBrowser({
 
   const cards = (compact: boolean) => (
     <>
-    <ul className={compact || view === "list" ? "divide-y divide-line overflow-hidden rounded-2xl border border-line bg-surface" : `grid gap-3 sm:grid-cols-2 ${selected ? "2xl:grid-cols-3" : "lg:grid-cols-3 2xl:grid-cols-4"}`}>
+    <ul className={compact || view === "list" ? "divide-y divide-line overflow-hidden rounded-2xl border border-line bg-surface" : `grid gap-3 sm:grid-cols-2 ${selected || filtersOpen ? "lg:grid-cols-2 2xl:grid-cols-3" : "lg:grid-cols-3 2xl:grid-cols-4"}`}>
       {shown.slice(0, limit).map((s) => (
         <li
           key={s.id}
@@ -252,157 +252,151 @@ export function SpotBrowser({
     </>
   );
 
-  return (
-    <div
-      className={`grid gap-6 ${showSidebar && !isMap ? "lg:grid-cols-[240px_minmax(0,1fr)]" : ""} ${
-        selected ? (showSidebar && !isMap ? "xl:grid-cols-[240px_minmax(0,1fr)_400px]" : "xl:grid-cols-[minmax(0,1fr)_400px]") : ""
-      }`}
+  const panelOpen = !!selected || filtersOpen;
+  const openFilters = () => {
+    if (selected) close();
+    setFiltersOpen((o) => !o);
+  };
+  const activeChips = (Object.keys(FILTER_LABEL) as Array<keyof BrowserFilters>).filter((k) => filters[k]);
+  const viewBtn = (v: BrowserView, label: string, extra = "") => (
+    <button
+      key={v}
+      type="button"
+      onClick={() => changeView(v)}
+      aria-pressed={view === v}
+      className={`rounded-full px-3 py-1 text-xs font-semibold ${extra} ${view === v ? "bg-ink text-cream" : "text-ink-soft hover:text-ink"}`}
     >
-      {showSidebar && !isMap && (
-        <aside className="hidden lg:block">
-          <div className="sticky top-20 space-y-6">
-            {filterPanel}
-            {sidebar}
-          </div>
-        </aside>
-      )}
+      {label}
+    </button>
+  );
 
-      <div className="min-w-0">
-        {typeTabs.length > 1 && (
-          <div className="sticky top-14 z-20 -mx-1 mb-3 bg-cream/95 px-1 py-2 backdrop-blur">
-            <TypeTabs tabs={typeTabs} />
-          </div>
-        )}
-        {subAreas.length > 0 && (
-          <nav aria-label="구 고르기" className="mb-3 flex flex-wrap items-center gap-2">
-            {[null, ...subAreas].map((g) => {
-              const active = g === subArea;
-              const n = g ? subCounts[g] ?? 0 : items.length;
-              return (
-                <button
-                  key={g ?? "all"}
-                  type="button"
-                  onClick={() => pickSubArea(g)}
-                  aria-pressed={active}
-                  className={`rounded-full border-2 px-4 py-1.5 text-sm font-bold transition-colors ${active ? "border-sea bg-sea text-white" : "border-line bg-surface text-ink hover:border-sea hover:text-sea"}`}
-                >
-                  {g ?? "구 전체"} <span className={`text-xs font-medium ${active ? "text-white/80" : "text-ink-faint"}`}>{n.toLocaleString("ko-KR")}</span>
-                </button>
-              );
-            })}
-          </nav>
-        )}
-        {/* 도구 줄: 결과 수 · (좁은 화면/지도 보기) 필터 · 보기 전환 */}
-        <div className="flex flex-wrap items-center gap-2">
-          <h2 className="mr-auto text-sm font-bold text-ink">
+  // 오른쪽 패널 내용 — 업체를 고르면 미리보기, 아니면 필터(조건·정렬·다른 유형·지역)
+  const panelBody = selected ? (
+    <SpotPreview item={selected} />
+  ) : (
+    <div className="space-y-6">
+      {filterPanel}
+      {sidebar}
+    </div>
+  );
+  const panelTitle = selected ? "미리보기" : `필터${activeCount > 0 ? ` · ${activeCount}개 적용` : ""}`;
+  const closePanel = () => (selected ? close() : setFiltersOpen(false));
+
+  return (
+    <div>
+      {/* 도구 막대 — 모든 보기에서 같은 자리 (PC·모바일 공통, 스크롤해도 붙음): 제목·개수 | 필터 · 보기 전환 / 유형 칩 */}
+      <div className="sticky top-14 z-20 -mx-1 mb-3 space-y-2 bg-cream/95 px-1 py-2 backdrop-blur">
+        <div className="flex items-center gap-2">
+          <h2 className="mr-auto min-w-0 truncate text-sm font-bold text-ink">
             {title} <span className="font-medium text-ink-faint">{shown.length.toLocaleString("ko-KR")}곳{shown.length !== items.length ? ` / 전체 ${items.length.toLocaleString("ko-KR")}` : ""}</span>
           </h2>
           <button
             type="button"
-            onClick={() => setFiltersOpen((o) => !o)}
-            aria-expanded={filtersOpen}
-            className={`rounded-full border border-line px-3 py-1.5 text-xs font-semibold text-ink hover:bg-sand ${showSidebar && !isMap ? "lg:hidden" : ""}`}
+            onClick={openFilters}
+            aria-expanded={filtersOpen && !selected}
+            className={`shrink-0 rounded-full border px-3 py-1 text-xs font-semibold ${filtersOpen && !selected ? "border-ink bg-ink text-cream" : "border-line bg-surface text-ink hover:bg-sand"}`}
           >
-            필터{activeCount > 0 ? ` ${activeCount}` : ""} {filtersOpen ? "▴" : "▾"}
+            ⚙ 필터{activeCount > 0 ? ` ${activeCount}` : ""}
           </button>
-          <div role="group" aria-label="보기 방식" className="hidden rounded-full border border-line bg-surface p-0.5 md:flex">
-            {(["card", "list", "map"] as const).map((v) => (
-              <button
-                key={v}
-                type="button"
-                onClick={() => changeView(v)}
-                aria-pressed={view === v}
-                className={`rounded-full px-3 py-1 text-xs font-semibold ${view === v ? "bg-ink text-cream" : "text-ink-soft hover:text-ink"}`}
-              >
-                {v === "card" ? "카드" : v === "list" ? "목록" : "지도"}
-              </button>
-            ))}
+          <div role="group" aria-label="보기 방식" className="flex shrink-0 rounded-full border border-line bg-surface p-0.5">
+            {viewBtn("card", "카드", "hidden md:inline-block")}
+            {viewBtn("list", "목록")}
+            {viewBtn("map", "지도")}
           </div>
         </div>
-        {filtersOpen && (
-          <div className={`mt-3 rounded-2xl border border-line bg-cream p-4 ${showSidebar && !isMap ? "lg:hidden" : ""}`}>
-            {filterPanel}
-            {sidebar && <div className="mt-4 border-t border-line pt-4 lg:hidden">{sidebar}</div>}
-          </div>
-        )}
-        {bounds && (
-          <p className="mt-2 text-xs text-ink-soft">
-            지도에 보이는 곳만 표시 중 ·{" "}
-            <button type="button" onClick={() => setBounds(null)} className="font-medium text-sea hover:underline">
-              전체 보기
-            </button>
-          </p>
-        )}
+        {typeTabs.length > 1 && <TypeTabs tabs={typeTabs} variant="map" />}
+      </div>
 
-        <div className="mt-3">
+      {subAreas.length > 0 && (
+        <nav aria-label="구 고르기" className="mb-3 flex flex-wrap items-center gap-2">
+          {[null, ...subAreas].map((g) => {
+            const active = g === subArea;
+            const n = g ? subCounts[g] ?? 0 : items.length;
+            return (
+              <button
+                key={g ?? "all"}
+                type="button"
+                onClick={() => pickSubArea(g)}
+                aria-pressed={active}
+                className={`rounded-full border-2 px-4 py-1.5 text-sm font-bold transition-colors ${active ? "border-sea bg-sea text-white" : "border-line bg-surface text-ink hover:border-sea hover:text-sea"}`}
+              >
+                {g ?? "구 전체"} <span className={`text-xs font-medium ${active ? "text-white/80" : "text-ink-faint"}`}>{n.toLocaleString("ko-KR")}</span>
+              </button>
+            );
+          })}
+        </nav>
+      )}
+
+      {/* 켜 둔 조건 — 패널을 닫아도 보이고 ✕ 로 바로 끈다 */}
+      {(activeChips.length > 0 || sort !== "default" || bounds) && (
+        <div className="mb-3 flex flex-wrap items-center gap-1.5 text-xs">
+          {activeChips.map((k) => (
+            <button key={k} type="button" onClick={() => setFilters((f) => ({ ...f, [k]: false }))} className="rounded-full bg-sea-soft px-2.5 py-1 font-medium text-sea hover:bg-sea hover:text-white">
+              {FILTER_LABEL[k]} ✕
+            </button>
+          ))}
+          {sort !== "default" && (
+            <button type="button" onClick={() => setSort("default")} className="rounded-full bg-sea-soft px-2.5 py-1 font-medium text-sea hover:bg-sea hover:text-white">
+              이름순 ✕
+            </button>
+          )}
+          {bounds && (
+            <button type="button" onClick={() => setBounds(null)} className="rounded-full bg-sand px-2.5 py-1 font-medium text-ink-soft hover:text-ink">
+              지도에 보이는 곳만 ✕
+            </button>
+          )}
+        </div>
+      )}
+
+      <div className={`grid gap-4 ${panelOpen ? "xl:grid-cols-[minmax(0,1fr)_380px]" : ""}`}>
+        <div className="min-w-0">
           {items.length === 0 ? (
             <p className="rounded-xl border border-dashed border-line p-8 text-center text-sm text-ink-faint">{emptyText}</p>
           ) : isMap ? (
-            <div className="hidden gap-3 md:grid md:grid-cols-[minmax(260px,340px)_minmax(0,1fr)]">
-              <div className="max-h-[calc(100vh-12rem)] overflow-y-auto pr-1">{shown.length ? cards(true) : <NoMatch />}</div>
-              <MultiMap pins={pins} hoverId={hoverId} selectedId={selectedId} onSelect={selectFromMap} onSearchArea={setBounds} className="sticky top-32 h-[calc(100vh-12rem)] min-h-[420px]" overlay={<TypeTabs tabs={typeTabs} variant="map" />} />
-            </div>
+            <>
+              {/* PC: 좁은 목록 + 지도 */}
+              <div className="hidden gap-3 md:grid md:grid-cols-[minmax(260px,340px)_minmax(0,1fr)]">
+                <div className="h-[calc(100vh-14rem)] min-h-[420px] overflow-y-auto pr-1">{shown.length ? cards(true) : <NoMatch />}</div>
+                <MultiMap pins={pins} hoverId={hoverId} selectedId={selectedId} onSelect={selectFromMap} onSearchArea={setBounds} className="h-[calc(100vh-14rem)] min-h-[420px]" />
+              </div>
+              {/* 모바일: 지도 한 화면 — 핀을 누르면 아래 시트, 목록은 위 [목록] */}
+              <div className="md:hidden">
+                <MultiMap pins={pins} hoverId={null} selectedId={selectedId} onSelect={open} onSearchArea={setBounds} className="h-[calc(100dvh-13rem)] min-h-[360px]" />
+              </div>
+            </>
           ) : shown.length ? (
             cards(false)
           ) : (
             <NoMatch />
           )}
-          {/* 모바일 지도 보기: 위에 지도(핀 → 아래 시트), 아래 카드. 전체 화면 지도는 아래 버튼 */}
-          {isMap && items.length > 0 && (
-            <div className="space-y-3 md:hidden">
-              {!mobileMap && <MultiMap pins={pins} hoverId={null} selectedId={selectedId} onSelect={open} onSearchArea={setBounds} className="h-[45vh] min-h-[280px]" overlay={<TypeTabs tabs={typeTabs} variant="map" />} />}
-              {shown.length ? cards(false) : <NoMatch />}
-            </div>
-          )}
         </div>
+
+        {/* 오른쪽 패널(미리보기·필터): xl 은 옆 칸, md~xl 은 덮는 창, 모바일은 아래 시트 */}
+        {panelOpen && (
+          <>
+            <button type="button" aria-label={`${panelTitle} 닫기`} onClick={closePanel} className="fixed inset-0 z-40 bg-black/30 xl:hidden" />
+            <aside
+              role="dialog"
+              aria-label={selected ? `${selected.name} 미리보기` : "필터"}
+              className={`fixed inset-x-0 bottom-0 z-50 flex flex-col rounded-t-2xl bg-surface shadow-2xl transition-[height] md:inset-y-0 md:left-auto md:right-0 md:h-auto md:w-[400px] md:rounded-none xl:sticky xl:top-36 xl:z-0 xl:h-[calc(100vh-14rem)] xl:min-h-[420px] xl:w-auto xl:rounded-2xl xl:border xl:border-line xl:shadow-none ${
+                sheetFull ? "h-[100dvh] rounded-none" : "h-[60dvh]"
+              }`}
+            >
+              <div className="flex items-center justify-between border-b border-line px-4 py-2">
+                <button type="button" onClick={() => setSheetFull((f) => !f)} className="text-xs font-semibold text-ink-soft md:hidden" aria-label={sheetFull ? "시트 줄이기" : "시트 펼치기"}>
+                  <span className="mx-auto mb-1 block h-1 w-10 rounded-full bg-line" aria-hidden="true" />
+                  {sheetFull ? "줄이기 ▾" : "펼치기 ▴"}
+                </button>
+                <span className="hidden text-xs font-semibold text-ink-faint md:inline">{panelTitle}</span>
+                <button type="button" onClick={closePanel} className="rounded-full px-2 py-1 text-lg leading-none text-ink-soft hover:bg-sand" aria-label="닫기">
+                  ×
+                </button>
+              </div>
+              <div className="min-h-0 flex-1 overflow-y-auto p-4">{panelBody}</div>
+            </aside>
+          </>
+        )}
       </div>
-
-      {/* 모바일 지도 버튼 + 전체 화면 지도 */}
-      {items.length > 0 && !selected && (
-        <button
-          type="button"
-          onClick={() => {
-            setMobileMap((m) => !m);
-            setBounds(null);
-          }}
-          className="fixed bottom-5 left-1/2 z-40 -translate-x-1/2 rounded-full bg-ink px-5 py-3 text-sm font-bold text-cream shadow-xl md:hidden"
-        >
-          {mobileMap ? "목록 보기" : "지도 보기"}
-        </button>
-      )}
-      {mobileMap && (
-        <div className="fixed inset-0 z-30 bg-cream md:hidden">
-          <MultiMap pins={pins} hoverId={null} selectedId={selectedId} onSelect={open} onSearchArea={setBounds} className="h-full rounded-none border-0" overlay={<TypeTabs tabs={typeTabs} variant="map" />} />
-        </div>
-      )}
-
-      {/* 미리보기: xl 은 밀어내는 칸, md~xl 은 덮는 창, 모바일은 아래 시트 */}
-      {selected && (
-        <>
-          <button type="button" aria-label="미리보기 닫기" onClick={close} className="fixed inset-0 z-40 bg-black/30 xl:hidden" />
-          <aside
-            role="dialog"
-            aria-label={`${selected.name} 미리보기`}
-            className={`fixed inset-x-0 bottom-0 z-50 flex flex-col rounded-t-2xl bg-surface shadow-2xl transition-[height] md:inset-y-0 md:left-auto md:right-0 md:h-auto md:w-[420px] md:rounded-none xl:sticky xl:top-20 xl:z-0 xl:h-[calc(100vh-6rem)] xl:w-auto xl:rounded-2xl xl:border xl:border-line xl:shadow-none ${
-              sheetFull ? "h-[100dvh] rounded-none" : "h-[60dvh]"
-            }`}
-          >
-            <div className="flex items-center justify-between border-b border-line px-4 py-2">
-              <button type="button" onClick={() => setSheetFull((f) => !f)} className="text-xs font-semibold text-ink-soft md:hidden" aria-label={sheetFull ? "시트 줄이기" : "시트 펼치기"}>
-                <span className="mx-auto mb-1 block h-1 w-10 rounded-full bg-line" aria-hidden="true" />
-                {sheetFull ? "줄이기 ▾" : "펼치기 ▴"}
-              </button>
-              <span className="hidden text-xs font-semibold text-ink-faint md:inline">미리보기</span>
-              <button type="button" onClick={close} className="rounded-full px-2 py-1 text-lg leading-none text-ink-soft hover:bg-sand" aria-label="닫기">
-                ×
-              </button>
-            </div>
-            <div className="min-h-0 flex-1 overflow-y-auto p-4">
-              <SpotPreview item={selected} />
-            </div>
-          </aside>
-        </>
-      )}
     </div>
   );
 }
