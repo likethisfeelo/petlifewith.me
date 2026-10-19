@@ -18,6 +18,8 @@ import {
   parseView,
   placeIdFromPath,
   withinBounds,
+  countSubAreas,
+  subAreaOf,
   type BrowserFilters,
   type BrowserSort,
   type BrowserSpot,
@@ -37,7 +39,10 @@ export function SpotBrowser({
   emptyText = "아직 등록된 곳이 없습니다.",
   showSidebar = true,
   typeTabs = [],
+  subAreas = [],
 }: {
+  /** 일반구 칩 (천안시 → 동남구·서북구) — 주소로 나눠 이 화면 안에서 좁힌다 (?gu=) */
+  subAreas?: string[];
   /** 유형 탭 — 목록 위(크게)와 지도 위(칩) */
   typeTabs?: TypeTab[];
   items: BrowserSpot[];
@@ -63,7 +68,21 @@ export function SpotBrowser({
   const cardRefs = useRef(new Map<number, HTMLElement>());
 
   const byId = useMemo(() => new Map(items.map((s) => [s.id, s])), [items]);
-  const filtered = useMemo(() => filterSpots(items, filters, sort), [items, filters, sort]);
+  const [subArea, setSubArea] = useState<string | null>(null);
+  const subCounts = useMemo(() => countSubAreas(items, subAreas), [items, subAreas]);
+  const areaItems = useMemo(() => (subArea ? items.filter((s) => subAreaOf(s.address, subAreas) === subArea) : items), [items, subArea, subAreas]);
+  const filtered = useMemo(() => filterSpots(areaItems, filters, sort), [areaItems, filters, sort]);
+  const pickSubArea = useCallback((g: string | null) => {
+    setSubArea(g);
+    setBounds(null);
+    const url = new URL(window.location.href);
+    if (g) url.searchParams.set("gu", g);
+    else url.searchParams.delete("gu");
+    if (!placeIdFromPath(url.pathname)) {
+      window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash);
+      listUrl.current = url.pathname + url.search;
+    }
+  }, []);
   const shown = useMemo(() => (view === "map" || mobileMap ? withinBounds(filtered, bounds) : filtered), [filtered, bounds, view, mobileMap]);
   // 시도 전체처럼 수백~수천 곳이면 목록은 나눠 그린다 (지도는 전부 — 묶음으로 보인다)
   const [limit, setLimit] = useState(PAGE_SIZE);
@@ -78,6 +97,8 @@ export function SpotBrowser({
   // 처음: ?view= → 기억한 보기 → 지도(기본)
   useEffect(() => {
     listUrl.current = window.location.pathname + window.location.search;
+    const gu = new URLSearchParams(window.location.search).get("gu");
+    if (gu && subAreas.includes(gu)) setSubArea(gu);
     let v = parseView(new URLSearchParams(window.location.search).get("view"));
     if (!v) {
       try {
@@ -251,6 +272,25 @@ export function SpotBrowser({
           <div className="sticky top-14 z-20 -mx-1 mb-3 bg-cream/95 px-1 py-2 backdrop-blur">
             <TypeTabs tabs={typeTabs} />
           </div>
+        )}
+        {subAreas.length > 0 && (
+          <nav aria-label="구 고르기" className="mb-3 flex flex-wrap items-center gap-2">
+            {[null, ...subAreas].map((g) => {
+              const active = g === subArea;
+              const n = g ? subCounts[g] ?? 0 : items.length;
+              return (
+                <button
+                  key={g ?? "all"}
+                  type="button"
+                  onClick={() => pickSubArea(g)}
+                  aria-pressed={active}
+                  className={`rounded-full border-2 px-4 py-1.5 text-sm font-bold transition-colors ${active ? "border-sea bg-sea text-white" : "border-line bg-surface text-ink hover:border-sea hover:text-sea"}`}
+                >
+                  {g ?? "구 전체"} <span className={`text-xs font-medium ${active ? "text-white/80" : "text-ink-faint"}`}>{n.toLocaleString("ko-KR")}</span>
+                </button>
+              );
+            })}
+          </nav>
         )}
         {/* 도구 줄: 결과 수 · (좁은 화면/지도 보기) 필터 · 보기 전환 */}
         <div className="flex flex-wrap items-center gap-2">

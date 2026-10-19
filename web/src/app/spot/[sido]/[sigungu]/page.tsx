@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { SpotBrowser } from "@/components/spot/spot-browser";
 import { toBrowserSpots } from "@/lib/spot-browser-server";
-import { TYPE_ICON } from "@/lib/spot-search";
+import { TYPE_ICON, generalGusOf } from "@/lib/spot-search";
 import { JsonLd } from "@/components/jsonld";
 import { RememberRegion } from "@/components/region-banner";
 import { RegionDataBlock } from "@/components/region-data-block";
@@ -155,6 +155,7 @@ export default async function SigunguPage({ params }: Props) {
           items={items}
           title={`${region.sigunguName} 스팟`}
           showSidebar={false}
+          subAreas={generalGusOf(region.sidoName, region.sigunguName)}
           typeTabs={[
             { key: "all", label: "전체", count: listedTotal, href: `/spot/${region.sidoSlug}/${region.sigunguSlug}`, active: true },
             ...typeCounts.map((c) => ({
