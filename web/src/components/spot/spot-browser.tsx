@@ -252,6 +252,31 @@ export function SpotBrowser({
     </>
   );
 
+  // 제목 줄 — 오른쪽에 필터 (넓은 화면의 카드·목록 보기는 왼쪽 칸에 조건이 있어 숨김). 펼치면 제목 바로 아래
+  const titleRow = (
+    <div>
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="text-sm font-bold text-ink">
+          {title} <span className="font-medium text-ink-faint">{shown.length.toLocaleString("ko-KR")}곳{shown.length !== items.length ? ` / 전체 ${items.length.toLocaleString("ko-KR")}` : ""}</span>
+        </h2>
+        <button
+          type="button"
+          onClick={() => setFiltersOpen((o) => !o)}
+          aria-expanded={filtersOpen}
+          className={`shrink-0 rounded-full border border-line bg-surface px-3 py-1 text-xs font-semibold text-ink hover:bg-sand ${showSidebar && !isMap ? "lg:hidden" : ""}`}
+        >
+          필터{activeCount > 0 ? ` ${activeCount}` : ""} {filtersOpen ? "▴" : "▾"}
+        </button>
+      </div>
+      {filtersOpen && (
+        <div className={`mt-2 rounded-2xl border border-line bg-cream p-4 ${showSidebar && !isMap ? "lg:hidden" : ""}`}>
+          {filterPanel}
+          {sidebar && <div className="mt-4 border-t border-line pt-4 lg:hidden">{sidebar}</div>}
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div className={`grid gap-6 ${showSidebar && !isMap ? "lg:grid-cols-[240px_minmax(0,1fr)]" : ""}`}>
       {showSidebar && !isMap && (
@@ -264,23 +289,9 @@ export function SpotBrowser({
       )}
 
       <div className="min-w-0">
-        {/* 위 줄: 유형 탭 + (오른쪽) 필터·보기 전환 — 아래 [제목·목록 | 지도 | 미리보기] 의 윗선을 맞추려고 도구는 여기로 */}
-        <div className={`${isMap ? "" : "sticky top-14 z-20 bg-cream/95 backdrop-blur"} -mx-1 mb-3 flex flex-wrap items-center gap-2 px-1 py-2`}>
-          {typeTabs.length > 1 && (
-            <div className="min-w-0 flex-1">
-              <TypeTabs tabs={typeTabs} />
-            </div>
-          )}
-          <div className="ml-auto flex shrink-0 items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setFiltersOpen((o) => !o)}
-            aria-expanded={filtersOpen}
-            className={`rounded-full border border-line px-3 py-1.5 text-xs font-semibold text-ink hover:bg-sand ${showSidebar && !isMap ? "lg:hidden" : ""}`}
-          >
-            필터{activeCount > 0 ? ` ${activeCount}` : ""} {filtersOpen ? "▴" : "▾"}
-          </button>
-          <div role="group" aria-label="보기 방식" className="hidden rounded-full border border-line bg-surface p-0.5 md:flex">
+        {/* 위 줄: 보기 전환(작게). 지도 보기는 유형 칩이 지도 위에 있어 전환만, 카드·목록 보기는 작은 유형 칩 + 전환 */}
+        <div className={`${isMap ? "hidden md:flex" : "sticky top-14 z-20 flex bg-cream/95 backdrop-blur"} -mx-1 mb-2 flex-wrap items-center gap-2 px-1 py-1.5`}>
+          <div role="group" aria-label="보기 방식" className="hidden shrink-0 rounded-full border border-line bg-surface p-0.5 md:flex">
             {(["card", "list", "map"] as const).map((v) => (
               <button
                 key={v}
@@ -293,7 +304,11 @@ export function SpotBrowser({
               </button>
             ))}
           </div>
-          </div>
+          {!isMap && typeTabs.length > 1 && (
+            <div className="min-w-0 flex-1">
+              <TypeTabs tabs={typeTabs} variant="map" />
+            </div>
+          )}
         </div>
         {subAreas.length > 0 && (
           <nav aria-label="구 고르기" className="mb-3 flex flex-wrap items-center gap-2">
@@ -314,12 +329,6 @@ export function SpotBrowser({
             })}
           </nav>
         )}
-        {filtersOpen && (
-          <div className={`mt-3 rounded-2xl border border-line bg-cream p-4 ${showSidebar && !isMap ? "lg:hidden" : ""}`}>
-            {filterPanel}
-            {sidebar && <div className="mt-4 border-t border-line pt-4 lg:hidden">{sidebar}</div>}
-          </div>
-        )}
         {bounds && (
           <p className="mt-2 text-xs text-ink-soft">
             지도에 보이는 곳만 표시 중 ·{" "}
@@ -332,9 +341,7 @@ export function SpotBrowser({
         <div className={`mt-3 grid gap-4 ${selected ? "xl:grid-cols-[minmax(0,1fr)_400px]" : ""}`}>
         <div className="min-w-0">
           {!isMap && <div className="mb-3">
-          <h2 className="text-sm font-bold text-ink">
-            {title} <span className="font-medium text-ink-faint">{shown.length.toLocaleString("ko-KR")}곳{shown.length !== items.length ? ` / 전체 ${items.length.toLocaleString("ko-KR")}` : ""}</span>
-          </h2>
+          {titleRow}
           </div>}
           {items.length === 0 ? (
             <p className="rounded-xl border border-dashed border-line p-8 text-center text-sm text-ink-faint">{emptyText}</p>
@@ -342,9 +349,7 @@ export function SpotBrowser({
             <div className="hidden gap-3 md:grid md:grid-cols-[minmax(260px,340px)_minmax(0,1fr)]">
               <div className="sticky top-36 flex h-[calc(100vh-13rem)] min-h-[420px] flex-col">
                 <div className="mb-2 shrink-0">
-                  <h2 className="text-sm font-bold text-ink">
-            {title} <span className="font-medium text-ink-faint">{shown.length.toLocaleString("ko-KR")}곳{shown.length !== items.length ? ` / 전체 ${items.length.toLocaleString("ko-KR")}` : ""}</span>
-          </h2>
+                  {titleRow}
                 </div>
                 <div className="min-h-0 flex-1 overflow-y-auto pr-1">{shown.length ? cards(true) : <NoMatch />}</div>
               </div>
@@ -358,9 +363,7 @@ export function SpotBrowser({
           {/* 모바일 지도 보기: 위에 지도(핀 → 아래 시트), 아래 카드. 전체 화면 지도는 아래 버튼 */}
           {isMap && items.length > 0 && (
             <div className="space-y-3 md:hidden">
-          <h2 className="text-sm font-bold text-ink">
-            {title} <span className="font-medium text-ink-faint">{shown.length.toLocaleString("ko-KR")}곳{shown.length !== items.length ? ` / 전체 ${items.length.toLocaleString("ko-KR")}` : ""}</span>
-          </h2>
+          {titleRow}
               {!mobileMap && <MultiMap pins={pins} hoverId={null} selectedId={selectedId} onSelect={open} onSearchArea={setBounds} className="h-[45vh] min-h-[280px]" overlay={<TypeTabs tabs={typeTabs} variant="map" />} />}
               {shown.length ? cards(false) : <NoMatch />}
             </div>
