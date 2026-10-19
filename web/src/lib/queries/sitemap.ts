@@ -138,6 +138,16 @@ export async function sitemapRegions(): Promise<SitemapEntry[]> {
     .groupBy(regions.sidoSlug, regions.sigunguSlug, spotTypes.slug)
     .having(gte(sql`count(*)`, MIN_SPOTS_FOR_INDEX));
 
+  // 시도 x 유형(/spot/[시도]/[유형]) — 같은 게이트
+  const sidoTypeCounts = await db
+    .select({ sidoSlug: regions.sidoSlug, typeSlug: spotTypes.slug, count: sql<number>`count(*)`.mapWith(Number) })
+    .from(spots)
+    .innerJoin(regions, eq(spots.regionId, regions.id))
+    .innerJoin(spotTypes, eq(spots.typeId, spotTypes.id))
+    .where(and(indexableSpot, notCare))
+    .groupBy(regions.sidoSlug, spotTypes.slug)
+    .having(gte(sql`count(*)`, MIN_SPOTS_FOR_INDEX));
+
   // 유형 허브(/spot/type/[slug]) — B2B 참고 유형 포함, 색인 가능 스팟 3곳 이상만
   const typeTotals = await db
     .select({ typeSlug: spotTypes.slug, count: sql<number>`count(*)`.mapWith(Number) })
@@ -179,6 +189,7 @@ export async function sitemapRegions(): Promise<SitemapEntry[]> {
     ...typeTotals.map((t) => ({ path: `/spot/type/${t.typeSlug}` })),
     ...careTypeTotals.map((t) => ({ path: `/spot/type/${t.typeSlug}` })),
     ...[...sidoWithAny].map((s) => ({ path: `/spot/${s}` })),
+    ...sidoTypeCounts.map((r) => ({ path: `/spot/${r.sidoSlug}/${r.typeSlug}` })),
     ...regionCounts.map((r) => ({ path: `/spot/${r.sidoSlug}/${r.sigunguSlug}` })),
     ...regionTypeCounts.map((r) => ({ path: `/spot/${r.sidoSlug}/${r.sigunguSlug}/${r.typeSlug}` })),
     ...careRegionCounts.map((r) => ({ path: `/spot/${r.sidoSlug}/${r.sigunguSlug}/${r.typeSlug}` })),

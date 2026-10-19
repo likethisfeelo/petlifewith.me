@@ -117,12 +117,13 @@ export async function countLinksBySpot(spotIds: number[]): Promise<Map<number, n
  * 광고 없이 순수 목록만 원하는 곳(장묘)은 monetizable=false 유형이라 프로모션이 생성될 수 없다.
  */
 /** plainOrder: 장묘·약국 등 광고 없는 유형 — 등급 순서 없이 가나다순만 (기획서 4-1·6-2) */
-export async function listSpotsInRegion(regionId: number, typeId?: number, limit?: number, opts?: { plainOrder?: boolean }): Promise<SpotWithMeta[]> {
+/** where: 시군구 id, 또는 { sidoSlug } (시도 x 유형 페이지 — 그 시도 전체) */
+export async function listSpotsInRegion(where: number | { sidoSlug: string }, typeId?: number, limit?: number, opts?: { plainOrder?: boolean }): Promise<SpotWithMeta[]> {
   if (!isDbConfigured()) return [];
   const db = getDb();
   // 지역 혼합 목록(유형 미지정)은 소비자 유형(listed)만 섞는다.
   // 유형을 명시하면 — B2B 참고 유형 포함 — 그 유형의 목록을 그대로 보여준다.
-  const conds = [eq(spots.regionId, regionId), eq(spots.status, "operating")];
+  const conds = [typeof where === "number" ? eq(spots.regionId, where) : eq(regions.sidoSlug, where.sidoSlug), eq(spots.status, "operating")];
   if (typeId) conds.push(eq(spots.typeId, typeId));
   else conds.push(eq(spotTypes.listed, true));
   const today = todayKst();
@@ -399,4 +400,27 @@ export async function countSpotsByType(sidoSlug?: string): Promise<Map<string, n
     .where(and(...conds))
     .groupBy(spotTypes.slug);
   return new Map(rows.map((r) => [r.slug, r.count]));
+}
+
+/** 시도 x 유형 — 색인 게이트용 (샘플 제외, 영업 중) */
+export async function countIndexableSpotsInSido(sidoSlug: string, typeId: number): Promise<number> {
+  if (!isDbConfigured()) return 0;
+  const rows = await getDb()
+    .select({ count: sql<number>`count(*)`.mapWith(Number) })
+    .from(spots)
+    .innerJoin(regions, eq(spots.regionId, regions.id))
+    .where(and(eq(regions.sidoSlug, sidoSlug), eq(spots.typeId, typeId), eq(spots.status, "operating"), ne(spots.source, "sample")));
+  return rows[0]?.count ?? 0;
+}
+
+/** 시도 x 유형별 영업 중 수 — 전국 유형 페이지의 시도 카드 (돌봄 유형 제외) */
+export async function countTypeBySido(typeId: number): Promise<Array<{ sidoSlug: string; sidoName: string; count: number }>> {
+  if (!isDbConfigured()) return [];
+  return getDb()
+    .select({ sidoSlug: regions.sidoSlug, sidoName: regions.sidoName, count: sql<number>`count(*)`.mapWith(Number) })
+    .from(spots)
+    .innerJoin(regions, eq(spots.regionId, regions.id))
+    .where(and(eq(spots.typeId, typeId), eq(spots.status, "operating")))
+    .groupBy(regions.sidoSlug, regions.sidoName)
+    .orderBy(sql`count(*) desc`);
 }

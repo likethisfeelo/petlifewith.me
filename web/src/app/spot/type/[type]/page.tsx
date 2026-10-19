@@ -73,6 +73,7 @@ export default async function SpotTypeHubPage({ params }: Props) {
   }
   const sidoRows = [...bySido.entries()].map(([slug, v]) => ({ slug, ...v })).sort((a, b) => b.subtotal - a.subtotal);
   const maxSido = Math.max(1, ...sidoRows.map((r) => r.subtotal));
+  const topAreas = [...rows].sort((a, b) => b.count - a.count).slice(0, 16);
 
   return (
     <div className="mx-auto max-w-[1680px] px-4 py-8 sm:px-6">
@@ -91,7 +92,7 @@ export default async function SpotTypeHubPage({ params }: Props) {
         전국 <span className="text-sea">{spotType.name}</span>
       </h1>
       <p className="mt-2 text-sm text-ink-soft">
-        영업 중 {formatNumber(total)}곳 · 지도에서 시도를 누르면 구·시·군이 펼쳐지고, 구·시·군을 누르면 그 지역의 목록 페이지로 갑니다.
+        영업 중 {formatNumber(total)}곳 · 지역을 검색하거나 시·도를 누르면 그 지역의 지도와 목록이 바로 나옵니다.
         {spotType.description ? ` ${spotType.description}` : ""}
       </p>
       {spotType.listed && (
@@ -125,45 +126,47 @@ export default async function SpotTypeHubPage({ params }: Props) {
         </div>
       )}
 
-      {/* 좌측 지도 + 우측 패널. 시군구 타일은 지역x유형 페이지로 가는 진짜 링크 (SEO 페이지 = 지도 페이지) */}
-      <div className="mt-8">
-        <SpotDirectory
-          regions={regionTiles}
-          countsByRegion={countsByRegion}
-          selectedSido={null}
-          selectedRegionId={null}
-          typeSlug={spotType.slug}
-          mapTitle={`${spotType.name} 지역 지도`}
-        >
-          {sidoRows.length === 0 ? (
-            <p className="rounded-xl border border-dashed border-line p-8 text-center text-sm text-ink-faint">
-              아직 등록된 곳이 없습니다. 인허가 데이터 적재와 직접 발굴로 채워집니다.
-            </p>
-          ) : (
-            <section aria-labelledby="sido-summary-heading" className="rounded-2xl border border-line bg-surface p-5">
-              <h2 id="sido-summary-heading" className="text-lg font-bold text-ink">
-                시도별 현황 <span className="text-sm font-medium text-ink-faint">{spotType.name} {formatNumber(total)}곳</span>
+      {/* 시도 카드 → 시도 x 유형 페이지(지도 + 목록 바로). 업체 많은 시군구는 지름길로 */}
+      {sidoRows.length === 0 ? (
+        <p className="mt-8 rounded-xl border border-dashed border-line p-8 text-center text-sm text-ink-faint">아직 등록된 곳이 없습니다. 인허가 데이터 적재와 직접 발굴로 채워집니다.</p>
+      ) : (
+        <>
+          <section aria-labelledby="sido-summary-heading" className="mt-8">
+            <h2 id="sido-summary-heading" className="text-lg font-bold text-ink">
+              지역 고르기 <span className="text-sm font-medium text-ink-faint">누르면 그 지역 {spotType.name} 지도·목록이 바로 나와요</span>
+            </h2>
+            <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+              {sidoRows.map((row) => (
+                <Link key={row.slug} href={`/spot/${row.slug}/${spotType.slug}`} className="group rounded-xl border border-line bg-surface px-4 py-3 transition-shadow hover:shadow-md">
+                  <span className="flex items-baseline justify-between gap-2">
+                    <span className="font-bold text-ink group-hover:underline">{shortSido(row.sidoName)}</span>
+                    <span className="text-sm text-ink-soft">{formatNumber(row.subtotal)}곳</span>
+                  </span>
+                  <span className="mt-2 block h-1.5 overflow-hidden rounded-full bg-sand" aria-hidden>
+                    <span className="block h-full rounded-full bg-sea/70" style={{ width: `${(row.subtotal / maxSido) * 100}%` }} />
+                  </span>
+                  <span className="mt-1.5 block text-[11px] text-ink-faint">{row.regionCount}개 시·군·구</span>
+                </Link>
+              ))}
+            </div>
+          </section>
+
+          {topAreas.length > 0 && (
+            <section aria-labelledby="top-areas-heading" className="mt-8">
+              <h2 id="top-areas-heading" className="text-lg font-bold text-ink">
+                {spotType.name} 많은 지역
               </h2>
-              <p className="mt-1 text-xs text-ink-faint">지도에서 구·시·군을 고르면 그 지역의 {spotType.name} 목록이 이 자리에 나옵니다.</p>
-              <div className="mt-4 grid gap-2 sm:grid-cols-2 2xl:grid-cols-3">
-                {sidoRows.map((row) => (
-                  <Link key={row.slug} href={`/spot/${row.slug}`} className="group rounded-xl border border-line bg-cream px-4 py-2.5 transition-shadow hover:shadow-md">
-                    <span className="flex items-center justify-between text-sm">
-                      <span className="font-semibold text-ink group-hover:underline">{shortSido(row.sidoName)}</span>
-                      <span className="text-ink-faint">
-                        {formatNumber(row.subtotal)}곳 · {row.regionCount}개 지역
-                      </span>
-                    </span>
-                    <span className="mt-1.5 block h-1 overflow-hidden rounded-full bg-sand" aria-hidden>
-                      <span className="block h-full rounded-full bg-sea/60" style={{ width: `${(row.subtotal / maxSido) * 100}%` }} />
-                    </span>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {topAreas.map(({ region, count }) => (
+                  <Link key={region.id} href={regionHref(region, spotType.slug)} className="rounded-full border border-line bg-surface px-3.5 py-2 text-sm font-semibold text-ink hover:border-sea hover:text-sea">
+                    {shortSido(region.sidoName)} {region.sigunguName} <span className="text-xs font-medium text-ink-faint">{formatNumber(count)}</span>
                   </Link>
                 ))}
               </div>
             </section>
           )}
-        </SpotDirectory>
-      </div>
+        </>
+      )}
 
       {spotType.listed && (
         <section aria-labelledby="other-types-heading" className="mt-10">
