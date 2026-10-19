@@ -53,3 +53,31 @@ export async function careRelatedPaths(spotId: number): Promise<string[]> {
     ]),
   ];
 }
+
+// 업체 링크 페이지가 바뀌면(생성·유료 기간·짧은 주소·소개·사진) 링크 페이지와 장소 페이지, 지역 목록(노출 순서)을 다시 만든다.
+export async function spotPageRelatedPaths(spotId: number, extraHandles: Array<string | null | undefined> = []): Promise<string[]> {
+  const db = getDb();
+  const row = (
+    await db
+      .select({ id: spots.id, slug: spots.slug, typeSlug: spotTypes.slug, sidoSlug: regions.sidoSlug, sigunguSlug: regions.sigunguSlug, handle: schema.spotPages.handle })
+      .from(spots)
+      .innerJoin(spotTypes, eq(spots.typeId, spotTypes.id))
+      .innerJoin(regions, eq(spots.regionId, regions.id))
+      .leftJoin(schema.spotPages, eq(schema.spotPages.spotId, spots.id))
+      .where(eq(spots.id, spotId))
+      .limit(1)
+  )[0];
+  if (!row) return [];
+  const handles = [row.handle, ...extraHandles].filter((h): h is string => !!h);
+  return [
+    ...new Set([
+      `/l/${row.id}`,
+      `/api/spots/${row.id}/preview`,
+      ...handles.map((h) => `/l/${h}`),
+      `/place/${row.id}-${row.slug}`,
+      `/spot/${row.sidoSlug}/${row.sigunguSlug}`,
+      `/spot/${row.sidoSlug}/${row.sigunguSlug}/${row.typeSlug}`,
+      ...(await careRelatedPaths(spotId)),
+    ]),
+  ];
+}

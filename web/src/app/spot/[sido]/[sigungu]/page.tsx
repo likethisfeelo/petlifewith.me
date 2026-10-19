@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Breadcrumbs } from "@/components/breadcrumbs";
-import { SpotCard } from "@/components/cards";
+import { SpotBrowser } from "@/components/spot/spot-browser";
+import { toBrowserSpots } from "@/lib/spot-browser-server";
+import { TYPE_ICON } from "@/lib/spot-search";
 import { JsonLd } from "@/components/jsonld";
 import { RememberRegion } from "@/components/region-banner";
 import { RegionDataBlock } from "@/components/region-data-block";
@@ -16,11 +18,13 @@ import {
   getRegionDogStats,
   listRegionTiles,
   listRegionTotals,
+  listLinkKindsBySpot,
   listSpotsInRegion,
 } from "@/lib/queries/spots";
 import { buildMeta, itemListLd, robotsMeta, shouldIndexRegionPage } from "@/lib/seo";
 import { idSlugPath } from "@/lib/format";
 import { SpotRegisterBanner } from "@/components/spot-register-banner";
+import { SidoTypePage, resolveSidoType, sidoTypeMetadata } from "./sido-type";
 
 export const revalidate = 21600; // REVALIDATE.spotDirectory
 
@@ -35,7 +39,11 @@ interface Props {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { sido, sigungu } = await params;
   const region = await getRegionBySlugs(decodeURIComponent(sido), decodeURIComponent(sigungu));
-  if (!region) return { robots: robotsMeta(false) };
+  if (!region) {
+    // /spot/<시도>/<유형> — 시도 x 유형 페이지
+    const found = await resolveSidoType(decodeURIComponent(sido), decodeURIComponent(sigungu));
+    return found ? sidoTypeMetadata(decodeURIComponent(sido), found) : { robots: robotsMeta(false) };
+  }
   // 얇은 콘텐츠 방지: 스팟 3개 미만 지역 페이지 → noindex (claude.md 5-3)
   const indexableCount = await countIndexableSpotsInRegion(region.id);
   return buildMeta({
@@ -49,7 +57,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function SigunguPage({ params }: Props) {
   const { sido, sigungu } = await params;
   const region = await getRegionBySlugs(decodeURIComponent(sido), decodeURIComponent(sigungu));
-  if (!region) notFound();
+  if (!region) {
+    const found = await resolveSidoType(decodeURIComponent(sido), decodeURIComponent(sigungu));
+    if (!found) notFound();
+    return <SidoTypePage sidoSlug={decodeURIComponent(sido)} found={found} />;
+  }
 
   // 적재 후 지역당 수백 곳이 될 수 있다 — 지역 허브는 상위 일부만 보여주고 전체는 유형 페이지로
   const REGION_LIST_LIMIT = 48;
@@ -67,9 +79,10 @@ export default async function SigunguPage({ params }: Props) {
   const typeCounts = allTypeCounts.filter((c) => c.listed);
   const infraCounts = allTypeCounts.filter((c) => !c.listed);
   const listedTotal = typeCounts.reduce((a, c) => a + c.count, 0);
+  const items = toBrowserSpots(spots, await listLinkKindsBySpot(spots.map((s) => s.spot.id)));
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-10">
+    <div className="mx-auto max-w-[1680px] px-4 py-10 sm:px-6">
       <SpotRegisterBanner regionLabel={`${region.sidoName} ${region.sigunguName}`} regionId={region.id} />
 
       <RememberRegion
@@ -129,28 +142,33 @@ export default async function SigunguPage({ params }: Props) {
         </div>
       )}
 
-      <section className="mt-10">
-        <h2 className="text-lg font-bold text-ink">
-          스팟 {listedTotal.toLocaleString("ko-KR")}곳{spots.length < listedTotal ? ` — 상위 ${spots.length}곳 표시` : ""}
-        </h2>
-        {spots.length < listedTotal && (
-          <p className="mt-1 text-xs text-ink-faint">전체 목록은 위 유형별 링크에서 볼 수 있습니다.</p>
-        )}
-        {spots.length === 0 ? (
-          <p className="mt-4 rounded-xl border border-dashed border-line p-8 text-center text-sm text-ink-faint">
-            아직 등록된 스팟이 없습니다. 인허가 데이터 적재와 직접 발굴로 채워집니다.
-          </p>
-        ) : (
-          <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            {spots.map((s) => (
-              <SpotCard key={s.spot.id} item={s} />
-            ))}
-          </div>
-        )}
-      </section>
-
         </SpotDirectory>
       </div>
+
+      <section className="mt-10">
+        {spots.length < listedTotal && (
+          <p className="mb-2 text-xs text-ink-faint">
+            스팟 {listedTotal.toLocaleString("ko-KR")}곳 중 {spots.length}곳을 보여 줍니다 — 전체 목록은 위 유형별 링크에서 볼 수 있습니다.
+          </p>
+        )}
+        <SpotBrowser
+          items={items}
+          title={`${region.sigunguName} 스팟`}
+          showSidebar={false}
+          typeTabs={[
+            { key: "all", label: "전체", count: listedTotal, href: `/spot/${region.sidoSlug}/${region.sigunguSlug}`, active: true },
+            ...typeCounts.map((c) => ({
+              key: c.typeSlug,
+              label: c.typeName,
+              count: c.count,
+              href: `/spot/${region.sidoSlug}/${region.sigunguSlug}/${c.typeSlug}`,
+              icon: TYPE_ICON[c.typeSlug],
+              active: false,
+            })),
+          ]}
+          emptyText="아직 등록된 스팟이 없습니다. 인허가 데이터 적재와 직접 발굴로 채워집니다."
+        />
+      </section>
 
       <p className="mt-6 text-xs text-ink-faint">
         시설 정보는 행정안전부 지방행정 인허가데이터(공공데이터포털 data.go.kr)와 직접 확인을 바탕으로

@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { carePersonLabel, isCareType } from "@app/data";
 import { Breadcrumbs } from "@/components/breadcrumbs";
-import { SpotCard } from "@/components/cards";
 import { CareAreaSlots } from "@/components/care/care-slots";
 import { SpotDirectory } from "@/components/spot/spot-directory";
 import { CARE_INTRO, countProvidersByRegion, countProvidersBySido, providersInArea } from "@/lib/care";
@@ -10,8 +9,14 @@ import { countIndexableCareProviders, listCareProviders, listCareRegions } from 
 import { JsonLd } from "@/components/jsonld";
 import { RememberRegion } from "@/components/region-banner";
 import { B2BNote, PharmacyNote } from "@/components/notices";
+import { SpotBrowser } from "@/components/spot/spot-browser";
+import { SpotSidebar } from "@/components/spot/spot-sidebar";
+import { toBrowserSpots } from "@/lib/spot-browser-server";
+import { TYPE_ICON, shortSido } from "@/lib/spot-search";
 import {
   countIndexableSpotsInRegion,
+  countSpotsByTypeInRegion,
+  listLinkKindsBySpot,
   getRegionBySlugs,
   getSpotTypeBySlug,
   listRegionCountsForType,
@@ -138,17 +143,22 @@ export default async function RegionTypePage({ params }: Props) {
     );
   }
 
-  const [spots, regionTiles, counts] = await Promise.all([
-    listSpotsInRegion(region.id, spotType.id),
+  const [spots, regionTiles, counts, typeCounts] = await Promise.all([
+    listSpotsInRegion(region.id, spotType.id, undefined, { plainOrder: !spotType.monetizable }),
     listRegionTiles(),
     listRegionCountsForType(spotType.id),
+    countSpotsByTypeInRegion(region.id),
   ]);
   const countsByRegion = Object.fromEntries(counts.map((r) => [r.region.id, r.count]));
+  const linkKinds = await listLinkKindsBySpot(spots.map((s) => s.spot.id));
+  const items = toBrowserSpots(spots, linkKinds);
+  const canAdvertise = spotType.listed && spotType.monetizable;
+  const registerQs = new URLSearchParams({ region: String(region.id), type: spotType.slug }).toString();
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-10">
+    <div className="mx-auto max-w-[1680px] px-4 py-8 sm:px-6">
       {/* 장묘·약국·B2B 유형은 광고·영업 유도를 붙이지 않는다 */}
-      {spotType.listed && spotType.monetizable && (
+      {canAdvertise && (
         <SpotRegisterBanner regionLabel={`${region.sidoName} ${region.sigunguName}`} regionId={region.id} typeSlug={spotType.slug} typeName={spotType.name} />
       )}
 
@@ -166,7 +176,12 @@ export default async function RegionTypePage({ params }: Props) {
       <h1 className="mt-6 text-3xl font-extrabold tracking-tight text-ink">
         {region.sigunguName} <span className="text-sea">{spotType.name}</span>
       </h1>
-      {spotType.description && <p className="mt-2 text-sm text-ink-soft">{spotType.description}</p>}
+      <p className="mt-2 text-sm text-ink-soft">
+        {spotType.description ? `${spotType.description} · ` : ""}
+        <a href={`/spot/${region.sidoSlug}/${spotType.slug}`} className="font-medium text-sea hover:underline">
+          {shortSido(region.sidoName)} 전체 {spotType.name} 보기 →
+        </a>
+      </p>
 
       {/* 장묘·동물약국: 광고를 붙이지 않는 영역 — 담담한 실무 정보만 (기획서 4-1·6-2) */}
       {!spotType.monetizable && (
@@ -177,33 +192,31 @@ export default async function RegionTypePage({ params }: Props) {
       {spotType.slug === "pharmacy" && <PharmacyNote />}
       {!spotType.listed && <B2BNote />}
 
-      {/* 좌측 지도(이 지역 강조) + 우측 목록. 다른 시군구 타일을 누르면 그 지역 페이지로 간다 — 이 페이지가 곧 SEO 페이지 */}
-      <div className="mt-8">
-        <SpotDirectory
-          regions={regionTiles}
-          countsByRegion={countsByRegion}
-          selectedSido={region.sidoSlug}
-          selectedRegionId={region.id}
-          typeSlug={spotType.slug}
-          mapTitle={`${spotType.name} 지역 지도`}
-        >
-          <section aria-labelledby="region-list-heading">
-            <h2 id="region-list-heading" className="text-sm font-bold text-ink">
-              {region.sigunguName} {spotType.name} <span className="font-medium text-ink-faint">{spots.length}곳</span>
-            </h2>
-            {spots.length === 0 ? (
-              <p className="mt-3 rounded-xl border border-dashed border-line p-8 text-center text-sm text-ink-faint">
-                아직 등록된 곳이 없습니다.
-              </p>
-            ) : (
-              <div className="mt-3 grid gap-4 sm:grid-cols-2">
-                {spots.map((s) => (
-                  <SpotCard key={s.spot.id} item={s} />
-                ))}
-              </div>
-            )}
-          </section>
-        </SpotDirectory>
+      <div className="mt-6">
+        <SpotBrowser
+          items={items}
+          title={`${region.sigunguName} ${spotType.name}`}
+          typeTabs={[
+            { key: "all", label: "전체", count: typeCounts.filter((t) => t.listed).reduce((a, t) => a + t.count, 0), href: basePath, active: false },
+            ...typeCounts
+              .filter((t) => t.listed)
+              .map((t) => ({ key: t.typeSlug, label: t.typeName, count: t.count, href: `${basePath}/${t.typeSlug}`, icon: TYPE_ICON[t.typeSlug], active: t.typeSlug === spotType.slug })),
+          ]}
+          registerCard={canAdvertise ? { href: `/portal/spot?${registerQs}#register`, label: "여기에 내 업체를 소개하세요" } : null}
+          sidebar={
+            <SpotSidebar
+              types={typeCounts.filter((t) => t.listed).map((t) => ({ slug: t.typeSlug, name: t.typeName, count: t.count }))}
+              currentType={spotType.slug}
+              basePath={basePath}
+              sidoRegions={regionTiles.filter((r) => r.sidoSlug === region.sidoSlug)}
+              currentRegionId={region.id}
+              typeSlug={spotType.slug}
+              countsByRegion={countsByRegion}
+              sidoName={region.sidoName}
+              sidoSlug={region.sidoSlug}
+            />
+          }
+        />
       </div>
 
       <p className="mt-6 text-xs text-ink-faint">

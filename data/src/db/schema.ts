@@ -23,6 +23,7 @@ import {
   jsonb,
   pgEnum,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uniqueIndex,
@@ -459,6 +460,60 @@ export const spotLinks = pgTable(
     sortOrder: integer("sort_order").notNull().default(0),
   },
   (t) => [index("spot_links_spot_idx").on(t.spotId)],
+);
+
+// ---------- 업체 링크 페이지 (0025) ----------
+// 링크트리처럼 업체 채널만 모은 한 장짜리 페이지 — link.<apex>/<번호> (무료), link.<apex>/<짧은 주소> (유료).
+// 행이 있으면 "등록 업체"(무료). 유료는 관리자가 기간(paid_from~paid_until)을 정해 수동으로 켠다 — 지역 상단 노출과 별개 상품.
+// 소유자는 spots.claimed_by 그대로 쓴다(없어도 페이지를 먼저 만들 수 있고, 나중에 요청이 오면 그 계정에 연결).
+export const spotPages = pgTable(
+  "spot_pages",
+  {
+    spotId: bigint("spot_id", { mode: "number" })
+      .primaryKey()
+      .references(() => spots.id, { onDelete: "cascade" }),
+    // 유료 짧은 주소 — 소문자·숫자·하이픈, 글자 하나 이상(번호 주소와 겹치지 않게). 유료가 끝나면 번호 주소로 돌려보낸다
+    handle: text("handle").unique(),
+    intro: text("intro"), // 업체 소개 한 문단 (비우면 상세 소개 첫 문단)
+    services: text("services").array().notNull().default(sql`'{}'::text[]`), // 주요 서비스 목록
+    paidFrom: date("paid_from"),
+    paidUntil: date("paid_until"),
+    published: boolean("published").notNull().default(true),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index("spot_pages_paid_idx").on(t.paidUntil)],
+);
+
+// 링크 페이지 사진·영상 (유료) — 종류별 최대 10개는 앱 레이어에서 강제한다
+export const spotMedia = pgTable(
+  "spot_media",
+  {
+    id: bigint("id", { mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
+    spotId: bigint("spot_id", { mode: "number" })
+      .notNull()
+      .references(() => spots.id, { onDelete: "cascade" }),
+    assetId: bigint("asset_id", { mode: "number" })
+      .notNull()
+      .references(() => mediaAssets.id, { onDelete: "cascade" }),
+    sortOrder: integer("sort_order").notNull().default(0),
+    createdAt: createdAt(),
+  },
+  (t) => [index("spot_media_spot_idx").on(t.spotId, t.sortOrder), uniqueIndex("spot_media_uq").on(t.spotId, t.assetId)],
+);
+
+// 링크 페이지 하루 조회·채널 클릭 수 (한국 날짜 기준)
+export const spotPageStats = pgTable(
+  "spot_page_stats",
+  {
+    spotId: bigint("spot_id", { mode: "number" })
+      .notNull()
+      .references(() => spots.id, { onDelete: "cascade" }),
+    day: date("day").notNull(),
+    views: integer("views").notNull().default(0),
+    clicks: integer("clicks").notNull().default(0),
+  },
+  (t) => [primaryKey({ columns: [t.spotId, t.day] })],
 );
 
 // 돌봄 파트너(펫시터·펫산책)의 서비스 지역 — 시설이 아니라 사람이 움직이는 서비스라

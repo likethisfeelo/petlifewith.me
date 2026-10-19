@@ -20,6 +20,10 @@ import { getPlace, getSpotLinks } from "@/lib/queries/spots";
 import { spotLinkLabel } from "@/lib/links";
 import { buildMeta, localBusinessLd, placeInfoItemCount, robotsMeta, shouldIndexPlace } from "@/lib/seo";
 import { assetUrl } from "@/lib/assets";
+import { siteUrl } from "@/lib/config";
+import { spotLatLng } from "@/lib/geo";
+import { UNVERIFIED_NOTICE, linkBaseUrl, linkPageUrl } from "@/lib/spot-pages";
+import { PlaceMap } from "@/components/map/place-map";
 
 export const revalidate = 21600; // REVALIDATE.place
 
@@ -108,6 +112,11 @@ export default async function PlacePage({ params }: Props) {
   }
 
   const regionPath = `/spot/${region.sidoSlug}/${region.sigunguSlug}`;
+  // 링크 페이지가 있으면 바로가기, 사장님 확인이 없는 공공데이터 정보면 안내
+  const linkUrl = found.page?.published ? linkPageUrl(linkBaseUrl(siteUrl()), spot.id, found.page) : null;
+  const unverified = found.tier === "unlisted" && !spot.claimedBy && spot.source !== "sample";
+  const coords = spotLatLng(spot);
+  const showMap = exposedAreas.length === 0 && (coords || spot.addressRoad);
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">
@@ -167,6 +176,18 @@ export default async function PlacePage({ params }: Props) {
         )}
       </header>
 
+      {linkUrl && (
+        <a href={linkUrl} className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-ink px-4 py-2 text-sm font-semibold text-cream hover:opacity-90">
+          {found.tier === "paid" ? "프리미엄 링크 페이지" : "업체 링크 페이지"} ↗
+        </a>
+      )}
+
+      {unverified && (
+        <p className="mt-5 rounded-lg border border-honey/40 bg-honey-soft px-4 py-3 text-sm text-ink">
+          <strong className="font-semibold">확인 안내</strong> · {UNVERIFIED_NOTICE}
+        </p>
+      )}
+
       {/* 장묘·동물약국: 광고·추천 없이 사실 정보만 (기획서 4-1·6-2) */}
       {!typeMonetizable && (
         <p className="mt-5 rounded-lg border border-line bg-sand px-4 py-3 text-sm text-ink-soft">
@@ -218,6 +239,12 @@ export default async function PlacePage({ params }: Props) {
               </div>
             ))}
           </dl>
+        </section>
+      )}
+
+      {showMap && (
+        <section className="mt-4">
+          <PlaceMap name={spot.name} lat={coords?.lat} lng={coords?.lng} address={spot.addressRoad} preferAddress={!!spot.claimedBy} height={220} />
         </section>
       )}
 
@@ -281,7 +308,7 @@ export default async function PlacePage({ params }: Props) {
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
           <Link
-            href={`/claim/spot/${spot.id}`}
+            href={`/portal/spot?spot=${spot.id}#register`}
             className="rounded-full bg-ink px-4 py-2 text-xs font-medium text-cream hover:opacity-90"
           >
             정보 관리 요청 (무료)

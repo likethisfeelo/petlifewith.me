@@ -4,6 +4,7 @@
 //   admin.<apex>    → /admin        전체 관리자 (블로그 글 포함)
 //   service.<apex>  → /portal/spot  업체 정보 — 사장님용
 //   product.<apex>  → /portal/product  제품·브랜드 등록 — 사장님용
+//   link.<apex>     → /l            업체 링크 페이지 (link.<apex>/123, link.<apex>/짧은주소)
 //   dev.<apex>      → (매핑 없음)   개발 배포는 별도 스택. NEXT_PUBLIC_SITE_ENV=preview
 //
 // 하이픈 형식: apex 가 이미 서브도메인인 스테이지(dev.petlifewith.me)에서는
@@ -42,6 +43,7 @@ const SUBDOMAIN_PREFIX: Record<string, string> = {
   admin: "/admin",
   service: "/portal/spot",
   product: "/portal/product",
+  link: "/l",
 };
 
 /**

@@ -2,8 +2,9 @@ import { and, asc, eq, inArray, ne, notInArray, sql } from "drizzle-orm";
 import { CARE_TYPE_SLUGS } from "@app/data";
 import { getDb, isDbConfigured, schema } from "../db";
 import type { RegionTile } from "../regions";
+import { tierOf, todayKst, type SpotPageLike, type SpotTier } from "../spot-pages";
 
-const { spots, spotTypes, regions, promotions, regionDogStats, spotLinks } = schema;
+const { spots, spotTypes, regions, promotions, regionDogStats, spotLinks, spotPages } = schema;
 
 export type SpotRow = typeof spots.$inferSelect;
 export type SpotLinkRow = typeof spotLinks.$inferSelect;
@@ -18,6 +19,21 @@ export interface SpotWithMeta {
   typeListed: boolean;
   region: RegionRow;
   promoted: boolean;
+  /** 링크 페이지 (없으면 미등록) */
+  page: SpotPageLike | null;
+  /** 노출 등급 — 상단 노출 → 유료 → 무료(등록) → 미등록 (lib/spot-pages.ts) */
+  tier: SpotTier;
+}
+
+const pageCols = {
+  pagePublished: spotPages.published,
+  pagePaidFrom: spotPages.paidFrom,
+  pagePaidUntil: spotPages.paidUntil,
+  pageHandle: spotPages.handle,
+};
+
+function pageOf(r: { pagePublished: boolean | null; pagePaidFrom: string | null; pagePaidUntil: string | null; pageHandle: string | null }): SpotPageLike | null {
+  return r.pagePublished === null ? null : { published: r.pagePublished, paidFrom: r.pagePaidFrom, paidUntil: r.pagePaidUntil, handle: r.pageHandle };
 }
 
 /** 공개 노출 유형만 (listed). 관리자 화면은 includeUnlisted 로 B2B 유형까지 본다. */
@@ -63,15 +79,19 @@ export async function getPlace(id: number): Promise<SpotWithMeta | null> {
       typeMonetizable: spotTypes.monetizable,
       typeListed: spotTypes.listed,
       region: regions,
+      ...pageCols,
     })
     .from(spots)
     .innerJoin(spotTypes, eq(spots.typeId, spotTypes.id))
     .innerJoin(regions, eq(spots.regionId, regions.id))
+    .leftJoin(spotPages, eq(spotPages.spotId, spots.id))
     .where(eq(spots.id, id))
     .limit(1);
   const row = rows[0];
   if (!row) return null;
-  return { ...row, promoted: false };
+  const { pagePublished, pagePaidFrom, pagePaidUntil, pageHandle, ...rest } = row;
+  const page = pageOf({ pagePublished, pagePaidFrom, pagePaidUntil, pageHandle });
+  return { ...rest, promoted: false, page, tier: tierOf({ promoted: false, page }) };
 }
 
 /** 스팟의 외부 링크 (홈페이지·카카오톡·예약 등 — 등록된 것만) */
@@ -96,14 +116,29 @@ export async function countLinksBySpot(spotIds: number[]): Promise<Map<number, n
  * 프로모션(region_top) 활성 스팟이 앞으로 오되 반드시 "광고" 라벨과 함께 렌더된다.
  * 광고 없이 순수 목록만 원하는 곳(장묘)은 monetizable=false 유형이라 프로모션이 생성될 수 없다.
  */
-export async function listSpotsInRegion(regionId: number, typeId?: number, limit?: number): Promise<SpotWithMeta[]> {
+/** plainOrder: 장묘·약국 등 광고 없는 유형 — 등급 순서 없이 가나다순만 (기획서 4-1·6-2) */
+/** where: 시군구 id, 또는 { sidoSlug } (시도 x 유형 페이지 — 그 시도 전체) */
+export async function listSpotsInRegion(where: number | { sidoSlug: string }, typeId?: number, limit?: number, opts?: { plainOrder?: boolean }): Promise<SpotWithMeta[]> {
   if (!isDbConfigured()) return [];
   const db = getDb();
   // 지역 혼합 목록(유형 미지정)은 소비자 유형(listed)만 섞는다.
   // 유형을 명시하면 — B2B 참고 유형 포함 — 그 유형의 목록을 그대로 보여준다.
-  const conds = [eq(spots.regionId, regionId), eq(spots.status, "operating")];
+  const conds = [typeof where === "number" ? eq(spots.regionId, where) : eq(regions.sidoSlug, where.sidoSlug), eq(spots.status, "operating")];
   if (typeId) conds.push(eq(spots.typeId, typeId));
   else conds.push(eq(spotTypes.listed, true));
+  const today = todayKst();
+  const promotedSql = sql<boolean>`exists (
+        select 1 from ${promotions} p
+        where p.spot_id = ${spots.id} and p.active = true and p.kind = 'region_top'
+      )`;
+  // 노출 순서: 상단 노출(광고) → 유료 링크 페이지 → 무료(등록) → 미등록, 같은 등급 안은 가나다순
+  // 광고 없는 유형(장묘·약국)은 섞인 목록에서 등급으로 앞세우지 않는다 — 미등록과 같은 자리에서 가나다순
+  const tierSql = sql`case
+      when not ${spotTypes.monetizable} then 3
+      when ${promotedSql} then 0
+      when ${spotPages.published} and ${spotPages.paidFrom} <= ${today} and ${spotPages.paidUntil} >= ${today} then 1
+      when ${spotPages.published} then 2
+      else 3 end`;
   const rows = await db
     .select({
       spot: spots,
@@ -112,21 +147,20 @@ export async function listSpotsInRegion(regionId: number, typeId?: number, limit
       typeMonetizable: spotTypes.monetizable,
       typeListed: spotTypes.listed,
       region: regions,
-      promoted: sql<boolean>`exists (
-        select 1 from ${promotions} p
-        where p.spot_id = ${spots.id} and p.active = true and p.kind = 'region_top'
-      )`,
+      promoted: promotedSql,
+      ...pageCols,
     })
     .from(spots)
     .innerJoin(spotTypes, eq(spots.typeId, spotTypes.id))
     .innerJoin(regions, eq(spots.regionId, regions.id))
+    .leftJoin(spotPages, eq(spotPages.spotId, spots.id))
     .where(and(...conds))
-    .orderBy(sql`case when exists (
-        select 1 from ${promotions} p
-        where p.spot_id = ${spots.id} and p.active = true and p.kind = 'region_top'
-      ) then 0 else 1 end`, asc(spots.name))
+    .orderBy(...(opts?.plainOrder ? [asc(spots.name)] : [tierSql, asc(spots.name)]))
     .limit(limit ?? 100_000);
-  return rows;
+  return rows.map(({ pagePublished, pagePaidFrom, pagePaidUntil, pageHandle, ...rest }) => {
+    const page = pageOf({ pagePublished, pagePaidFrom, pagePaidUntil, pageHandle });
+    return { ...rest, page, tier: tierOf({ promoted: rest.promoted, page }, today) };
+  });
 }
 
 export interface RegionTypeCount {
@@ -337,4 +371,56 @@ export async function getRegionDogStats(regionId: number): Promise<{
     .from(regionDogStats)
     .where(and(eq(regionDogStats.regionId, regionId), eq(regionDogStats.referenceDate, referenceDate)));
   return { rows, referenceDate };
+}
+
+/** 여러 스팟의 링크 종류 — 목록 필터(예약 가능)와 카드 표시용 */
+export async function listLinkKindsBySpot(spotIds: number[]): Promise<Map<number, string[]>> {
+  if (!isDbConfigured() || spotIds.length === 0) return new Map();
+  const out = new Map<number, string[]>();
+  for (let i = 0; i < spotIds.length; i += 5000) {
+    const rows = await getDb()
+      .selectDistinct({ spotId: spotLinks.spotId, kind: spotLinks.kind })
+      .from(spotLinks)
+      .where(inArray(spotLinks.spotId, spotIds.slice(i, i + 5000)));
+    for (const r of rows) out.set(r.spotId, [...(out.get(r.spotId) ?? []), r.kind]);
+  }
+  return out;
+}
+
+/** 유형별 영업 중 스팟 수 (전국 또는 한 시도) — 스팟 첫 화면·시도 페이지의 유형 묶음 카드 */
+export async function countSpotsByType(sidoSlug?: string): Promise<Map<string, number>> {
+  if (!isDbConfigured()) return new Map();
+  const conds = [eq(spots.status, "operating")];
+  if (sidoSlug) conds.push(eq(regions.sidoSlug, sidoSlug));
+  const rows = await getDb()
+    .select({ slug: spotTypes.slug, count: sql<number>`count(*)`.mapWith(Number) })
+    .from(spots)
+    .innerJoin(spotTypes, eq(spots.typeId, spotTypes.id))
+    .innerJoin(regions, eq(spots.regionId, regions.id))
+    .where(and(...conds))
+    .groupBy(spotTypes.slug);
+  return new Map(rows.map((r) => [r.slug, r.count]));
+}
+
+/** 시도 x 유형 — 색인 게이트용 (샘플 제외, 영업 중) */
+export async function countIndexableSpotsInSido(sidoSlug: string, typeId: number): Promise<number> {
+  if (!isDbConfigured()) return 0;
+  const rows = await getDb()
+    .select({ count: sql<number>`count(*)`.mapWith(Number) })
+    .from(spots)
+    .innerJoin(regions, eq(spots.regionId, regions.id))
+    .where(and(eq(regions.sidoSlug, sidoSlug), eq(spots.typeId, typeId), eq(spots.status, "operating"), ne(spots.source, "sample")));
+  return rows[0]?.count ?? 0;
+}
+
+/** 시도 x 유형별 영업 중 수 — 전국 유형 페이지의 시도 카드 (돌봄 유형 제외) */
+export async function countTypeBySido(typeId: number): Promise<Array<{ sidoSlug: string; sidoName: string; count: number }>> {
+  if (!isDbConfigured()) return [];
+  return getDb()
+    .select({ sidoSlug: regions.sidoSlug, sidoName: regions.sidoName, count: sql<number>`count(*)`.mapWith(Number) })
+    .from(spots)
+    .innerJoin(regions, eq(spots.regionId, regions.id))
+    .where(and(eq(spots.typeId, typeId), eq(spots.status, "operating")))
+    .groupBy(regions.sidoSlug, regions.sidoName)
+    .orderBy(sql`count(*) desc`);
 }

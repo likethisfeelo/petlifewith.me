@@ -7,7 +7,9 @@ import { Breadcrumbs } from "@/components/breadcrumbs";
 import { SpotDirectory, type TypeChip } from "@/components/spot/spot-directory";
 import { formatNumber } from "@/lib/format";
 import { listCareCountsByRegion, listCareSidoTotals } from "@/lib/queries/care";
-import { listRegionTiles, listSigunguSummaries, listSigunguTypeCounts } from "@/lib/queries/spots";
+import { listRegionTiles, listSigunguSummaries, listSigunguTypeCounts, listSpotTypes } from "@/lib/queries/spots";
+import { SpotSearchBox } from "@/components/spot/spot-search-box";
+import { TypeGroups } from "@/components/spot/type-groups";
 import { buildMeta, robotsMeta } from "@/lib/seo";
 import { SpotRegisterBanner } from "@/components/spot-register-banner";
 
@@ -38,12 +40,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function SidoPage({ params }: Props) {
   const { sido } = await params;
   const sidoSlug = decodeURIComponent(sido);
-  const [rows, regionTiles, typeCounts, careCounts, careSidoTotals] = await Promise.all([
+  const [rows, regionTiles, typeCounts, careCounts, careSidoTotals, allTypes] = await Promise.all([
     listSigunguSummaries(sidoSlug),
     listRegionTiles(),
     listSigunguTypeCounts(sidoSlug),
     listCareCountsByRegion({ sidoSlug }), // 돌봄 파트너는 주소가 아니라 서비스 지역 기준
     listCareSidoTotals(sidoSlug), // 시도 배지·요약은 사람 수 기준
+    listSpotTypes(),
   ]);
   if (rows.length === 0) notFound();
   const sidoName = rows[0]!.region.sidoName;
@@ -62,9 +65,11 @@ export default async function SidoPage({ params }: Props) {
     (countsByType[t.typeSlug] ??= {})[t.regionId] = t.count;
   }
   const types = [...typeMap.values()].sort((a, b) => a.sortOrder - b.sortOrder);
+  const typeTotals = new Map(types.map((t) => [t.slug, careSidoTotals[t.slug] ?? t.total]));
+  const maxCount = Math.max(1, ...rows.map((r) => r.spotCount));
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-10">
+    <div className="mx-auto max-w-[1680px] px-4 py-8 sm:px-6">
       <SpotRegisterBanner regionLabel={sidoName} />
 
       <Breadcrumbs
@@ -77,8 +82,11 @@ export default async function SidoPage({ params }: Props) {
 
       <h1 className="mt-6 text-3xl font-extrabold tracking-tight text-sea">{sidoName}</h1>
       <p className="mt-2 text-ink-soft">
-        영업 중 {formatNumber(total)}곳 · 지도에서 유형을 고르고 구·시·군을 누르면 그 지역의 목록 페이지로 갑니다.
+        영업 중 {formatNumber(total)}곳 · 지역을 검색하거나, 지도에서 유형을 고르고 구·시·군을 누르면 그 지역의 목록으로 갑니다.
       </p>
+      <div className="mt-5 max-w-3xl">
+        <SpotSearchBox tiles={regionTiles} types={allTypes.map((t) => ({ slug: t.slug, name: t.name }))} size="md" placeholder={`${sidoName} 구·시·군 검색 (다른 지역도 가능)`} />
+      </div>
 
       <div className="mt-8">
         <SpotDirectory
@@ -100,42 +108,44 @@ export default async function SidoPage({ params }: Props) {
               시군구별 현황 <span className="text-sm font-medium text-ink-faint">{rows.length}개 지역</span>
             </h2>
             <p className="mt-1 text-xs text-ink-faint">숫자는 영업 중으로 확인된 스팟 수입니다. 지역을 누르면 그 지역의 전체 스팟과 데이터가 나옵니다.</p>
-            <div className="mt-4 grid gap-2 sm:grid-cols-2">
+            <div className="mt-4 grid gap-2 sm:grid-cols-2 2xl:grid-cols-3">
               {rows.map(({ region, spotCount }) => (
                 <Link
                   key={region.id}
                   href={`/spot/${region.sidoSlug}/${region.sigunguSlug}`}
-                  className={`flex items-center justify-between rounded-xl border px-4 py-2.5 transition-shadow hover:shadow-md ${
-                    spotCount > 0 ? "border-line bg-cream" : "border-dashed border-line bg-transparent"
-                  }`}
+                  className={`rounded-xl border px-4 py-2.5 transition-shadow hover:shadow-md ${spotCount > 0 ? "border-line bg-cream" : "border-dashed border-line bg-transparent"}`}
                 >
-                  <span className={spotCount > 0 ? "font-semibold text-ink" : "text-ink-faint"}>{region.sigunguName}</span>
-                  <span className="text-sm text-ink-faint">{spotCount > 0 ? formatNumber(spotCount) : "-"}</span>
+                  <span className="flex items-center justify-between">
+                    <span className={spotCount > 0 ? "font-semibold text-ink" : "text-ink-faint"}>{region.sigunguName}</span>
+                    <span className="text-sm text-ink-faint">{spotCount > 0 ? formatNumber(spotCount) : "-"}</span>
+                  </span>
+                  {spotCount > 0 && (
+                    <span className="mt-1.5 block h-1 overflow-hidden rounded-full bg-sand" aria-hidden>
+                      <span className="block h-full rounded-full bg-sea/60" style={{ width: `${(spotCount / maxCount) * 100}%` }} />
+                    </span>
+                  )}
                 </Link>
               ))}
             </div>
           </section>
 
-          {types.length > 0 && (
-            <section aria-labelledby="type-links-heading" className="mt-5 rounded-2xl border border-line bg-surface p-5">
-              <h2 id="type-links-heading" className="text-sm font-bold text-ink">
-                {sidoName} 유형별 <span className="font-medium text-ink-faint">전국 디렉토리로 갑니다</span>
-              </h2>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {types.map((t) => (
-                  <Link
-                    key={t.slug}
-                    href={`/spot/type/${t.slug}`}
-                    className="rounded-full bg-sea-soft px-3 py-1 text-sm font-medium text-sea hover:bg-sea hover:text-white"
-                  >
-                    {t.name} <span className="opacity-80">{formatNumber(careSidoTotals[t.slug] ?? t.total)}</span>
-                  </Link>
-                ))}
-              </div>
-            </section>
-          )}
         </SpotDirectory>
       </div>
+
+      {types.length > 0 && (
+        <section aria-labelledby="type-links-heading" className="mt-10">
+          <h2 id="type-links-heading" className="mb-4 text-lg font-bold text-ink">
+            {sidoName} 유형별 <span className="font-medium text-ink-faint">누르면 {sidoName} 전체 지도·목록이 나와요</span>
+          </h2>
+          <TypeGroups
+            types={allTypes.filter((t) => typeTotals.has(t.slug))}
+            counts={typeTotals}
+            // 시설 유형은 이 시도의 지도·목록(시도 x 유형), 돌봄 유형은 서비스 지역 기준 전국 허브로
+            hrefFor={(slug) => (careSidoTotals[slug] !== undefined ? `/spot/type/${slug}` : `/spot/${sidoSlug}/${slug}`)}
+            unitFor={(slug) => (careSidoTotals[slug] !== undefined ? "명" : "곳")}
+          />
+        </section>
+      )}
 
     </div>
   );

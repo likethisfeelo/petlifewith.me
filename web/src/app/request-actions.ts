@@ -25,6 +25,7 @@ import {
 } from "@/lib/requests";
 import { listRegistrableSpotTypes, regionLabels } from "@/lib/queries/requests";
 import { sendSlackMessage } from "@/lib/slack";
+import { findDuplicateSpots, type OwnerSearchHit } from "@/lib/queries/spot-register";
 
 const { serviceRequests, spots, spotTypes, makers } = schema;
 
@@ -34,6 +35,8 @@ export interface RequestActionState {
   savedId?: number;
   /** 에러 시 되돌려 주는 입력값 — React 19 가 액션 뒤 폼을 초기화하므로 */
   values?: Record<string, string>;
+  /** 업체 등록 직전 — 이미 있는 것 같은 업체 ("혹시 이 업체인가요?"). confirmNew=1 로 다시 보내면 그대로 등록 */
+  duplicates?: OwnerSearchHit[];
 }
 
 
@@ -144,6 +147,13 @@ export async function createServiceRequestAction(_prev: RequestActionState, form
 
   // 로그인한 회원이면 요청에 연결한다 — 소유 확인·등록이 끝나면 claimed_by 로 이어져 /me 에서 직접 관리한다
   const member = await getCurrentMember();
+
+  // 새 업체 등록인데 같은 지역에 비슷한 이름·같은 전화번호가 있으면 먼저 물어본다 (중복 등록 대신 정보 관리 요청으로)
+  if (kind === "spot_register" && raw.confirmNew !== "1") {
+    const p = prepared.payload as { businessName?: string | null; phone?: string | null; regionId?: number | null };
+    const duplicates = await findDuplicateSpots({ name: p.businessName ?? null, phone: p.phone ?? null, regionId: p.regionId ?? null }, member?.id ?? null);
+    if (duplicates.length > 0) return { duplicates, values };
+  }
   const ipHash = await requesterHash();
   const recent = await db
     .select({ count: sql<number>`count(*)`.mapWith(Number) })

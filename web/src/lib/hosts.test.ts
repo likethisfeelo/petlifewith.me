@@ -46,6 +46,12 @@ describe("rewritePathForHost", () => {
     expect(rewritePathForHost("service", "/")).toBe("/portal/spot");
     expect(rewritePathForHost("product", "/")).toBe("/portal/product");
   });
+  it("link. → 업체 링크 페이지", () => {
+    expect(rewritePathForHost("link", "/123")).toBe("/l/123");
+    expect(rewritePathForHost("link", "/masterpet")).toBe("/l/masterpet");
+    expect(rewritePathForHost("link", "/")).toBe("/l");
+    expect(subdomainOf("link-dev.petlifewith.me", "dev.petlifewith.me")).toBe("link");
+  });
   it("dev.·알 수 없는 서브도메인·메인 호스트는 손대지 않는다", () => {
     expect(rewritePathForHost("dev", "/guide/x")).toBeNull();
     expect(rewritePathForHost("blog", "/")).toBeNull();

@@ -9,9 +9,15 @@ import { getSpotLinks } from "@/lib/queries/spots";
 import { listDeviceOptions, listDevicesForSpot } from "@/lib/queries/devices";
 import { AdminPageHeader } from "../../../_components/fields";
 import { detachOwnerAction } from "../../../request-actions";
+import { SpotPagePanel } from "@/components/linkpage/spot-page-panel";
+import { PremiumPanel } from "@/components/linkpage/premium-panel";
+import { getSpotPage } from "@/lib/queries/spot-pages";
+import { siteUrl } from "@/lib/config";
+import { linkBaseUrl, linkPageUrl } from "@/lib/spot-pages";
+import { and } from "drizzle-orm";
 import { SpotEditor } from "./spot-editor";
 
-const { spots, spotTypes, regions, users } = schema;
+const { spots, spotTypes, regions, users, promotions } = schema;
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -28,9 +34,10 @@ export default async function AdminSpotEditPage({ params, searchParams }: Props)
   const db = getDb();
   const row = (
     await db
-      .select({ spot: spots, sigunguName: regions.sigunguName, sidoName: regions.sidoName })
+      .select({ spot: spots, sigunguName: regions.sigunguName, sidoName: regions.sidoName, monetizable: spotTypes.monetizable })
       .from(spots)
       .innerJoin(regions, eq(spots.regionId, regions.id))
+      .innerJoin(spotTypes, eq(spots.typeId, spotTypes.id))
       .where(eq(spots.id, spotId))
       .limit(1)
   )[0];
@@ -52,6 +59,11 @@ export default async function AdminSpotEditPage({ params, searchParams }: Props)
   ]);
 
   const { spot } = row;
+  const [page, promoRow] = await Promise.all([
+    getSpotPage(spot.id),
+    db.select({ id: promotions.id }).from(promotions).where(and(eq(promotions.spotId, spot.id), eq(promotions.kind, "region_top"), eq(promotions.active, true))).limit(1),
+  ]);
+  const promoted = promoRow.length > 0;
   const owner = spot.claimedBy ? (await db.select({ name: users.displayName, email: users.email }).from(users).where(eq(users.id, spot.claimedBy)).limit(1))[0] : null;
 
   return (
@@ -124,11 +136,25 @@ export default async function AdminSpotEditPage({ params, searchParams }: Props)
                 </form>
               </span>
             ) : (
-              <span className="text-ink-faint">없음 — 요청함의 정보 관리 요청에서 &quot;소유자로 연결&quot;</span>
+              <span className="text-ink-faint">없음 — 요청함의 정보 관리 요청에서 &quot;소유자로 연결&quot; 또는 아래 링크 페이지에서 이메일로 지정</span>
             )}
           </dd>
         </div>
       </dl>
+
+      <div id="paid" className="mt-5 scroll-mt-6">
+        <PremiumPanel
+          spotId={spot.id}
+          monetizable={row.monetizable}
+          page={page && { paidFrom: page.paidFrom, paidUntil: page.paidUntil, handle: page.handle }}
+          promoted={promoted}
+          linkUrl={page ? linkPageUrl(linkBaseUrl(siteUrl()), spot.id, page) : null}
+        />
+      </div>
+
+      <div className="mt-5">
+        <SpotPagePanel spotId={spot.id} admin monetizable={row.monetizable} />
+      </div>
 
       <div className="mt-5">
         <SpotEditor
