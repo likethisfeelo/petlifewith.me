@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { countSubAreas, subAreaOf, fitPins, EMPTY_FILTERS, countActiveFilters, filterSpots, parseView, placeIdFromPath, withinBounds, type BrowserSpot } from "./spot-browser";
+import { packSpots, unpackSpots, countSubAreas, subAreaOf, fitPins, EMPTY_FILTERS, countActiveFilters, filterSpots, parseView, placeIdFromPath, withinBounds, type BrowserSpot } from "./spot-browser";
 
 const base: BrowserSpot = {
   id: 1, name: "가", href: "/place/1-a", typeName: "미용", typeSlug: "grooming", regionLabel: "서울 종로구", address: null,
@@ -39,6 +39,10 @@ describe("spot browser", () => {
     expect(subAreaOf("충청남도 천안시 어딘가 3", gus)).toBeNull();
     expect(subAreaOf("경상북도 포항시 남구 대잠동", ["남구", "북구"])).toBe("남구");
     expect(countSubAreas([{ address: "천안시 동남구 a" }, { address: "천안시 동남구 b" }, { address: null }], gus)).toEqual({ 동남구: 2, 서북구: 0 });
+  });
+  it("압축 전송 왕복", () => {
+    const back = unpackSpots(JSON.parse(JSON.stringify(packSpots(items))));
+    expect(back).toEqual(items);
   });
   it("주소 해석", () => {
     expect(parseView("map")).toBe("map");

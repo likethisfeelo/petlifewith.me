@@ -110,3 +110,44 @@ export function countSubAreas(items: Array<{ address: string | null }>, gus: str
   }
   return out;
 }
+
+// ---------- 압축 전송 (시도 전체처럼 수천 곳) ----------
+// 키 이름을 매번 보내지 않도록 배열 한 줄로. 유형 이름·지역 이름은 표로 따로 보낸다.
+
+const TIERS = ["promoted", "paid", "free", "unlisted"] as const;
+
+export interface PackedSpots {
+  types: Array<[slug: string, name: string, monetizable: boolean]>;
+  regions: string[];
+  rows: Array<[number, string, string, number, number, string | null, string, string | null, string | null, string | null, number, string | null, number | null, number | null, 0 | 1, 0 | 1]>;
+}
+
+export function packSpots(items: BrowserSpot[]): PackedSpots {
+  const typeIdx = new Map<string, number>();
+  const regionIdx = new Map<string, number>();
+  const types: PackedSpots["types"] = [];
+  const regions: string[] = [];
+  const rows = items.map((s) => {
+    if (!typeIdx.has(s.typeSlug)) {
+      typeIdx.set(s.typeSlug, types.length);
+      types.push([s.typeSlug, s.typeName, s.monetizable]);
+    }
+    if (!regionIdx.has(s.regionLabel)) {
+      regionIdx.set(s.regionLabel, regions.length);
+      regions.push(s.regionLabel);
+    }
+    const round = (n: number | null) => (n == null ? null : Math.round(n * 1e5) / 1e5);
+    return [
+      s.id, s.name, s.href, typeIdx.get(s.typeSlug)!, regionIdx.get(s.regionLabel)!, s.address, s.status, s.hours, s.parking, s.price,
+      TIERS.indexOf(s.tier), s.heroUrl, round(s.lat), round(s.lng), s.booking ? 1 : 0, s.claimed ? 1 : 0,
+    ] as PackedSpots["rows"][number];
+  });
+  return { types, regions, rows };
+}
+
+export function unpackSpots(p: PackedSpots): BrowserSpot[] {
+  return p.rows.map(([id, name, href, t, r, address, status, hours, parking, price, tier, heroUrl, lat, lng, booking, claimed]) => {
+    const [typeSlug, typeName, monetizable] = p.types[t]!;
+    return { id, name, href, typeName, typeSlug, regionLabel: p.regions[r]!, address, status, hours, parking, price, tier: TIERS[tier] ?? "unlisted", monetizable, heroUrl, lat, lng, booking: booking === 1, claimed: claimed === 1 };
+  });
+}
