@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addMonths, premiumStatus, isPaidActive, linkBaseUrl, linkPageUrl, parseLinkKey, parseServices, tierOf, todayKst, validateHandle } from "./spot-pages";
+import { mediaLimit, visibleMedia, addMonths, premiumStatus, isPaidActive, linkBaseUrl, linkPageUrl, parseLinkKey, parseServices, tierOf, todayKst, validateHandle } from "./spot-pages";
 
 const page = (o: Partial<{ published: boolean; paidFrom: string | null; paidUntil: string | null; handle: string | null }> = {}) => ({
   published: true,
@@ -69,5 +69,13 @@ describe("spot pages", () => {
     expect(addMonths("2026-10-19", 1)).toBe("2026-11-18");
     expect(addMonths("2026-01-31", 1)).toBe("2026-02-27");
     expect(addMonths("2026-10-19", 12)).toBe("2027-10-18");
+  });
+  it("사진·영상 한도", () => {
+    expect(mediaLimit(false, "image")).toBe(3);
+    expect(mediaLimit(false, "video")).toBe(1);
+    expect(mediaLimit(true, "video")).toBe(10);
+    const items: Array<{ kind: "image" | "video"; i: number }> = [...[...Array(5)].map((_, i) => ({ kind: "image" as const, i })), ...[...Array(3)].map((_, i) => ({ kind: "video" as const, i: 10 + i }))];
+    expect(visibleMedia(items, false).map((m) => m.i)).toEqual([0, 1, 2, 10]);
+    expect(visibleMedia(items, true)).toHaveLength(8);
   });
 });

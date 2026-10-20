@@ -21,8 +21,19 @@ export const TIER_LABEL: Record<SpotTier, string> = {
   unlisted: "미등록",
 };
 
-/** 링크 페이지 사진·영상 — 종류별 최대 개수 (유료) */
-export const SPOT_MEDIA_LIMIT = 10;
+/** 링크 페이지 사진·영상 — 무료(등록 업체)는 사진 3장·영상 1개, 프리미엄은 각 10개.
+ *  목록 카드·지도 핀의 대표 사진은 프리미엄(과 상단 노출)만. */
+export const MEDIA_LIMITS = { free: { image: 3, video: 1 }, paid: { image: 10, video: 10 } } as const;
+
+export function mediaLimit(paid: boolean, kind: "image" | "video"): number {
+  return MEDIA_LIMITS[paid ? "paid" : "free"][kind];
+}
+
+/** 공개 화면에 보일 사진·영상 — 등급 한도만큼 앞에서부터 (유료가 끝나면 앞 3장·1개만 남는다) */
+export function visibleMedia<T extends { kind: "image" | "video" }>(items: T[], paid: boolean): T[] {
+  const seen = { image: 0, video: 0 };
+  return items.filter((m) => ++seen[m.kind] <= mediaLimit(paid, m.kind));
+}
 
 export interface SpotPageLike {
   published: boolean;
