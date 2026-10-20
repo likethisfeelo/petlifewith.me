@@ -1,17 +1,21 @@
-// 시도 페이지 — 지도가 이 시도로 펼쳐진 채 시작한다. 유형 칩을 고르면 배지와 시군구 타일 링크가
-// 그 유형의 지역x유형 페이지(SEO 페이지)로 바뀐다. 우측은 시군구별 현황(지역 허브 링크)과 유형별 링크.
+// 시도 페이지 — 들어오자마자 그 시도 전체 지도·목록 (시도 x 유형·시군구 x 유형과 같은 화면 틀).
+// 맨 위: 이 지역 등록 업체 줄(상단 노출 → 프리미엄 → 등록), 시·군·구 칩(검색·더 보기, 진짜 링크).
+// 지도·목록은 수천 곳이라 HTML 에 싣지 않고 브라우저가 /api/spots/browse 에서 불러온다 (components/spot/lazy-spot-browser).
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
+import { isCareType } from "@app/data";
 import { Breadcrumbs } from "@/components/breadcrumbs";
-import { SpotDirectory, type TypeChip } from "@/components/spot/spot-directory";
-import { formatNumber } from "@/lib/format";
-import { listCareCountsByRegion, listCareSidoTotals } from "@/lib/queries/care";
-import { listRegionTiles, listSigunguSummaries, listSigunguTypeCounts, listSpotTypes } from "@/lib/queries/spots";
-import { SpotSearchBox } from "@/components/spot/spot-search-box";
-import { TypeGroups } from "@/components/spot/type-groups";
-import { buildMeta, robotsMeta } from "@/lib/seo";
+import { AreaChips } from "@/components/spot/area-chips";
+import { LazySpotBrowser } from "@/components/spot/lazy-spot-browser";
+import { ShowcaseStrip } from "@/components/spot/showcase-strip";
+import { SpotSidebar } from "@/components/spot/spot-sidebar";
 import { SpotRegisterBanner } from "@/components/spot-register-banner";
+import { formatNumber } from "@/lib/format";
+import { listCareSidoTotals } from "@/lib/queries/care";
+import { listShowcaseInSido } from "@/lib/queries/spot-pages";
+import { countSpotsByType, listRegionTiles, listSigunguSummaries, listSpotTypes } from "@/lib/queries/spots";
+import { buildMeta, robotsMeta } from "@/lib/seo";
+import { TYPE_ICON, generalGusOf, shortSido } from "@/lib/spot-search";
 
 export const revalidate = 21600; // REVALIDATE.spotDirectory
 
@@ -40,33 +44,33 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function SidoPage({ params }: Props) {
   const { sido } = await params;
   const sidoSlug = decodeURIComponent(sido);
-  const [rows, regionTiles, typeCounts, careCounts, careSidoTotals, allTypes] = await Promise.all([
+  const [rows, tiles, typeCounts, careSidoTotals, allTypes, showcase] = await Promise.all([
     listSigunguSummaries(sidoSlug),
     listRegionTiles(),
-    listSigunguTypeCounts(sidoSlug),
-    listCareCountsByRegion({ sidoSlug }), // 돌봄 파트너는 주소가 아니라 서비스 지역 기준
-    listCareSidoTotals(sidoSlug), // 시도 배지·요약은 사람 수 기준
+    countSpotsByType(sidoSlug),
+    listCareSidoTotals(sidoSlug), // 돌봄 파트너는 서비스 지역 기준 사람 수
     listSpotTypes(),
+    listShowcaseInSido(sidoSlug),
   ]);
   if (rows.length === 0) notFound();
   const sidoName = rows[0]!.region.sidoName;
+  const short = shortSido(sidoName);
   const total = rows.reduce((a, r) => a + r.spotCount, 0);
-
-  // 지도 배지("전체"): 이 시도의 시군구별 영업 중 스팟 수 (소비자 유형)
+  const basePath = `/spot/${sidoSlug}`;
   const countsByRegion = Object.fromEntries(rows.map((r) => [r.region.id, r.spotCount]));
-  // 유형 칩: 이 시도에 하나라도 있는 유형만, 유형 정렬 순서대로. 칩을 고르면 배지·타일 링크가 그 유형으로 바뀐다.
-  // 돌봄 유형(펫시터·시간제 시터·도그워커)의 배지는 노출 중 파트너 수 — 타일 링크는 그 지역의 5자리 페이지.
-  const typeMap = new Map<string, TypeChip & { sortOrder: number; total: number }>();
-  const countsByType: Record<string, Record<number, number>> = {};
-  for (const t of [...typeCounts, ...careCounts]) {
-    const entry = typeMap.get(t.typeSlug) ?? { slug: t.typeSlug, name: t.typeName, sortOrder: t.sortOrder, total: 0 };
-    entry.total += t.count;
-    typeMap.set(t.typeSlug, entry);
-    (countsByType[t.typeSlug] ??= {})[t.regionId] = t.count;
-  }
-  const types = [...typeMap.values()].sort((a, b) => a.sortOrder - b.sortOrder);
-  const typeTotals = new Map(types.map((t) => [t.slug, careSidoTotals[t.slug] ?? t.total]));
-  const maxCount = Math.max(1, ...rows.map((r) => r.spotCount));
+
+  // 유형 칩 — 시설 유형은 시도 x 유형, 돌봄 유형은 서비스 지역 기준 전국 허브(사람 수)
+  const facilityTypes = allTypes.filter((t) => !isCareType(t.slug) && (typeCounts.get(t.slug) ?? 0) > 0);
+  const careTypes = allTypes.filter((t) => isCareType(t.slug) && (careSidoTotals[t.slug] ?? 0) > 0);
+  const facilityTotal = facilityTypes.reduce((a, t) => a + (typeCounts.get(t.slug) ?? 0), 0);
+  const typeTabs = [
+    { key: "all", label: "전체", count: facilityTotal, href: basePath, active: true },
+    ...facilityTypes.map((t) => ({ key: t.slug, label: t.name, count: typeCounts.get(t.slug) ?? 0, href: `${basePath}/${t.slug}`, icon: TYPE_ICON[t.slug], active: false })),
+    ...careTypes.map((t) => ({ key: t.slug, label: t.name, count: careSidoTotals[t.slug] ?? 0, href: `/spot/type/${t.slug}`, icon: TYPE_ICON[t.slug], active: false })),
+  ];
+  const areaChips = rows
+    .filter((r) => r.spotCount > 0)
+    .map((r) => ({ name: r.region.sigunguName, href: `${basePath}/${r.region.sigunguSlug}`, count: r.spotCount, gus: generalGusOf(sidoName, r.region.sigunguName) }));
 
   return (
     <div className="mx-auto max-w-[1680px] px-4 py-8 sm:px-6">
@@ -76,77 +80,48 @@ export default async function SidoPage({ params }: Props) {
         crumbs={[
           { name: "홈", path: "/" },
           { name: "스팟", path: "/spot" },
-          { name: sidoName, path: `/spot/${sidoSlug}` },
+          { name: sidoName, path: basePath },
         ]}
       />
 
-      <h1 className="mt-6 text-3xl font-extrabold tracking-tight text-sea">{sidoName}</h1>
-      <p className="mt-2 text-ink-soft">
-        영업 중 {formatNumber(total)}곳 · 지역을 검색하거나, 지도에서 유형을 고르고 구·시·군을 누르면 그 지역의 목록으로 갑니다.
-      </p>
-      <div className="mt-5 max-w-3xl">
-        <SpotSearchBox tiles={regionTiles} types={allTypes.map((t) => ({ slug: t.slug, name: t.name }))} size="md" placeholder={`${sidoName} 구·시·군 검색 (다른 지역도 가능)`} />
-      </div>
+      <h1 className="mt-6 text-3xl font-extrabold tracking-tight text-ink">
+        {short} <span className="text-sea">반려동물 스팟</span>
+      </h1>
+      <p className="mt-2 text-sm text-ink-soft">{sidoName} 영업 중 {formatNumber(total)}곳 · 유형이나 시·군·구를 골라 좁혀 보세요.</p>
 
-      <div className="mt-8">
-        <SpotDirectory
-          regions={regionTiles}
-          countsByRegion={countsByRegion}
-          typeFilter={{
-            types: types.map(({ slug, name }) => ({ slug, name })),
-            countsByType,
-            sidoTotals: careSidoTotals,
-            units: Object.fromEntries(Object.keys(careSidoTotals).map((slug) => [slug, "명"])),
-          }}
-          selectedSido={sidoSlug}
-          selectedRegionId={null}
-          typeSlug={null}
-          mapTitle={`${sidoName} 지역 지도`}
-        >
-          <section aria-labelledby="sigungu-heading" className="rounded-2xl border border-line bg-surface p-5">
-            <h2 id="sigungu-heading" className="text-lg font-bold text-ink">
-              시군구별 현황 <span className="text-sm font-medium text-ink-faint">{rows.length}개 지역</span>
-            </h2>
-            <p className="mt-1 text-xs text-ink-faint">숫자는 영업 중으로 확인된 스팟 수입니다. 지역을 누르면 그 지역의 전체 스팟과 데이터가 나옵니다.</p>
-            <div className="mt-4 grid gap-2 sm:grid-cols-2 2xl:grid-cols-3">
-              {rows.map(({ region, spotCount }) => (
-                <Link
-                  key={region.id}
-                  href={`/spot/${region.sidoSlug}/${region.sigunguSlug}`}
-                  className={`rounded-xl border px-4 py-2.5 transition-shadow hover:shadow-md ${spotCount > 0 ? "border-line bg-cream" : "border-dashed border-line bg-transparent"}`}
-                >
-                  <span className="flex items-center justify-between">
-                    <span className={spotCount > 0 ? "font-semibold text-ink" : "text-ink-faint"}>{region.sigunguName}</span>
-                    <span className="text-sm text-ink-faint">{spotCount > 0 ? formatNumber(spotCount) : "-"}</span>
-                  </span>
-                  {spotCount > 0 && (
-                    <span className="mt-1.5 block h-1 overflow-hidden rounded-full bg-sand" aria-hidden>
-                      <span className="block h-full rounded-full bg-sea/60" style={{ width: `${(spotCount / maxCount) * 100}%` }} />
-                    </span>
-                  )}
-                </Link>
-              ))}
-            </div>
-          </section>
-
-        </SpotDirectory>
-      </div>
-
-      {types.length > 0 && (
-        <section aria-labelledby="type-links-heading" className="mt-10">
-          <h2 id="type-links-heading" className="mb-4 text-lg font-bold text-ink">
-            {sidoName} 유형별 <span className="font-medium text-ink-faint">누르면 {sidoName} 전체 지도·목록이 나와요</span>
-          </h2>
-          <TypeGroups
-            types={allTypes.filter((t) => typeTotals.has(t.slug))}
-            counts={typeTotals}
-            // 시설 유형은 이 시도의 지도·목록(시도 x 유형), 돌봄 유형은 서비스 지역 기준 전국 허브로
-            hrefFor={(slug) => (careSidoTotals[slug] !== undefined ? `/spot/type/${slug}` : `/spot/${sidoSlug}/${slug}`)}
-            unitFor={(slug) => (careSidoTotals[slug] !== undefined ? "명" : "곳")}
-          />
-        </section>
+      {areaChips.length > 0 && (
+        <div className="mt-5">
+          <AreaChips areas={areaChips} label="시·군·구" placeholder={`${short} 시·군·구 검색`} />
+        </div>
       )}
 
+      <ShowcaseStrip title={`${short} 등록 업체`} spots={showcase} />
+
+      <div className="mt-6">
+        <LazySpotBrowser
+          sidoSlug={sidoSlug}
+          title={`${short} 전체`}
+          typeTabs={typeTabs}
+          registerCard={{ href: "/portal/spot#register", label: "여기에 내 업체를 소개하세요" }}
+          sidebar={
+            <SpotSidebar
+              types={facilityTypes.map((t) => ({ slug: t.slug, name: t.name, count: typeCounts.get(t.slug) ?? 0 }))}
+              currentType={null}
+              basePath={basePath}
+              sidoRegions={tiles.filter((r) => r.sidoSlug === sidoSlug)}
+              currentRegionId={-1}
+              typeSlug={null}
+              countsByRegion={countsByRegion}
+              sidoName={sidoName}
+              sidoSlug={sidoSlug}
+            />
+          }
+        />
+      </div>
+
+      <p className="mt-6 text-xs text-ink-faint">
+        시설 정보는 행정안전부 지방행정 인허가데이터(공공데이터포털 data.go.kr)와 직접 확인을 바탕으로 하며, 각 장소 페이지에 출처·기준일을 표기합니다.
+      </p>
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { generalGusOf, groupTypes, searchSpotRegions, shortSido, spotSearchHref } from "./spot-search";
+import { filterAreas, generalGusOf, groupTypes, searchSpotRegions, shortSido, spotSearchHref } from "./spot-search";
 
 const tiles = [
   { id: 1, sidoName: "서울특별시", sidoSlug: "seoul", sigunguName: "강남구", sigunguSlug: "gangnam-gu" },
@@ -30,6 +30,17 @@ describe("spot search", () => {
     expect(generalGusOf("충청남도", "천안시")).toEqual(["동남구", "서북구"]);
     expect(generalGusOf("경기도", "수원시")).toHaveLength(4);
     expect(generalGusOf("서울특별시", "강남구")).toEqual([]);
+  });
+  it("지역 칩 검색", () => {
+    const areas = [
+      { name: "안산시", href: "/a", count: 10 },
+      { name: "안양시", href: "/b", count: 20 },
+      { name: "수원시", href: "/c", count: 30, gus: ["장안구", "영통구"] },
+      { name: "부안군", href: "/d", count: 5 },
+    ];
+    expect(filterAreas(areas, "안").map((a) => a.name)).toEqual(["안양시", "안산시", "부안군"]);
+    expect(filterAreas(areas, "영통")).toEqual([{ ...areas[2], via: "영통구" }]);
+    expect(filterAreas(areas, "")).toHaveLength(4);
   });
   it("유형 묶음", () => {
     const r = groupTypes([

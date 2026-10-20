@@ -125,7 +125,8 @@ export async function listSpotsInRegion(where: number | { sidoSlug: string }, ty
   // 유형을 명시하면 — B2B 참고 유형 포함 — 그 유형의 목록을 그대로 보여준다.
   const conds = [typeof where === "number" ? eq(spots.regionId, where) : eq(regions.sidoSlug, where.sidoSlug), eq(spots.status, "operating")];
   if (typeId) conds.push(eq(spots.typeId, typeId));
-  else conds.push(eq(spotTypes.listed, true));
+  // 섞인 목록은 소비자 유형만 — 돌봄 파트너(개인)는 주소로 싣지 않는다 (서비스 지역 페이지로만)
+  else conds.push(eq(spotTypes.listed, true), notInArray(spotTypes.slug, [...CARE_TYPE_SLUGS]));
   const today = todayKst();
   const promotedSql = sql<boolean>`exists (
         select 1 from ${promotions} p

@@ -24,7 +24,8 @@ import {
 } from "@/lib/queries/spots";
 import { buildMeta, itemListLd, robotsMeta, shouldIndexRegionPage } from "@/lib/seo";
 import { toBrowserSpots } from "@/lib/spot-browser-server";
-import { TYPE_ICON, shortSido } from "@/lib/spot-search";
+import { TYPE_ICON, generalGusOf, shortSido } from "@/lib/spot-search";
+import { AreaChips } from "@/components/spot/area-chips";
 
 /** /spot/<시도>/<x> 의 x 가 유형이면 그 유형 (시군구가 아니면) */
 export async function resolveSidoType(sidoSlug: string, key: string): Promise<{ type: SpotTypeRow; sidoName: string } | null> {
@@ -69,12 +70,10 @@ export async function SidoTypePage({ sidoSlug, found }: { sidoSlug: string; foun
   const listedTypes = allTypes.filter((t) => t.listed && !isCareType(t.slug) && (typeCounts.get(t.slug) ?? 0) > 0);
   const sidoTotal = listedTypes.reduce((a, t) => a + (typeCounts.get(t.slug) ?? 0), 0);
   const canAdvertise = type.listed && type.monetizable;
-  // 업체 많은 시군구 — 좁혀 들어가는 지름길 (상위 8곳)
-  const topAreas = sidoRegions
-    .map((r) => ({ r, n: countsByRegion[r.id] ?? 0 }))
-    .filter((x) => x.n > 0)
-    .sort((a, b) => b.n - a.n)
-    .slice(0, 8);
+  // 시·군·구 칩 — 이 유형이 있는 곳만, 많은 순 (검색·"+N곳 더"는 AreaChips)
+  const areaChips = sidoRegions
+    .filter((r) => (countsByRegion[r.id] ?? 0) > 0)
+    .map((r) => ({ name: r.sigunguName, href: `${basePath}/${r.sigunguSlug}/${type.slug}`, count: countsByRegion[r.id] ?? 0, gus: generalGusOf(sidoName, r.sigunguName) }));
 
   return (
     <div className="mx-auto max-w-[1680px] px-4 py-8 sm:px-6">
@@ -102,15 +101,10 @@ export async function SidoTypePage({ sidoSlug, found }: { sidoSlug: string; foun
       {type.slug === "pharmacy" && <PharmacyNote />}
       {!type.listed && <B2BNote />}
 
-      {topAreas.length > 0 && (
-        <nav aria-label={`${short} ${type.name} 많은 지역`} className="mt-5 flex flex-wrap items-center gap-2">
-          <span className="text-xs font-semibold text-ink-soft">많은 지역</span>
-          {topAreas.map(({ r, n }) => (
-            <a key={r.id} href={`${basePath}/${r.sigunguSlug}/${type.slug}`} className="rounded-full border border-line bg-surface px-3 py-1.5 text-sm font-semibold text-ink hover:border-sea hover:text-sea">
-              {r.sigunguName} <span className="text-xs font-medium text-ink-faint">{n}</span>
-            </a>
-          ))}
-        </nav>
+      {areaChips.length > 0 && (
+        <div className="mt-5">
+          <AreaChips areas={areaChips} placeholder={`${short} 시·군·구 검색`} />
+        </div>
       )}
 
       <div className="mt-6">
