@@ -11,7 +11,7 @@ import { getSession } from "@/lib/auth";
 import { getCurrentMember } from "@/lib/member";
 import { isValidObjectKey } from "@/lib/assets";
 import { spotPageRelatedPaths } from "@/lib/revalidate-paths";
-import { SPOT_MEDIA_LIMIT, isPaidActive, parseServices, validateHandle } from "@/lib/spot-pages";
+import { PREMIUM_THEMES, isPaidActive, mediaLimit, parseServices, validateHandle } from "@/lib/spot-pages";
 
 const { spots, spotTypes, spotPages, spotMedia, mediaAssets, users } = schema;
 
@@ -87,6 +87,13 @@ export async function saveSpotPageAction(_prev: SpotPageActionState, formData: F
       if (taken) return { error: "이미 다른 업체가 쓰는 짧은 주소입니다." };
       values.handle = v.handle;
     }
+  }
+
+  // 배경 테마 — 프리미엄 기간의 사장님 또는 관리자. 정해진 목록 밖 값은 받지 않는다
+  if (formData.has("theme") && monetizable && (actor.admin || isPaidActive(existing))) {
+    const key = str(formData, "theme");
+    if (!PREMIUM_THEMES.some((t) => t.key === key)) return { error: "알 수 없는 테마입니다." };
+    values.theme = key;
   }
 
   if (actor.admin) {
@@ -165,22 +172,22 @@ export async function deleteSpotPageAction(formData: FormData): Promise<void> {
   await refresh(spotId, old?.handle);
 }
 
-// ---------- 사진·영상 (유료) ----------
+// ---------- 사진·영상 (무료 사진 3·영상 1, 프리미엄 각 10) ----------
 
 async function authorizeMedia(spotId: number) {
   const auth = await authorize(spotId);
   if (!auth) return { error: "권한이 없습니다." } as const;
   const page = (await auth.db.select().from(spotPages).where(eq(spotPages.spotId, spotId)).limit(1))[0];
   if (!page) return { error: "링크 페이지를 먼저 만들어 주세요." } as const;
-  // 관리자는 유료 기간 전에도 미리 올려 둘 수 있다 (공개 페이지에는 유료 기간에만 보인다)
-  if (!auth.actor.admin && !(auth.monetizable && isPaidActive(page))) return { error: "사진·영상은 프리미엄(유료) 페이지에서 올릴 수 있습니다." } as const;
-  return { ...auth, page } as const;
+  // 한도: 사장님은 지금 등급대로, 관리자는 프리미엄 한도까지 미리 올려 둘 수 있다 (공개 화면은 등급 한도만큼만 — visibleMedia)
+  const paidLimits = auth.actor.admin || (auth.monetizable && isPaidActive(page));
+  return { ...auth, page, paidLimits } as const;
 }
 
 export async function addSpotMediaAction(input: { spotId: number; objectKey: string }): Promise<{ error?: string }> {
   const auth = await authorizeMedia(input.spotId);
   if ("error" in auth) return { error: auth.error };
-  const { db, actor } = auth;
+  const { db, actor, paidLimits } = auth;
   if (!isValidObjectKey(input.objectKey)) return { error: "파일 키가 올바르지 않습니다." };
   const conds = [eq(mediaAssets.objectKey, input.objectKey)];
   if (actor.userId) conds.push(eq(mediaAssets.uploaderUserId, actor.userId));
@@ -192,7 +199,8 @@ export async function addSpotMediaAction(input: { spotId: number; objectKey: str
     .from(spotMedia)
     .innerJoin(mediaAssets, eq(spotMedia.assetId, mediaAssets.id))
     .where(and(eq(spotMedia.spotId, input.spotId), eq(mediaAssets.kind, asset.kind))))[0]?.n ?? 0;
-  if (n >= SPOT_MEDIA_LIMIT) return { error: `${asset.kind === "image" ? "사진" : "영상"}은 ${SPOT_MEDIA_LIMIT}개까지 올릴 수 있습니다.` };
+  const lim = mediaLimit(paidLimits, asset.kind);
+  if (n >= lim) return { error: `${asset.kind === "image" ? "사진" : "영상"}은 ${lim}개까지 올릴 수 있습니다.${paidLimits ? "" : " 프리미엄은 각 10개까지 올릴 수 있어요."}` };
   const top = (await db.select({ top: max(spotMedia.sortOrder) }).from(spotMedia).where(eq(spotMedia.spotId, input.spotId)))[0]?.top;
   await db
     .insert(spotMedia)

@@ -8,7 +8,7 @@ import type { BrowserSpot } from "./spot-browser";
 const BOOKING_KINDS = new Set(["kakao", "reservation"]);
 
 export function toBrowserSpots(items: SpotWithMeta[], linkKinds: Map<number, string[]>): BrowserSpot[] {
-  return items.map(({ spot, typeName, typeSlug, typeMonetizable, region, tier }) => {
+  return items.map(({ spot, typeName, typeSlug, typeMonetizable, region, tier, photoKey }) => {
     const ll = spotLatLng(spot);
     const kinds = linkKinds.get(spot.id) ?? [];
     return {
@@ -25,7 +25,8 @@ export function toBrowserSpots(items: SpotWithMeta[], linkKinds: Map<number, str
       price: spot.priceText,
       tier,
       monetizable: typeMonetizable,
-      heroUrl: assetUrl(spot.heroImageKey) ?? null,
+      // 목록 카드·지도 핀 대표 사진은 프리미엄·상단 노출만 (무료 등록 업체 사진은 링크 페이지에서만)
+      heroUrl: typeMonetizable && (tier === "paid" || tier === "promoted") ? (assetUrl(photoKey ?? spot.heroImageKey) ?? null) : null,
       lat: ll?.lat ?? null,
       lng: ll?.lng ?? null,
       booking: kinds.some((k) => BOOKING_KINDS.has(k)) || (typeMonetizable && spot.status === "operating" && !!spot.claimedBy),

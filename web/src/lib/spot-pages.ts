@@ -21,8 +21,19 @@ export const TIER_LABEL: Record<SpotTier, string> = {
   unlisted: "미등록",
 };
 
-/** 링크 페이지 사진·영상 — 종류별 최대 개수 (유료) */
-export const SPOT_MEDIA_LIMIT = 10;
+/** 링크 페이지 사진·영상 — 무료(등록 업체)는 사진 3장·영상 1개, 프리미엄은 각 10개.
+ *  목록 카드·지도 핀의 대표 사진은 프리미엄(과 상단 노출)만. */
+export const MEDIA_LIMITS = { free: { image: 3, video: 1 }, paid: { image: 10, video: 10 } } as const;
+
+export function mediaLimit(paid: boolean, kind: "image" | "video"): number {
+  return MEDIA_LIMITS[paid ? "paid" : "free"][kind];
+}
+
+/** 공개 화면에 보일 사진·영상 — 등급 한도만큼 앞에서부터 (유료가 끝나면 앞 3장·1개만 남는다) */
+export function visibleMedia<T extends { kind: "image" | "video" }>(items: T[], paid: boolean): T[] {
+  const seen = { image: 0, video: 0 };
+  return items.filter((m) => ++seen[m.kind] <= mediaLimit(paid, m.kind));
+}
 
 export interface SpotPageLike {
   published: boolean;
@@ -138,4 +149,42 @@ export function addMonths(start: string, months: number): string {
   d.setUTCDate(Math.min(day, last));
   d.setUTCDate(d.getUTCDate() - 1);
   return d.toISOString().slice(0, 10);
+}
+
+// ---------- 프리미엄 배경 테마 ----------
+// 진한 색 위주, 글자·버튼은 흰색 고정 — 어떤 걸 골라도 흰 글자 대비 4.5:1 이상 (spot-pages.test.ts 가 확인)
+
+export interface PremiumTheme {
+  key: string;
+  name: string;
+  /** 페이지 바깥 */ bg: string;
+  /** 내용 칸 */ box: string;
+  /** 카드·버튼 */ card: string;
+  /** 테두리 */ line: string;
+  /** 머리 그라데이션 끝 */ head: string;
+}
+
+export const PREMIUM_THEMES: PremiumTheme[] = [
+  { key: "black", name: "블랙", bg: "#0a0a0a", box: "#111111", card: "#1a1a1a", line: "#333333", head: "#1a1a1a" },
+  { key: "navy", name: "딥네이비", bg: "#070d1a", box: "#0d1628", card: "#16223a", line: "#2a3a5c", head: "#16223a" },
+  { key: "forest", name: "포레스트", bg: "#06120c", box: "#0c1d14", card: "#14291e", line: "#284534", head: "#14291e" },
+  { key: "burgundy", name: "버건디", bg: "#14060a", box: "#230b12", card: "#33121c", line: "#56243a", head: "#33121c" },
+  { key: "chocolate", name: "초콜릿", bg: "#120a06", box: "#1f130c", card: "#2d1d13", line: "#4a3324", head: "#2d1d13" },
+  { key: "purple", name: "딥퍼플", bg: "#0d0716", box: "#170e26", card: "#231636", line: "#3d2a5c", head: "#231636" },
+  { key: "charcoal", name: "차콜", bg: "#151719", box: "#1d2024", card: "#272b30", line: "#3d434a", head: "#272b30" },
+  { key: "teal", name: "딥틸", bg: "#04110f", box: "#081c19", card: "#0f2a26", line: "#22463f", head: "#0f2a26" },
+];
+
+export function premiumTheme(key: string | null | undefined): PremiumTheme {
+  return PREMIUM_THEMES.find((t) => t.key === key) ?? PREMIUM_THEMES[0]!;
+}
+
+/** WCAG 대비 (테스트용) */
+export function contrastRatio(a: string, b: string): number {
+  const lum = (hex: string) => {
+    const [r, g, bl] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+    return 0.2126 * r! + 0.7152 * g! + 0.0722 * bl!;
+  };
+  const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p);
+  return (x! + 0.05) / (y! + 0.05);
 }

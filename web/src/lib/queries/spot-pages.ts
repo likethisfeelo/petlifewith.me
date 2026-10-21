@@ -1,7 +1,7 @@
 // 업체 링크 페이지 조회·통계 — 순수 규칙은 lib/spot-pages.ts
 import { and, asc, desc, eq, gte, sql } from "drizzle-orm";
 import { getDb, isDbConfigured, schema } from "../db";
-import { isPaidActive, todayKst, type SpotTier } from "../spot-pages";
+import { isPaidActive, todayKst, visibleMedia, type SpotTier } from "../spot-pages";
 import { getSpotLinks, type RegionRow, type SpotLinkRow, type SpotRow } from "./spots";
 
 const { spots, spotTypes, regions, spotPages, spotMedia, mediaAssets, promotions, spotPageStats } = schema;
@@ -80,7 +80,9 @@ export async function getLinkPage(key: { kind: "id"; id: number } | { kind: "han
   )[0];
   if (!row) return null;
   const paid = row.typeMonetizable && isPaidActive(row.page);
-  const [links, media] = await Promise.all([getSpotLinks(row.spot.id), paid ? listSpotMedia(row.spot.id) : Promise.resolve([])]);
+  // 사진·영상은 등급 한도만큼 (무료 사진 3·영상 1, 프리미엄 각 10)
+  const [links, allMedia] = await Promise.all([getSpotLinks(row.spot.id), listSpotMedia(row.spot.id)]);
+  const media = visibleMedia(allMedia, paid);
   const { promoted, ...rest } = row;
   return { ...rest, paid, tier: promoted && row.typeMonetizable ? "promoted" : paid ? "paid" : "free", links, media };
 }
@@ -191,8 +193,8 @@ export async function listShowcaseInSido(sidoSlug: string, limit = 12): Promise<
     typeName: r.typeName,
     sigunguName: r.sigunguName,
     tier: r.promoted ? "promoted" : r.paid ? "paid" : "free",
-    // 사진은 프리미엄(유료 기간)일 때만 — 링크 페이지 규칙과 같게
-    imageKey: r.heroImageKey ?? (r.paid ? r.firstImage : null),
+    // 사진은 프리미엄·상단 노출만 — 목록 카드 규칙과 같게
+    imageKey: r.promoted || r.paid ? (r.firstImage ?? r.heroImageKey) : null,
     intro: r.intro,
   }));
 }

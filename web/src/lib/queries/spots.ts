@@ -4,7 +4,7 @@ import { getDb, isDbConfigured, schema } from "../db";
 import type { RegionTile } from "../regions";
 import { tierOf, todayKst, type SpotPageLike, type SpotTier } from "../spot-pages";
 
-const { spots, spotTypes, regions, promotions, regionDogStats, spotLinks, spotPages } = schema;
+const { spots, spotTypes, regions, promotions, regionDogStats, spotLinks, spotPages, spotMedia, mediaAssets } = schema;
 
 export type SpotRow = typeof spots.$inferSelect;
 export type SpotLinkRow = typeof spotLinks.$inferSelect;
@@ -23,6 +23,8 @@ export interface SpotWithMeta {
   page: SpotPageLike | null;
   /** 노출 등급 — 상단 노출 → 유료 → 무료(등록) → 미등록 (lib/spot-pages.ts) */
   tier: SpotTier;
+  /** 링크 페이지 첫 사진 (목록 대표 사진은 프리미엄·상단 노출만 — lib/spot-browser-server.ts) */
+  photoKey?: string | null;
 }
 
 const pageCols = {
@@ -149,6 +151,7 @@ export async function listSpotsInRegion(where: number | { sidoSlug: string }, ty
       typeListed: spotTypes.listed,
       region: regions,
       promoted: promotedSql,
+      photoKey: sql<string | null>`(select a.object_key from ${spotMedia} m join ${mediaAssets} a on a.id = m.asset_id where m.spot_id = ${spots.id} and a.kind = 'image' order by m.sort_order, m.id limit 1)`,
       ...pageCols,
     })
     .from(spots)

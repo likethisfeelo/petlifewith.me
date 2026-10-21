@@ -1,0 +1,1 @@
+ALTER TABLE "spot_pages" ADD COLUMN "theme" text;

@@ -478,6 +478,8 @@ export const spotPages = pgTable(
     services: text("services").array().notNull().default(sql`'{}'::text[]`), // 주요 서비스 목록
     paidFrom: date("paid_from"),
     paidUntil: date("paid_until"),
+    /** 프리미엄 배경 테마 (lib/spot-pages.ts PREMIUM_THEMES 의 key). 없으면 기본(블랙). 무료 페이지는 쓰지 않는다 */
+    theme: text("theme"),
     published: boolean("published").notNull().default(true),
     createdAt: createdAt(),
     updatedAt: updatedAt(),

@@ -87,7 +87,7 @@ export function SpotBrowser({
   const [limit, setLimit] = useState(PAGE_SIZE);
   useEffect(() => setLimit(PAGE_SIZE), [filters, sort, bounds, view]);
   const pins = useMemo<MapPin[]>(
-    () => filtered.filter((s) => s.lat != null && s.lng != null).map((s) => ({ id: s.id, name: s.name, lat: s.lat!, lng: s.lng!, strong: s.monetizable && (s.tier === "paid" || s.tier === "promoted") })),
+    () => filtered.filter((s) => s.lat != null && s.lng != null).map((s) => ({ id: s.id, name: s.name, lat: s.lat!, lng: s.lng!, strong: s.monetizable && (s.tier === "paid" || s.tier === "promoted"), photo: s.heroUrl })),
     [filtered],
   );
   const selected = selectedId != null ? byId.get(selectedId) ?? null : null;
