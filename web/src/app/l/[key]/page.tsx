@@ -12,7 +12,7 @@ import { spotLatLng } from "@/lib/geo";
 import { spotLinkLabel } from "@/lib/links";
 import { getLinkPage, type LinkPageData } from "@/lib/queries/spot-pages";
 import { buildMeta, robotsMeta } from "@/lib/seo";
-import { linkBaseUrl, linkPageUrl, parseLinkKey } from "@/lib/spot-pages";
+import { linkBaseUrl, linkPageUrl, parseLinkKey, premiumTheme } from "@/lib/spot-pages";
 
 export const revalidate = 3600; // REVALIDATE.linkPage
 
@@ -68,6 +68,9 @@ export default async function LinkPage({ params }: Props) {
   if (decodeURIComponent(rawKey).toLowerCase() !== wantKey) redirect(canonical);
 
   const dark = paid;
+  // 프리미엄 배경 테마 — 진한 색 + 흰 글자 (lib/spot-pages.ts PREMIUM_THEMES)
+  const theme = premiumTheme(page.theme);
+  const themeVars = dark ? ({ "--lp-bg": theme.bg, "--lp-box": theme.box, "--lp-card": theme.card, "--lp-line": theme.line, "--lp-head": theme.head } as React.CSSProperties) : undefined;
   const intro = introOf(data);
   const placeUrl = `${site}${idSlugPath("place", spot.id, spot.slug)}`;
   const kakao = links.find((l) => l.kind === "kakao")?.url ?? null;
@@ -96,12 +99,12 @@ export default async function LinkPage({ params }: Props) {
 
   const t = dark
     ? {
-        page: "bg-[#0a0a0a] text-white",
-        box: "bg-[#111]",
-        section: "border-b border-[#222]",
+        page: "bg-[var(--lp-bg)] text-white",
+        box: "bg-[var(--lp-box)]",
+        section: "border-b border-[var(--lp-line)]",
         soft: "text-white/60",
-        card: "bg-[#1a1a1a]",
-        btn: "border border-[#333] bg-[#1a1a1a] text-white hover:bg-[#222]",
+        card: "bg-[var(--lp-card)]",
+        btn: "border border-[var(--lp-line)] bg-[var(--lp-card)] text-white hover:brightness-125",
         cta: "bg-white text-black",
       }
     : {
@@ -115,10 +118,10 @@ export default async function LinkPage({ params }: Props) {
       };
 
   return (
-    <div data-linkpage className={`min-h-screen ${t.page}`}>
+    <div data-linkpage style={themeVars} className={`min-h-screen ${t.page}`}>
       <LinkBeacon spotId={spot.id} />
       <div className={`mx-auto min-h-screen max-w-[480px] ${t.box}`}>
-        <header className={`px-4 pb-5 pt-6 text-center ${dark ? "border-b border-[#333] bg-gradient-to-b from-black to-[#1a1a1a]" : "bg-black text-white"}`}>
+        <header className={`px-4 pb-5 pt-6 text-center ${dark ? "border-b border-[var(--lp-line)] bg-gradient-to-b from-[var(--lp-bg)] to-[var(--lp-head)]" : "bg-black text-white"}`}>
           {paid ? (
             <span className="mb-3 inline-block rounded-full bg-white px-2.5 py-1 text-[10px] font-bold tracking-[1.5px] text-black">PREMIUM</span>
           ) : (
@@ -133,7 +136,7 @@ export default async function LinkPage({ params }: Props) {
           </span>
         </header>
 
-        {paid && images.length > 0 && <Gallery images={images} name={spot.name} />}
+        {images.length > 0 && (paid ? <Gallery images={images} name={spot.name} /> : <FreeGallery images={images} name={spot.name} />)}
 
         {intro && (
           <Section title="업체 소개" className={t.section}>
@@ -146,7 +149,7 @@ export default async function LinkPage({ params }: Props) {
             {dark ? (
               <div className="flex flex-wrap gap-2">
                 {page.services.map((s) => (
-                  <span key={s} className="rounded-full bg-[#1a1a1a] px-3 py-1.5 text-[13px]">
+                  <span key={s} className="rounded-full bg-[var(--lp-card)] px-3 py-1.5 text-[13px]">
                     {s}
                   </span>
                 ))}
@@ -168,8 +171,8 @@ export default async function LinkPage({ params }: Props) {
             {dark ? (
               <div className="grid gap-2.5">
                 {info.map(([label, value]) => (
-                  <div key={label} className="rounded-[10px] bg-[#1a1a1a] px-3.5 py-3 text-sm">
-                    <span className="mb-0.5 block text-xs text-[#888]">{label}</span>
+                  <div key={label} className="rounded-[10px] bg-[var(--lp-card)] px-3.5 py-3 text-sm">
+                    <span className="mb-0.5 block text-xs text-white/60">{label}</span>
                     {value}
                   </div>
                 ))}
@@ -218,7 +221,7 @@ export default async function LinkPage({ params }: Props) {
           </Section>
         )}
 
-        {paid && videos.length > 0 && (
+        {videos.length > 0 && (
           <Section title="영상" className={t.section}>
             <div className="grid gap-3">
               {videos.map((v) => (
@@ -229,7 +232,7 @@ export default async function LinkPage({ params }: Props) {
                   preload="none"
                   poster={assetUrl(v.posterKey) ?? undefined}
                   src={assetUrl(v.objectKey)}
-                  className="w-full rounded-[10px] bg-[#1a1a1a]"
+                  className="w-full rounded-[10px] bg-[var(--lp-card)]"
                 />
               ))}
             </div>
@@ -242,7 +245,7 @@ export default async function LinkPage({ params }: Props) {
           </Section>
         )}
 
-        <footer className={`px-4 py-6 text-center text-xs ${dark ? "text-[#666]" : "text-[#999]"}`}>
+        <footer className={`px-4 py-6 text-center text-xs ${dark ? "text-white/50" : "text-[#999]"}`}>
           <a href={placeUrl} className={`font-medium hover:underline ${dark ? "text-white/80" : "text-[#333]"}`}>
             펫라이프위드미에서 자세히 보기 →
           </a>
@@ -274,6 +277,18 @@ function Section({ title, className, children }: { title: string; className: str
   );
 }
 
+/** 무료 갤러리 — 사진 최대 3장, 흰 디자인에 맞춘 작은 3열 */
+function FreeGallery({ images, name }: { images: LinkPageData["media"]; name: string }) {
+  return (
+    <div className="grid grid-cols-3 gap-1 border-b-8 border-[#f5f5f5] bg-white p-1">
+      {images.map((m, i) => (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img key={m.id} src={assetUrl(m.objectKey)} alt={`${name} 사진 ${i + 1}`} loading={i ? "lazy" : undefined} className="aspect-square w-full rounded bg-[#eee] object-cover" />
+      ))}
+    </div>
+  );
+}
+
 /** 유료 갤러리 — 큰 사진 1 + 옆 2, 나머지는 아래 3열 */
 function Gallery({ images, name }: { images: LinkPageData["media"]; name: string }) {
   const src = (i: number) => assetUrl(images[i]?.objectKey);
@@ -284,12 +299,12 @@ function Gallery({ images, name }: { images: LinkPageData["media"]; name: string
     <div className="bg-black">
       <div className={`grid gap-0.5 ${side.length ? "grid-cols-[2fr_1fr]" : ""}`}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={src(0)} alt={`${name} 대표 사진`} className="h-[220px] w-full bg-[#222] object-cover" />
+        <img src={src(0)} alt={`${name} 대표 사진`} className="h-[220px] w-full bg-[var(--lp-card)] object-cover" />
         {side.length > 0 && (
           <div className="grid gap-0.5" style={{ gridTemplateRows: `repeat(${side.length}, 1fr)` }}>
             {side.map((m, i) => (
               // eslint-disable-next-line @next/next/no-img-element
-              <img key={m.id} src={src(i + 1)} alt={`${name} 사진 ${i + 2}`} loading="lazy" className="h-full min-h-0 w-full bg-[#1a1a1a] object-cover" />
+              <img key={m.id} src={src(i + 1)} alt={`${name} 사진 ${i + 2}`} loading="lazy" className="h-full min-h-0 w-full bg-[var(--lp-card)] object-cover" />
             ))}
           </div>
         )}
@@ -298,7 +313,7 @@ function Gallery({ images, name }: { images: LinkPageData["media"]; name: string
         <div className="mt-0.5 grid grid-cols-3 gap-0.5">
           {more.map((m, i) => (
             // eslint-disable-next-line @next/next/no-img-element
-            <img key={m.id} src={src(i + 3)} alt={`${name} 사진 ${i + 4}`} loading="lazy" className="aspect-square w-full bg-[#1a1a1a] object-cover" />
+            <img key={m.id} src={src(i + 3)} alt={`${name} 사진 ${i + 4}`} loading="lazy" className="aspect-square w-full bg-[var(--lp-card)] object-cover" />
           ))}
         </div>
       )}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mediaLimit, visibleMedia, addMonths, premiumStatus, isPaidActive, linkBaseUrl, linkPageUrl, parseLinkKey, parseServices, tierOf, todayKst, validateHandle } from "./spot-pages";
+import { PREMIUM_THEMES, contrastRatio, premiumTheme, mediaLimit, visibleMedia, addMonths, premiumStatus, isPaidActive, linkBaseUrl, linkPageUrl, parseLinkKey, parseServices, tierOf, todayKst, validateHandle } from "./spot-pages";
 
 const page = (o: Partial<{ published: boolean; paidFrom: string | null; paidUntil: string | null; handle: string | null }> = {}) => ({
   published: true,
@@ -77,5 +77,10 @@ describe("spot pages", () => {
     const items: Array<{ kind: "image" | "video"; i: number }> = [...[...Array(5)].map((_, i) => ({ kind: "image" as const, i })), ...[...Array(3)].map((_, i) => ({ kind: "video" as const, i: 10 + i }))];
     expect(visibleMedia(items, false).map((m) => m.i)).toEqual([0, 1, 2, 10]);
     expect(visibleMedia(items, true)).toHaveLength(8);
+  });
+  it("프리미엄 테마 — 흰 글자 대비", () => {
+    for (const t of PREMIUM_THEMES) for (const c of [t.bg, t.box, t.card, t.head]) expect(contrastRatio("#ffffff", c)).toBeGreaterThanOrEqual(4.5);
+    expect(premiumTheme("nope").key).toBe("black");
+    expect(premiumTheme("teal").name).toBe("딥틸");
   });
 });

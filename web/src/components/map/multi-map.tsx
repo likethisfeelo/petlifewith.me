@@ -15,6 +15,8 @@ export interface MapPin {
   lng: number;
   /** 강조 핀 (프리미엄·광고) */
   strong?: boolean;
+  /** 대표 사진 (프리미엄) — 핀에 동그란 사진이 붙는다 */
+  photo?: string | null;
 }
 
 export interface MapBounds {
@@ -105,8 +107,15 @@ export function MultiMap({
     const overlays = pins.map((p) => {
       const el = document.createElement("button");
       el.type = "button";
-      el.textContent = p.name.length > 12 ? `${p.name.slice(0, 12)}…` : p.name;
-      el.className = `map-pin${p.strong ? " map-pin-strong" : ""}`;
+      const label = p.name.length > 12 ? `${p.name.slice(0, 12)}…` : p.name;
+      if (p.photo) {
+        const img = document.createElement("img");
+        img.src = p.photo;
+        img.alt = "";
+        img.className = "map-pin-photo";
+        el.append(img, document.createTextNode(label));
+      } else el.textContent = label;
+      el.className = `map-pin${p.strong ? " map-pin-strong" : ""}${p.photo ? " map-pin-with-photo" : ""}`;
       el.addEventListener("click", (e) => {
         e.stopPropagation();
         onSelectRef.current(p.id);

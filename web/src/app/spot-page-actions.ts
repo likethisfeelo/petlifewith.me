@@ -11,7 +11,7 @@ import { getSession } from "@/lib/auth";
 import { getCurrentMember } from "@/lib/member";
 import { isValidObjectKey } from "@/lib/assets";
 import { spotPageRelatedPaths } from "@/lib/revalidate-paths";
-import { isPaidActive, mediaLimit, parseServices, validateHandle } from "@/lib/spot-pages";
+import { PREMIUM_THEMES, isPaidActive, mediaLimit, parseServices, validateHandle } from "@/lib/spot-pages";
 
 const { spots, spotTypes, spotPages, spotMedia, mediaAssets, users } = schema;
 
@@ -87,6 +87,13 @@ export async function saveSpotPageAction(_prev: SpotPageActionState, formData: F
       if (taken) return { error: "이미 다른 업체가 쓰는 짧은 주소입니다." };
       values.handle = v.handle;
     }
+  }
+
+  // 배경 테마 — 프리미엄 기간의 사장님 또는 관리자. 정해진 목록 밖 값은 받지 않는다
+  if (formData.has("theme") && monetizable && (actor.admin || isPaidActive(existing))) {
+    const key = str(formData, "theme");
+    if (!PREMIUM_THEMES.some((t) => t.key === key)) return { error: "알 수 없는 테마입니다." };
+    values.theme = key;
   }
 
   if (actor.admin) {

@@ -189,3 +189,6 @@ body:has([data-linkpage]) [data-site-chrome] {
 }
 .map-pin-strong { background: #1f1d1a; color: #fff; }
 .map-pin-hover, .map-pin-active { transform: scale(1.12); background: #e8590c; color: #fff; border-color: #e8590c; }
+/* 프리미엄 핀 — 동그란 대표 사진 + 이름 */
+.map-pin-with-photo { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px 3px 3px; }
+.map-pin-photo { width: 30px; height: 30px; border-radius: 9999px; object-fit: cover; border: 2px solid #fff; background: #eee; }

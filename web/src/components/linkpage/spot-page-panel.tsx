@@ -17,10 +17,10 @@ export async function SpotPagePanel({ spotId, admin, monetizable }: { spotId: nu
       monetizable={monetizable}
       paidActive={paidActive}
       linkUrl={page ? linkPageUrl(linkBaseUrl(siteUrl()), spotId, page) : null}
-      page={page && { published: page.published, handle: page.handle, intro: page.intro, services: page.services, paidFrom: page.paidFrom, paidUntil: page.paidUntil }}
+      page={page && { published: page.published, handle: page.handle, intro: page.intro, services: page.services, paidFrom: page.paidFrom, paidUntil: page.paidUntil, theme: page.theme }}
       media={media.map((m) => ({ id: m.id, kind: m.kind, url: assetUrl(m.objectKey), posterUrl: assetUrl(m.posterKey) }))}
       stats={stats}
-      mediaLimit={MEDIA_LIMITS.paid.image}
+      mediaLimit={admin || paidActive ? MEDIA_LIMITS.paid : MEDIA_LIMITS.free}
     />
   );
 }

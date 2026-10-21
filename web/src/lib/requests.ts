@@ -100,7 +100,16 @@ export interface SpotRegisterPayload {
   kakaoUrl: string | null;
   instagramUrl: string | null;
   intro: string | null;
+  /** 사장님이 고른 처리 방법 — 적은 내용으로 확인 후 반영 / 카카오톡 상담 후 반영 (예전 요청은 없음) */
+  handling?: SpotHandling | null;
 }
+
+export const SPOT_HANDLINGS = ["approve", "kakao"] as const;
+export type SpotHandling = (typeof SPOT_HANDLINGS)[number];
+export const SPOT_HANDLING_LABEL: Record<SpotHandling, string> = {
+  approve: "확인 후 바로 반영 (승인)",
+  kakao: "카카오톡 상담 후 반영",
+};
 
 export interface CarePartnerPayload {
   typeSlug: string; // pet-sitter / hourly-sitter / dog-walk
@@ -152,7 +161,9 @@ export function validateSpotRegister(raw: Record<string, unknown>, allowedTypes:
   if (instagramUrl && typeof instagramUrl === "object") return { ok: false, error: instagramUrl.error };
   const intro = optional(raw, "intro", REQUEST_LIMITS.intro, "소개");
   if (intro && typeof intro === "object") return { ok: false, error: intro.error };
-  return { ok: true, value: { businessName, typeSlug, regionId, addressRoad, phone, website, kakaoUrl, instagramUrl, intro } };
+  const h = field(raw, "handling");
+  const handling = (SPOT_HANDLINGS as readonly string[]).includes(h) ? (h as SpotHandling) : null;
+  return { ok: true, value: { businessName, typeSlug, regionId, addressRoad, phone, website, kakaoUrl, instagramUrl, intro, handling } };
 }
 
 export function validateCarePartner(raw: Record<string, unknown>, careTypes: string[]): Validation<CarePartnerPayload> {
