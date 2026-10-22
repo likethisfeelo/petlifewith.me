@@ -14,6 +14,7 @@ import { SpotSearchBox } from "@/components/spot/spot-search-box";
 import { TypeGroups } from "@/components/spot/type-groups";
 import { shortSido } from "@/lib/spot-search";
 import { regionHref } from "@/lib/regions";
+import { typeSeo } from "@/lib/spot-seo";
 import { buildMeta, robotsMeta, shouldIndexRegionPage } from "@/lib/seo";
 import { formatNumber } from "@/lib/format";
 
@@ -34,7 +35,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (isCareType(spotType.slug)) {
     const person = carePersonLabel(spotType.slug);
     return buildMeta({
-      title: person === spotType.name ? `전국 ${person} 찾기` : `전국 ${person} 찾기 — 지역별 ${spotType.name}`,
+      title: `전국 ${typeSeo(spotType).head} 찾기 — 지역별 ${typeSeo(spotType).alt}`,
       description: `지역(시군구)별 ${person} 목록. 지역마다 5자리, 예약 신청과 카카오톡 상담으로 바로 연락합니다. 노령견 돌봄 경험을 확인하세요.`,
       path: `/spot/type/${spotType.slug}`,
       indexable: shouldIndexRegionPage(await countIndexableCareProviders(spotType.id)),
@@ -43,8 +44,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
   const indexableCount = await countIndexableSpotsForType(spotType.id);
   return buildMeta({
-    title: `전국 ${spotType.name}`,
-    description: `${spotType.name} 시설의 전국 시군구별 현황. 행정안전부 지방행정 인허가데이터 기반으로 기준일과 함께 제공합니다.`,
+    title: `전국 ${typeSeo(spotType).head} — 지역별 ${typeSeo(spotType).alt} 찾기`,
+    description: `전국 ${typeSeo(spotType).head}(${typeSeo(spotType).alt})를 시·군·구별로. ${spotType.name} 시설의 지역별 현황. 행정안전부 지방행정 인허가데이터 기반으로 기준일과 함께 제공합니다.`,
     path: `/spot/type/${spotType.slug}`,
     indexable: shouldIndexRegionPage(indexableCount),
     ads: spotType.monetizable,
@@ -89,8 +90,9 @@ export default async function SpotTypeHubPage({ params }: Props) {
       />
 
       <h1 className="mt-6 text-3xl font-extrabold tracking-tight text-ink">
-        전국 <span className="text-sea">{spotType.name}</span>
+        전국 <span className="text-sea">{typeSeo(spotType).head}</span>
       </h1>
+      <p className="mt-1 text-sm font-semibold text-ink-soft">{typeSeo(spotType).alt}</p>
       <p className="mt-2 text-sm text-ink-soft">
         영업 중 {formatNumber(total)}곳 · 지역을 검색하거나 시·도를 누르면 그 지역의 지도와 목록이 바로 나옵니다.
         {spotType.description ? ` ${spotType.description}` : ""}
@@ -222,8 +224,9 @@ async function CareTypeHub({ spotType }: { spotType: NonNullable<Awaited<ReturnT
         ]}
       />
       <h1 className="mt-6 text-3xl font-extrabold tracking-tight text-ink">
-        전국 <span className="text-sea">{person}</span> 찾기
+        전국 <span className="text-sea">{typeSeo(spotType).head}</span> 찾기
       </h1>
+      <p className="mt-1 text-sm font-semibold text-ink-soft">{typeSeo(spotType).alt}</p>
       <p className="mt-2 max-w-3xl text-sm leading-relaxed text-ink-soft">
         {CARE_INTRO[spotType.slug] ?? `${person}를 지역별로 찾습니다.`} 서울·경기·광역시는 구 단위, 그 밖은 시·군 단위로 지역마다 5자리를 둡니다.{" "}
         지도에서 구·시·군을 누르면 그 지역의 {person} 페이지로 갑니다. 예약 신청을 남기면 운영자가 확인해 연결하고, 카카오톡 채널이 있는
