@@ -1,3 +1,4 @@
+import { typeSeo } from "@/lib/spot-seo";
 import { TrackContext } from "@/components/tracker";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -43,7 +44,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { spot, typeName, region } = found;
   const linkCount = (await getSpotLinks(spot.id)).length;
   return buildMeta({
-    title: spot.seoTitle ?? `${spot.name} — ${region.sigunguName} ${typeName}`,
+    title: spot.seoTitle ?? `${spot.name} — ${region.sigunguName} ${typeSeo({ slug: found.typeSlug, name: typeName }).head}`,
     description:
       spot.seoDescription ?? spot.descriptionMd?.split("\n")[0] ?? `${region.sidoName} ${region.sigunguName}의 ${typeName}.`,
     path: idSlugPath("place", spot.id, spot.slug),

@@ -22,6 +22,7 @@ import {
   listSpotsInRegion,
   type SpotTypeRow,
 } from "@/lib/queries/spots";
+import { regionTypeTitle, typeSeo } from "@/lib/spot-seo";
 import { buildMeta, itemListLd, robotsMeta, shouldIndexRegionPage } from "@/lib/seo";
 import { toBrowserSpots } from "@/lib/spot-browser-server";
 import { TYPE_ICON, generalGusOf, shortSido } from "@/lib/spot-search";
@@ -41,8 +42,8 @@ export async function sidoTypeMetadata(sidoSlug: string, found: { type: SpotType
   if (isCareType(type.slug)) return { robots: robotsMeta(false) };
   const n = await countIndexableSpotsInSido(sidoSlug, type.id);
   return buildMeta({
-    title: `${shortSido(sidoName)} ${type.name} — ${sidoName} ${type.name} ${n}곳 지도`,
-    description: `${sidoName}의 ${type.name} ${n}곳을 지도와 목록으로. 시·군·구별로 좁혀 보고, 운영시간·주차·예약 정보를 확인하세요.`,
+    title: regionTypeTitle(shortSido(sidoName), type, n),
+    description: `${sidoName} ${typeSeo(type).head} ${n}곳 — ${typeSeo(type).alt}를 지도와 목록으로. 시·군·구별로 좁혀 보고, 운영시간·주차·예약 정보를 확인하세요.`,
     path: `/spot/${sidoSlug}/${type.slug}`,
     indexable: shouldIndexRegionPage(n),
     ads: type.monetizable,
@@ -89,8 +90,9 @@ export async function SidoTypePage({ sidoSlug, found }: { sidoSlug: string; foun
       />
 
       <h1 className="mt-6 text-3xl font-extrabold tracking-tight text-ink">
-        {short} <span className="text-sea">{type.name}</span>
+        {short} <span className="text-sea">{typeSeo(type).head}</span>
       </h1>
+      <p className="mt-1 text-sm font-semibold text-ink-soft">{typeSeo(type).alt}</p>
       <p className="mt-2 text-sm text-ink-soft">
         {sidoName} 영업 중 {items.length.toLocaleString("ko-KR")}곳 · 시·군·구를 누르면 그 지역으로 좁혀 봅니다.
       </p>
@@ -139,7 +141,7 @@ export async function SidoTypePage({ sidoSlug, found }: { sidoSlug: string; foun
       {items.length > 0 && (
         <JsonLd
           data={itemListLd({
-            name: `${sidoName} ${type.name}`,
+            name: `${sidoName} ${typeSeo(type).head}`,
             items: spots.slice(0, 100).map((s) => ({ name: s.spot.name, path: idSlugPath("place", s.spot.id, s.spot.slug) })),
           })}
         />

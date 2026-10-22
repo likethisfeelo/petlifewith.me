@@ -23,6 +23,7 @@ import {
   listRegionTiles,
   listSpotsInRegion,
 } from "@/lib/queries/spots";
+import { regionTypeTitle, typeSeo } from "@/lib/spot-seo";
 import { buildMeta, itemListLd, robotsMeta, shouldIndexRegionPage } from "@/lib/seo";
 import { idSlugPath } from "@/lib/format";
 import { SpotRegisterBanner } from "@/components/spot-register-banner";
@@ -47,8 +48,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (isCareType(spotType.slug)) {
     const person = carePersonLabel(spotType.slug);
     return buildMeta({
-      title: `${region.sigunguName} ${person}`,
-      description: `${region.sidoName} ${region.sigunguName}에서 활동하는 ${person} 목록. 지역당 5자리, 예약 신청·카카오톡 상담.`,
+      title: regionTypeTitle(`${shortSido(region.sidoName)} ${region.sigunguName}`, spotType),
+      description: `${region.sidoName} ${region.sigunguName}에서 활동하는 ${typeSeo(spotType).head}(${typeSeo(spotType).alt}) ${person} 목록. 지역당 5자리, 예약 신청·카카오톡 상담.`,
       path: `/spot/${region.sidoSlug}/${region.sigunguSlug}/${spotType.slug}`,
       indexable: shouldIndexRegionPage(await countIndexableCareProviders(spotType.id, region.id)),
       ads: spotType.monetizable,
@@ -56,8 +57,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
   const indexableCount = await countIndexableSpotsInRegion(region.id, spotType.id);
   return buildMeta({
-    title: `${region.sigunguName} ${spotType.name}`,
-    description: `${region.sidoName} ${region.sigunguName}의 ${spotType.name} 목록. 인허가 데이터 기준일과 함께 제공합니다.`,
+    title: regionTypeTitle(`${shortSido(region.sidoName)} ${region.sigunguName}`, spotType, indexableCount),
+    description: `${region.sidoName} ${region.sigunguName} ${typeSeo(spotType).head} ${indexableCount}곳 — ${typeSeo(spotType).alt}를 지도와 목록으로. 운영시간·주차·예약 정보와 인허가 데이터 기준일을 함께 제공합니다.`,
     path: `/spot/${region.sidoSlug}/${region.sigunguSlug}/${spotType.slug}`,
     // 지역 x 유형 페이지도 동일 게이트: 3곳 미만이면 noindex
     indexable: shouldIndexRegionPage(indexableCount),
@@ -102,8 +103,9 @@ export default async function RegionTypePage({ params }: Props) {
         />
 
         <h1 className="mt-6 text-3xl font-extrabold tracking-tight text-ink">
-          {region.sigunguName} <span className="text-sea">{person}</span>
+          {region.sigunguName} <span className="text-sea">{typeSeo(spotType).head}</span>
         </h1>
+        <p className="mt-1 text-sm font-semibold text-ink-soft">{typeSeo(spotType).alt}</p>
         <p className="mt-2 max-w-3xl text-sm leading-relaxed text-ink-soft">
           {CARE_INTRO[spotType.slug] ?? `${person}를 지역별로 찾습니다.`} 지역마다 5자리. 예약 신청을 남기면 운영자가 확인해 연결하고,
           카카오톡 채널이 있는 파트너는 바로 상담할 수 있습니다.
@@ -134,7 +136,7 @@ export default async function RegionTypePage({ params }: Props) {
         {realProviders.length > 0 && (
           <JsonLd
             data={itemListLd({
-              name: `${region.sigunguName} ${person}`,
+              name: `${region.sidoName} ${region.sigunguName} ${typeSeo(spotType).head}`,
               items: realProviders.map((p) => ({ name: p.name, path: idSlugPath("place", p.id, p.slug) })),
             })}
           />
@@ -174,12 +176,13 @@ export default async function RegionTypePage({ params }: Props) {
       />
 
       <h1 className="mt-6 text-3xl font-extrabold tracking-tight text-ink">
-        {region.sigunguName} <span className="text-sea">{spotType.name}</span>
+        {region.sigunguName} <span className="text-sea">{typeSeo(spotType).head}</span>
       </h1>
+      <p className="mt-1 text-sm font-semibold text-ink-soft">{typeSeo(spotType).alt}</p>
       <p className="mt-2 text-sm text-ink-soft">
         {spotType.description ? `${spotType.description} · ` : ""}
         <a href={`/spot/${region.sidoSlug}/${spotType.slug}`} className="font-medium text-sea hover:underline">
-          {shortSido(region.sidoName)} 전체 {spotType.name} 보기 →
+          {shortSido(region.sidoName)} 전체 {typeSeo(spotType).head} 보기 →
         </a>
       </p>
 
@@ -229,7 +232,7 @@ export default async function RegionTypePage({ params }: Props) {
       {spots.length > 0 && (
         <JsonLd
           data={itemListLd({
-            name: `${region.sigunguName} ${spotType.name}`,
+            name: `${region.sidoName} ${region.sigunguName} ${typeSeo(spotType).head}`,
             items: spots.map((s) => ({ name: s.spot.name, path: idSlugPath("place", s.spot.id, s.spot.slug) })),
           })}
         />
