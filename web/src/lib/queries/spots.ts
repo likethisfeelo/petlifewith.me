@@ -4,7 +4,7 @@ import { getDb, isDbConfigured, schema } from "../db";
 import type { RegionTile } from "../regions";
 import { tierOf, todayKst, type SpotPageLike, type SpotTier } from "../spot-pages";
 
-const { spots, spotTypes, regions, promotions, regionDogStats, spotLinks, spotPages } = schema;
+const { spots, spotTypes, regions, promotions, regionDogStats, spotLinks, spotPages, spotMedia, mediaAssets } = schema;
 
 export type SpotRow = typeof spots.$inferSelect;
 export type SpotLinkRow = typeof spotLinks.$inferSelect;
@@ -23,6 +23,8 @@ export interface SpotWithMeta {
   page: SpotPageLike | null;
   /** 노출 등급 — 상단 노출 → 유료 → 무료(등록) → 미등록 (lib/spot-pages.ts) */
   tier: SpotTier;
+  /** 링크 페이지 첫 사진 (목록 대표 사진은 프리미엄·상단 노출만 — lib/spot-browser-server.ts) */
+  photoKey?: string | null;
 }
 
 const pageCols = {
@@ -125,7 +127,8 @@ export async function listSpotsInRegion(where: number | { sidoSlug: string }, ty
   // 유형을 명시하면 — B2B 참고 유형 포함 — 그 유형의 목록을 그대로 보여준다.
   const conds = [typeof where === "number" ? eq(spots.regionId, where) : eq(regions.sidoSlug, where.sidoSlug), eq(spots.status, "operating")];
   if (typeId) conds.push(eq(spots.typeId, typeId));
-  else conds.push(eq(spotTypes.listed, true));
+  // 섞인 목록은 소비자 유형만 — 돌봄 파트너(개인)는 주소로 싣지 않는다 (서비스 지역 페이지로만)
+  else conds.push(eq(spotTypes.listed, true), notInArray(spotTypes.slug, [...CARE_TYPE_SLUGS]));
   const today = todayKst();
   const promotedSql = sql<boolean>`exists (
         select 1 from ${promotions} p
@@ -148,6 +151,7 @@ export async function listSpotsInRegion(where: number | { sidoSlug: string }, ty
       typeListed: spotTypes.listed,
       region: regions,
       promoted: promotedSql,
+      photoKey: sql<string | null>`(select a.object_key from ${spotMedia} m join ${mediaAssets} a on a.id = m.asset_id where m.spot_id = ${spots.id} and a.kind = 'image' order by m.sort_order, m.id limit 1)`,
       ...pageCols,
     })
     .from(spots)

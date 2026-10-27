@@ -1,7 +1,7 @@
 // 업체 링크 페이지 조회·통계 — 순수 규칙은 lib/spot-pages.ts
 import { and, asc, desc, eq, gte, sql } from "drizzle-orm";
 import { getDb, isDbConfigured, schema } from "../db";
-import { isPaidActive, todayKst, type SpotTier } from "../spot-pages";
+import { isPaidActive, todayKst, visibleMedia, type SpotTier } from "../spot-pages";
 import { getSpotLinks, type RegionRow, type SpotLinkRow, type SpotRow } from "./spots";
 
 const { spots, spotTypes, regions, spotPages, spotMedia, mediaAssets, promotions, spotPageStats } = schema;
@@ -80,7 +80,9 @@ export async function getLinkPage(key: { kind: "id"; id: number } | { kind: "han
   )[0];
   if (!row) return null;
   const paid = row.typeMonetizable && isPaidActive(row.page);
-  const [links, media] = await Promise.all([getSpotLinks(row.spot.id), paid ? listSpotMedia(row.spot.id) : Promise.resolve([])]);
+  // 사진·영상은 등급 한도만큼 (무료 사진 3·영상 1, 프리미엄 각 10)
+  const [links, allMedia] = await Promise.all([getSpotLinks(row.spot.id), listSpotMedia(row.spot.id)]);
+  const media = visibleMedia(allMedia, paid);
   const { promoted, ...rest } = row;
   return { ...rest, paid, tier: promoted && row.typeMonetizable ? "promoted" : paid ? "paid" : "free", links, media };
 }
@@ -138,4 +140,61 @@ export async function getSpotPageStats(spotId: number): Promise<SpotPageStatsSum
       .where(eq(spotPageStats.spotId, spotId)),
   ]);
   return { days, ...(totals[0] ?? empty) };
+}
+
+// ---------- 시도 페이지 맨 위 "이 지역 등록 업체" 줄 ----------
+
+export interface ShowcaseSpot {
+  id: number;
+  slug: string;
+  name: string;
+  typeName: string;
+  sigunguName: string;
+  tier: SpotTier;
+  imageKey: string | null;
+  intro: string | null;
+}
+
+/** 시도 안의 링크 페이지 업체 — 상단 노출 → 프리미엄 → 등록 순, 같은 등급은 사진 있는 곳·최근 갱신 먼저 */
+export async function listShowcaseInSido(sidoSlug: string, limit = 12): Promise<ShowcaseSpot[]> {
+  if (!isDbConfigured()) return [];
+  const today = todayKst();
+  const promotedSql = sql<boolean>`exists (select 1 from ${promotions} p where p.spot_id = ${spots.id} and p.active = true and p.kind = 'region_top')`;
+  const paidSql = sql<boolean>`(${spotPages.paidFrom} <= ${today} and ${spotPages.paidUntil} >= ${today})`;
+  const firstImage = sql<string | null>`(select a.object_key from ${spotMedia} m join ${mediaAssets} a on a.id = m.asset_id where m.spot_id = ${spots.id} and a.kind = 'image' order by m.sort_order, m.id limit 1)`;
+  const rows = await getDb()
+    .select({
+      id: spots.id,
+      slug: spots.slug,
+      name: spots.name,
+      typeName: spotTypes.name,
+      sigunguName: regions.sigunguName,
+      promoted: promotedSql,
+      paid: paidSql,
+      heroImageKey: spots.heroImageKey,
+      firstImage,
+      intro: spotPages.intro,
+    })
+    .from(spotPages)
+    .innerJoin(spots, eq(spotPages.spotId, spots.id))
+    .innerJoin(spotTypes, eq(spots.typeId, spotTypes.id))
+    .innerJoin(regions, eq(spots.regionId, regions.id))
+    .where(and(eq(regions.sidoSlug, sidoSlug), eq(spotPages.published, true), eq(spots.status, "operating"), eq(spotTypes.monetizable, true), eq(spotTypes.listed, true)))
+    .orderBy(
+      sql`case when ${promotedSql} then 0 when ${paidSql} then 1 else 2 end`,
+      sql`case when ${spots.heroImageKey} is not null or ${firstImage} is not null then 0 else 1 end`,
+      desc(spotPages.updatedAt),
+    )
+    .limit(limit);
+  return rows.map((r) => ({
+    id: r.id,
+    slug: r.slug,
+    name: r.name,
+    typeName: r.typeName,
+    sigunguName: r.sigunguName,
+    tier: r.promoted ? "promoted" : r.paid ? "paid" : "free",
+    // 사진은 프리미엄·상단 노출만 — 목록 카드 규칙과 같게
+    imageKey: r.promoted || r.paid ? (r.firstImage ?? r.heroImageKey) : null,
+    intro: r.intro,
+  }));
 }

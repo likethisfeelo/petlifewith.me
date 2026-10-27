@@ -22,6 +22,9 @@ describe("종류별 검증", () => {
     expect(validateSpotRegister({}, ["pool"])).toMatchObject({ ok: true, value: { businessName: null, typeSlug: null, regionId: null } });
     expect(validateSpotRegister({ businessName: "멍멍", typeSlug: "pet-sitter", regionId: "1" }, ["pool"]).ok).toBe(false);
     expect(validateSpotRegister({ businessName: "멍멍", typeSlug: "pool", regionId: "1", kakaoUrl: "pf.kakao.com/x" }, ["pool"])).toMatchObject({ ok: false });
+    // 처리 방법 — 정해진 값만, 나머지는 null
+    expect(validateSpotRegister({ handling: "kakao" }, ["pool"])).toMatchObject({ ok: true, value: { handling: "kakao" } });
+    expect(validateSpotRegister({ handling: "x" }, ["pool"])).toMatchObject({ ok: true, value: { handling: null } });
   });
   it("돌봄 파트너: 호칭·활동명·지역(최대 5)·소개 10자", () => {
     const ok = validateCarePartner({ typeSlug: "dog-walk", displayName: "산책하는 지영", regionIds: "3,3,5", intro: "매일 아침 두 시간 산책 동행합니다" }, ["pet-sitter", "dog-walk"]);

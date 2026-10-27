@@ -6,6 +6,7 @@ import { useActionState, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { addSpotMediaAction, deleteSpotPageAction, moveSpotMediaAction, removeSpotMediaAction, saveSpotPageAction, type SpotPageActionState } from "@/app/spot-page-actions";
 import { uploadMediaFile } from "@/lib/media-upload";
+import { PREMIUM_THEMES, premiumTheme } from "@/lib/spot-pages";
 
 export interface EditorMedia {
   id: number;
@@ -35,10 +36,12 @@ interface Props {
     services: string[];
     paidFrom: string | null;
     paidUntil: string | null;
+    theme: string | null;
   } | null;
   media: EditorMedia[];
   stats: EditorStats | null;
-  mediaLimit: number;
+  /** 종류별 올릴 수 있는 개수 (무료 사진 3·영상 1, 프리미엄·관리자 각 10) */
+  mediaLimit: { image: number; video: number };
 }
 
 const input = "w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm text-ink focus:border-sea focus:outline-none";
@@ -48,7 +51,10 @@ export function SpotPageEditor({ spotId, admin, monetizable, paidActive, linkUrl
   const [state, action, pending] = useActionState<SpotPageActionState, FormData>(saveSpotPageAction, {});
   // 짧은 주소는 사장님만 여기서 (관리자는 유료 상품 칸에서)
   const canHandle = !admin && monetizable && paidActive;
-  const canMedia = !!page && (admin || (monetizable && paidActive));
+  const canMedia = !!page;
+  // 배경 테마 — 프리미엄 기간의 사장님, 관리자는 언제나 (무료 페이지에는 적용되지 않는다)
+  const canTheme = !!page && monetizable && (admin || paidActive);
+  const [theme, setTheme] = useState(premiumTheme(page?.theme).key);
 
   if (!page && !admin) return null;
 
@@ -71,7 +77,7 @@ export function SpotPageEditor({ spotId, admin, monetizable, paidActive, linkUrl
       </div>
       <p className="mt-1 text-xs text-ink-faint">
         채널·예약·위치를 한 장에 모은 페이지입니다. 인스타그램 프로필·명함·카카오톡 채널에 주소를 걸어 두세요.
-        {!paidActive && monetizable && !admin && " 프리미엄은 짧은 주소, 사진·영상(각 10개), 어두운 디자인이 추가됩니다."}
+        {!paidActive && monetizable && !admin && " 프리미엄은 짧은 주소, 사진·영상 각 10개, 목록·지도 대표 사진, 배경 테마가 추가됩니다."}
         {admin && " 프리미엄 기간·짧은 주소는 위 \"유료 상품\" 칸에서 정합니다."}
       </p>
 
@@ -115,6 +121,29 @@ export function SpotPageEditor({ spotId, admin, monetizable, paidActive, linkUrl
           </div>
         )}
 
+        {canTheme && (
+          <div>
+            <span className={label}>배경 테마 (프리미엄)</span>
+            <input type="hidden" name="theme" value={theme} />
+            <div role="radiogroup" aria-label="배경 테마" className="flex flex-wrap gap-2">
+              {PREMIUM_THEMES.map((t) => (
+                <button
+                  key={t.key}
+                  type="button"
+                  role="radio"
+                  aria-checked={theme === t.key}
+                  onClick={() => setTheme(t.key)}
+                  className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold ${theme === t.key ? "border-ink ring-2 ring-ink/30" : "border-line"}`}
+                >
+                  <span aria-hidden className="h-4 w-4 rounded-full border border-white/20" style={{ background: `linear-gradient(135deg, ${t.card}, ${t.bg})` }} />
+                  {t.name}
+                </button>
+              ))}
+            </div>
+            {admin && !paidActive && <p className="mt-1 text-[11px] text-ink-faint">프리미엄 기간에만 보입니다. 지금은 저장만 됩니다.</p>}
+          </div>
+        )}
+
         <div>
           <span className={label}>업체 소개 (한 문단)</span>
           <textarea name="intro" rows={3} maxLength={600} defaultValue={page?.intro ?? ""} placeholder="비우면 장소 설명의 첫 문단을 씁니다." className={input} />
@@ -134,9 +163,15 @@ export function SpotPageEditor({ spotId, admin, monetizable, paidActive, linkUrl
 
       {canMedia && (
         <div className="mt-6 space-y-5 border-t border-line pt-5">
-          {!paidActive && <p className="text-xs text-honey">유료 기간이 아니라 공개 페이지에는 아직 보이지 않습니다 (미리 올려 둘 수 있습니다).</p>}
-          <MediaGroup spotId={spotId} kind="image" items={media.filter((m) => m.kind === "image")} limit={mediaLimit} />
-          <MediaGroup spotId={spotId} kind="video" items={media.filter((m) => m.kind === "video")} limit={mediaLimit} />
+          <p className="text-xs text-ink-soft">
+            {paidActive
+              ? "프리미엄: 사진·영상 각 10개. 첫 사진이 목록 카드·지도 핀의 대표 사진이 돼요."
+              : admin
+                ? "관리자는 각 10개까지 미리 올릴 수 있어요. 공개 화면에는 무료면 사진 3장·영상 1개까지만 보여요."
+                : "무료: 사진 3장·영상 1개 (링크 페이지에 보여요). 프리미엄이면 각 10개와 목록·지도 대표 사진이 추가돼요."}
+          </p>
+          <MediaGroup spotId={spotId} kind="image" items={media.filter((m) => m.kind === "image")} limit={mediaLimit.image} />
+          <MediaGroup spotId={spotId} kind="video" items={media.filter((m) => m.kind === "video")} limit={mediaLimit.video} />
         </div>
       )}
 

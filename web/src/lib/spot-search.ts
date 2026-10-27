@@ -107,3 +107,30 @@ export function generalGusOf(sidoName: string, sigunguName: string): string[] {
   const short = shortSido(sidoName);
   return GENERAL_GU.find(([s, city]) => s === short && city === sigunguName)?.[2] ?? [];
 }
+
+// ---------- 지역 칩 검색 (시도 안의 시·군·구) ----------
+
+export interface AreaChip {
+  name: string;
+  href: string;
+  count: number;
+  /** 일반구 (수원시 → 영통구 …) — "영통"으로도 찾게 */
+  gus?: string[];
+}
+
+/** 칩 걸러내기 — 이름 앞부분 → 포함 → 일반구 순. 빈 검색어면 그대로 */
+export function filterAreas<T extends AreaChip>(areas: T[], query: string): Array<T & { via?: string }> {
+  const q = squash(query.trim());
+  if (!q) return areas;
+  const scored: Array<{ a: T & { via?: string }; score: number }> = [];
+  for (const a of areas) {
+    const n = squash(a.name);
+    if (n.startsWith(q)) scored.push({ a, score: 0 });
+    else if (n.includes(q)) scored.push({ a, score: 1 });
+    else {
+      const gu = a.gus?.find((g) => squash(g).startsWith(q) || (q.length >= 2 && squash(g).includes(q)));
+      if (gu) scored.push({ a: { ...a, via: gu }, score: 2 });
+    }
+  }
+  return scored.sort((x, y) => x.score - y.score || y.a.count - x.a.count).map((x) => x.a);
+}

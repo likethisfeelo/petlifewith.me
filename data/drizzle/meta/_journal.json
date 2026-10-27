@@ -183,6 +183,13 @@
       "when": 1792306312581,
       "tag": "0025_spot_link_pages",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1792557163374,
+      "tag": "0026_spot_page_theme",
+      "breakpoints": true
     }
   ]
 }

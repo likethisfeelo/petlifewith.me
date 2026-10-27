@@ -9,6 +9,7 @@ import {
   REQUEST_KIND_LABEL,
   REQUEST_STATUSES,
   REQUEST_STATUS_LABEL,
+  SPOT_HANDLING_LABEL,
   type CarePartnerPayload,
   type PromoSlotPayload,
   type RequestKind,
@@ -56,6 +57,7 @@ function payloadRows(item: RequestListItem, labels: Record<number, string>): Arr
   if (kind === "spot_register") {
     const p = payload as SpotRegisterPayload;
     return [
+      ["처리 방법", p.handling ? SPOT_HANDLING_LABEL[p.handling] : "-"],
       ["업체명", p.businessName ?? "-"],
       ["업종", p.typeSlug ?? "-"],
       ["지역", region(p.regionId)],
