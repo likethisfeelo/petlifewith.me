@@ -53,6 +53,12 @@ async function readDeployEnv(stage: string): Promise<Record<string, string>> {
       throw new Error(`.env.deploy.${stage} 에 ${required} 가 없습니다 (scripts/aws-db.ps1 재실행).`);
     }
   }
+  // 지도 키는 빌드 때 박힌다 — 빠진 env 파일로 배포하면 모든 지도가 "불러오지 못했습니다"가 된다 (2026-10 실제로 겪음)
+  if (!env.NEXT_PUBLIC_KAKAO_MAP_KEY) {
+    throw new Error(
+      `.env.deploy.${stage} 에 NEXT_PUBLIC_KAKAO_MAP_KEY 가 없습니다. Kakao Developers → 앱 키 → JavaScript 키를 넣으세요.`,
+    );
+  }
   return env;
 }
 
