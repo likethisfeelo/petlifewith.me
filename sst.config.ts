@@ -243,7 +243,8 @@ export default $config({
     const web = new sst.aws.Nextjs("Web", {
       path: "web",
       // Next.js 15 는 2026-10 지원 기간(2년)이 끝나 OpenNext 가 빌드를 거부한다 — Next 16 으로 올리기 전까지 플래그로 진행
-      buildCommand: "npx --yes @opennextjs/aws@3.9.14 build --dangerously-use-unsupported-next-version",
+      // 플래그 뒤에 값(true)이 있어야 한다 — OpenNext 인자 파서는 값 없는 마지막 플래그를 "없음"으로 읽는다
+      buildCommand: "npx --yes @opennextjs/aws@3.9.14 build --dangerously-use-unsupported-next-version true",
       link: [media, auth], // 버킷(presign·삭제) + 사용자 풀(cognito-idp:* — 관리자 API) 권한
       // 저장·삭제 뒤 CloudFront 캐시 비우기(web/src/lib/cdn.ts) — CreateInvalidation 은 SST 가 기본으로 주고,
       // 배포 ID 를 별칭으로 찾는 목록 조회만 더한다 (배포 ID 를 env 로 넘기면 순환 참조)
